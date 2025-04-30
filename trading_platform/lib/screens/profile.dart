@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../models/user.dart';
+import '../models/user/user.dart';
 
 class Profile extends StatelessWidget {
   // 這裡我們還是保留 currentUser，因為個人資料頁面通常需要顯示使用者資訊

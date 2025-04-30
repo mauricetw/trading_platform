@@ -1,3 +1,5 @@
+import '../user/user.dart';
+import '../order/shipping_info.dart';
 class Product {
   final String id; //唯一識別碼
   final String name;
@@ -15,9 +17,7 @@ class Product {
   final int? reviewCount; // 新增：評價數量 (使用 nullable int?)
   final List<String>? tags; // 新增：標籤 (使用 nullable List<String>?)
   final ShippingInformation? shippingInfo; // 新增：運費資訊 (使用 nullable ShippingInformation?)
-  final Seller? seller; // 新增：賣家資訊 (使用 nullable Seller?)
-
-
+  final User? seller; // 新增：賣家資訊 (使用 nullable Seller?)
 
   // 可以添加其他屬性
 
@@ -43,30 +43,4 @@ class Product {
 }
 
 
-// 運費資訊 Model (範例)
-class ShippingInformation {
-  final double cost;
-  final String region; // 例如："全國", "指定地區"
-  final String? carrier; // 例如："黑貓宅急便", "郵局"
 
-  ShippingInformation({
-    required this.cost,
-    required this.region,
-    this.carrier,
-  });
-}
-
-// 賣家 Model (範例)
-class Seller {
-  final String id;
-  final String name;
-  final String? avatarUrl; // 賣家大頭貼 URL (使用 nullable String?)
-  final double? rating; // 賣家評分 (使用 nullable double?)
-
-  Seller({
-    required this.id,
-    required this.name,
-    this.avatarUrl,
-    this.rating,
-  });
-}

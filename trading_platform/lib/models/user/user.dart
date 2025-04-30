@@ -2,6 +2,7 @@ class User {
   final String id;
   final String username;
   final String email;
+  final String? phoneNumber;
   final String? avatarUrl; // 大頭貼 URL (nullable)
   final DateTime registeredAt;
   final DateTime? lastLoginAt; // 最後登入時間 (nullable)
@@ -9,6 +10,7 @@ class User {
   final String? schoolName; // 校名 (nullable)
   final bool? isVerified; // 是否已驗證 (nullable)
   final List<String>? roles; // 權限/角色 (nullable)
+
   // 新增賣家相關屬性
   final bool? isSeller; // 是否是賣家 (nullable)
   final String? sellerName; // 賣家名稱 (nullable)
@@ -21,6 +23,7 @@ class User {
     required this.id,
     required this.username,
     required this.email,
+    this.phoneNumber,
     this.avatarUrl,
     required this.registeredAt,
     this.lastLoginAt,

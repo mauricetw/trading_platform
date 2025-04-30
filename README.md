@@ -9,7 +9,7 @@
 	-	 	python -m venv venv  #安裝虛擬機
 	-	  venv\Scripts\activate  #啟動虛擬機
  
-4. 安裝 FastAPI、Uvicorn、MySQL 相關套件：
+4. 安裝 FastAPI、Uvicorn、MySQL、provider 相關套件：
 	 -	 	pip install fastapi uvicorn sqlalchemy mysql-connector-python python-multipart passlib[bcrypt]
 
    fastapi：主框架
@@ -23,24 +23,29 @@
    python-multipart：定義資料結構（FastAPI 自帶）
    
    passlib[bcrypt]：密碼加密（註冊/登入用）
+
+   provider： 狀態管理，版本 ^6.0.5
+
 5. 建立基本專案結構：
-	> trading_platform/
-	> 
+	> trading_database/
 	> ├── main.py               # 主入口
-	> 
 	> ├── database.py           # MySQL 連線
-	> 
 	> ├── models.py             # 資料表定義
-	> 
 	> ├── schemas.py            # 資料驗證
-	> 
 	> ├── routers/
-	> 
-	> |   ├── users.py          # 使用者API
-	> 
-	> |   ├── products.py       # 商品API
-	> 
-	> | 	└── orders.py         # 訂單API
+	> │   ├── users.py          # 使用者API
+	> │   ├── products.py       # 商品API
+	> │ 	└── orders.py       # 訂單API
+	>
+	> trading_platform/ 
+	> ├── lib/
+	> │   ├── models/
+    > │   │   └── ... 其他分類資料夾
+    > │   ├── providers/
+    > │   │   └── ... 其他分類資料夾 
+	> │   ├── screens/
+	> │   │   └── ... 介面
+	> │   ├── main.dart   
 
 ## 使用XAMPP建立MySQL資料庫
 1. 啟動 MySQL

@@ -3,7 +3,7 @@ import 'search.dart';
 import 'annoucement.dart';
 import 'profile.dart';
 import 'chat_list.dart';
-import '../models/user.dart';
+import '../models/user/user.dart';
 
 class MainMarket extends StatefulWidget {
   const MainMarket({super.key});
