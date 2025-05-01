@@ -3,6 +3,7 @@ import 'search.dart';
 import 'annoucement.dart';
 import 'profile.dart';
 import 'chat_list.dart';
+import '../models/user/user.dart';
 
 class MainMarket extends StatefulWidget {
   const MainMarket({super.key});
@@ -59,6 +60,19 @@ class _MainMarketState extends State<MainMarket> {
 
   @override
   Widget build(BuildContext context) {
+
+    // 創建一個模擬的 User 物件
+    // 在實際應用中，你會在這裡從狀態管理或其他地方獲取真實的使用者資料
+    final User dummyUser = User(
+      id: 'test_user_id',
+      username: '測試用戶',
+      email: 'test@example.com',
+      registeredAt: DateTime.now(),
+      isSeller: true, // 或者 false，根據你的測試需求
+      bio: '這是一個測試帳號的簡介',
+      schoolName: '測試大學',
+    );
+
     return Scaffold(
       body: Column(
         children: [
@@ -79,14 +93,14 @@ class _MainMarketState extends State<MainMarket> {
             child: PageView(
               controller: _pageController, // 設定 PageView 的控制器
               onPageChanged: _onPageChanged, // 設定頁面切換時要執行的函式
-              children: const [
+              children: [
                 // 商品列表會在這裡顯示
-                Center(
+                const Center(
                   child: Text('商品列表會在這裡顯示'), // 之後要換成真正的商品列表
                 ),
-                ChatList(), // 訊息頁面
-                Annoucement(), // 通知頁面
-                Profile(), // 個人檔案頁面
+                const ChatList(), // 訊息頁面
+                const Annoucement(), // 通知頁面
+                Profile(currentUser: dummyUser), // 個人檔案頁面
               ],
             ),
           ),
