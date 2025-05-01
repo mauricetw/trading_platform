@@ -1,18 +1,13 @@
 from fastapi import FastAPI
-from database import Base, engine
-from routers import users, products, orders
+from routers import auth, products, orders
+from database.db import engine, Base
 
 app = FastAPI()
 
-# 初始化資料表
+# 建立資料庫表
 Base.metadata.create_all(bind=engine)
 
-# 掛載 API 路由
-app.include_router(users.router)
-app.include_router(products.router)
-app.include_router(orders.router)
-
-# 測試用
-@app.get("/")
-def home():
-    return {"message": "後端運作中"}
+# 註冊路由
+app.include_router(auth.router, tags=["Authentication"])
+app.include_router(products.router, tags=["Product"])
+app.include_router(orders.router, tags=["Order"])

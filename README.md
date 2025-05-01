@@ -27,15 +27,82 @@
    provider： 狀態管理，版本 ^6.0.5
 
 5. 建立基本專案結構：
-	> trading_database/
-	> ├── main.py               # 主入口
-	> ├── database.py           # MySQL 連線
-	> ├── models.py             # 資料表定義
-	> ├── schemas.py            # 資料驗證
+
+	> /trading_backend/
+ 	> 
+	> │
+ 	> 
+	> ├── main.py               # FastAPI 主入口
+ 	> 
+	> ├── requirements.txt      # 專案用到的所有Python套件
+ 	> 
+	> │
+ 	> 
+	> ├── database/
+ 	> 
+	> │   ├── __init__.py        # SQLAlchemy資料庫連線設定
+ 	> 
+	> │
+ 	> 
+	> ├── models/
+ 	> 
+	> │   ├── __init__.py
+ 	> 
+	> │   ├── user.py            # User資料表模型
+ 	> 
+	> │   ├── product.py         # Product資料表模型
+ 	> 
+	> │   ├── order.py           # Order資料表模型
+ 	> 
+	> │
+ 	> 
+	> ├── schemas/
+ 	> 
+	> │   ├── __init__.py
+ 	> 
+	> │   ├── user_schema.py     # User資料表用到的資料結構
+ 	> 
+	> │   ├── product_schema.py  # Product資料表用到的資料結構
+ 	> 
+	> │   ├── order_schema.py    # Order資料表用到的資料結構
+ 	> 
+	> │
+ 	> 
 	> ├── routers/
-	> │   ├── users.py          # 使用者API
-	> │   ├── products.py       # 商品API
-	> │ 	└── orders.py       # 訂單API
+ 	> 
+	> │   ├── __init__.py
+ 	> 
+	> │   ├── auth.py            # 登入/註冊/忘記密碼/重設密碼功能
+ 	> 
+	> │   ├── product.py         # 商品相關API
+ 	> 
+	> │   ├── order.py           # 訂單相關API
+ 	> 
+	> │
+ 	> 
+	> ├── utils/
+ 	> 
+	> │   ├── __init__.py
+ 	> 
+	> │   ├── hashing.py         # 密碼加密驗證
+ 	> 
+	> │   ├── token.py           # 重設密碼的token生成與驗證
+ 	> 
+	> │
+ 	> 
+	> ├── mail_config.py         # 發送email相關設定
+ 	> 
+	> │
+ 	> 
+	> └── .env                   # 環境變數設定（如資料庫帳密）
+
+
+ - schema:用來描述資料庫內中的表格結構、欄位格式以及記載每個表格中的關聯。當你日後要寫入的資料不符合 Schema 的規範時，那就會出現錯誤。
+ - routers:各種操作所需的API
+ - models:資料表中的資料模型
+ - database:連接MySQL資料庫
+ - utils:加密/生成token
+ 
 	>
 	> trading_platform/ 
 	> ├── lib/
