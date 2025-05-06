@@ -121,9 +121,9 @@ void main() {
 //         onPressed: _incrementCounter,
 //         tooltip: 'Increment',
 //         child: const Icon(Icons.add),
-//       ),
-// //   }// This trailing comma makes auto-formatting nicer for build methods.
+//       ), // This trailing comma makes auto-formatting nicer for build methods.
 //     );
+//   }
 // }
 
 class MyApp extends StatelessWidget {
