@@ -1,11 +1,40 @@
 import 'package:flutter/material.dart';
 import '../screens/main_market.dart';
-import 'screens/auth/login_main.dart';
-import 'screens/auth/sign_up.dart';
-import 'screens/auth/reset_password.dart';
+import 'package:provider/provider.dart';
+import 'providers/auth_provider.dart';
+import 'providers/wishlist_item.dart';
+import 'providers/category_provider.dart';
+
 
 void main() {
-  runApp(const MyApp());
+  runApp(
+    // 使用 MultiProvider 替換單個 ChangeNotifierProvider
+    MultiProvider(
+      // providers 列表包含所有你想要在應用程式中提供的 Providers
+      providers: [
+        // AuthProvider
+        ChangeNotifierProvider(create: (context) => AuthProvider()),
+        // CategoryProvider
+        ChangeNotifierProvider(create: (context) => CategoryProvider()),
+        // WishlistProvider (如果需要依賴 AuthProvider，可以使用 ChangeNotifierProxyProvider)
+        ChangeNotifierProxyProvider<AuthProvider, WishlistProvider>(
+          create: (context) => WishlistProvider(), // 初始創建一個 WishlistProvider 實例
+          update: (context, authProvider, wishlistProvider) {
+            // 這個方法會在 AuthProvider 改變時被呼叫
+            // 更新 WishlistProvider 的狀態，例如傳入當前使用者 ID
+            wishlistProvider ??= WishlistProvider(); // 如果 wishlistProvider 還沒有被創建，就創建一個
+            wishlistProvider.updateCurrentUser(authProvider.currentUser?.id); // 假設 AuthProvider 有 currentUser
+            return wishlistProvider;
+          },
+        ),
+        // 添加其他你需要註冊的 Providers
+        // 例如：ChangeNotifierProvider(create: (context) => CartProvider()),
+        // 例如：ChangeNotifierProvider(create: (context) => OrderProvider()),
+      ],
+      // child 屬性仍然是你的應用程式的根 Widget
+      child: const MyApp(),
+    ),
+  );
 }
 
 // class MyApp extends StatelessWidget {
