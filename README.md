@@ -104,14 +104,22 @@
  - utils:加密/生成token
  
 	>
-	> trading_platform/ 
+	> trading_platform/
+ 	>
 	> ├── lib/
+ 	> 
 	> │   ├── models/
-    > │   │   └── ... 其他分類資料夾
-    > │   ├── providers/
-    > │   │   └── ... 其他分類資料夾 
+ 	>
+ 	> │   │   └── ... 其他分類資料夾
+ 	>
+ 	> │   ├── providers/
+ 	>
+ 	> │   │   └── ... 其他分類資料夾
+ 	>
 	> │   ├── screens/
+ 	>
 	> │   │   └── ... 介面
+ 	>
 	> │   ├── main.dart   
 
 ## 使用XAMPP建立MySQL資料庫
