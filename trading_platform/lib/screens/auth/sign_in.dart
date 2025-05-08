@@ -144,7 +144,7 @@ class _SignInPageState extends State<SignInPage> {
                         onPressed: (){
                           Navigator.push(
                               context,
-                              MaterialPageRoute(builder: (context) => ResetPasswordPage()),);
+                              MaterialPageRoute(builder: (context) => AccountVerificationPage()),);
                         },
                         child:Text(
                             '忘記密碼了嗎?',
