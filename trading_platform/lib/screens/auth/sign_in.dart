@@ -1,8 +1,10 @@
 import 'package:first_flutter_project/screens/auth/reset_password.dart';
 import 'package:flutter/material.dart';
 import '../auth/login_main.dart';
+import 'package:first_flutter_project/api_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-void main() {
+/*void main() {
   runApp(const MyApp());
 }
 
@@ -20,7 +22,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: true,
     );
   }
-}
+}*/
 
 class SignInPage extends StatefulWidget {
   const SignInPage({Key? key}) : super(key: key);
@@ -34,6 +36,8 @@ class _SignInPageState extends State<SignInPage> {
   final TextEditingController _passwordController = TextEditingController();
   String _usernameError = '';
   String _passwordError = '';
+  final ApiService apiService = ApiService();
+  bool isLoading = false;
 
   @override
   void dispose() {
@@ -44,9 +48,41 @@ class _SignInPageState extends State<SignInPage> {
 
   void _validateInputs() {
     setState(() {
-      _usernameError = _usernameController.text.isEmpty ? '使用者帳號不存在' : '';
-      _passwordError = _passwordController.text.isEmpty ? '密碼錯誤' : '';
+      _usernameError = _usernameController.text.isEmpty ? '使用者帳號不能為空' : '';
+      _passwordError = _passwordController.text.isEmpty ? '密碼不能為空' : '';
     });
+  }
+
+  void handleLogin() async {
+    setState(() {
+      isLoading = true;
+    });
+
+    String identifier = _usernameController.text.trim();
+    String password = _passwordController.text.trim();
+
+    try {
+      final response = await apiService.login(identifier, password);
+      String token = response['access_token'];
+      print("Login Successful! Token: $token");
+
+      // 儲存 Token
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setString('token', token);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Login Successful!")),
+      );
+    } catch (e) {
+      print("Login failed: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Login failed: $e")),
+      );
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
   }
 
   @override

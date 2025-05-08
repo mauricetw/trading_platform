@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-void main() {
+/*void main() {
   runApp(const MyApp());
 }
 
@@ -19,7 +19,7 @@ class MyApp extends StatelessWidget {
       home: const ResetPasswordPage(),
     );
   }
-}
+}*/
 
 class ResetPasswordPage extends StatefulWidget {
   const ResetPasswordPage({Key? key}) : super(key: key);
