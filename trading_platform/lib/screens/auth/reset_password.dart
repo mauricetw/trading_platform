@@ -1,36 +1,45 @@
 import 'package:flutter/material.dart';
+import 'reset_password_confirm.dart';
 
-/*void main() {
-  runApp(const MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+class AccountVerificationPage extends StatefulWidget {
+  const AccountVerificationPage({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: '重設密碼',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        fontFamily: 'PingFang', // 使用接近原設計的字體
-      ),
-      home: const ResetPasswordPage(),
-    );
-  }
-}*/
-
-class ResetPasswordPage extends StatefulWidget {
-  const ResetPasswordPage({Key? key}) : super(key: key);
-
-  @override
-  State<ResetPasswordPage> createState() => _ResetPasswordPageState();
+  State<AccountVerificationPage> createState() => _AccountVerificationPageState();
 }
 
-class _ResetPasswordPageState extends State<ResetPasswordPage> {
-  final TextEditingController _emailController = TextEditingController();
+class _AccountVerificationPageState extends State<AccountVerificationPage> {
+  final TextEditingController _accountController = TextEditingController();
   bool _showError = false;
+
+  // 模擬驗證帳號
+  void _verifyAccountAndProceed() {
+    final account = _accountController.text.trim();
+
+    if (account.isEmpty) {
+      setState(() {
+        _showError = true;
+      });
+      return;
+    }
+
+    // 這裡應該有實際的API調用來驗證帳號
+    // 模擬驗證成功的情況
+    if (account == "123456" || account.contains('@')) {
+      // 驗證成功，跳轉到密碼重設頁面
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PasswordResetPage(userId: account),
+        ),
+      );
+    } else {
+      // 驗證失敗，顯示錯誤
+      setState(() {
+        _showError = true;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,7 +50,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
           child: Container(
             width: 540,
             height: 960,
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
                 color: Color.fromRGBO(255, 255, 255, 1)
             ),
             padding: const EdgeInsets.fromLTRB(45, 20, 45, 20),
@@ -87,14 +96,14 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: TextField(
-                    controller: _emailController,
+                    controller: _accountController,
                     decoration: InputDecoration(
                       hintText: '輸入使用者帳號或電子信箱',
-                      hintStyle: TextStyle(
-                        color: Color.fromRGBO(209, 241, 266, 0.5)
+                      hintStyle: const TextStyle(
+                          color: Color.fromRGBO(209, 241, 266, 0.5)
                       ),
                       filled: true,
-                      fillColor: Color.fromRGBO(0, 78, 152, 1),
+                      fillColor: const Color.fromRGBO(0, 78, 152, 1),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(4),
@@ -102,12 +111,14 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(4),
+                        borderSide: BorderSide.none,
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(4),
                         borderSide: const BorderSide(color: Colors.blue, width: 2),
                       ),
                     ),
+                    style: const TextStyle(color: Colors.white),
                     onChanged: (value) {
                       // 當輸入改變時，重設錯誤訊息
                       if (_showError) {
@@ -146,21 +157,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 40),
                   child: ElevatedButton(
-                    onPressed: () {
-                      // 模擬錯誤情況
-                      setState(() {
-                        _showError = true;
-                      });
-
-                      // 實際應用中這裡會有實際的驗證和提交邏輯
-                      // if (_emailController.text.isNotEmpty && isValidEmail(_emailController.text)) {
-                      //   // 執行密碼重設
-                      // } else {
-                      //   setState(() {
-                      //     _showError = true;
-                      //   });
-                      // }
-                    },
+                    onPressed: _verifyAccountAndProceed,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFFF9800), // 橙色按鈕
                       minimumSize: const Size(120, 40),
@@ -198,7 +195,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _accountController.dispose();
     super.dispose();
   }
 }
