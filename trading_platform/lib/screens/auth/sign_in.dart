@@ -1,6 +1,7 @@
 import 'package:first_flutter_project/screens/auth/reset_password.dart';
 import 'package:flutter/material.dart';
 import '../auth/login_main.dart';
+import 'package:first_flutter_project/screens/main_market.dart';
 
 void main() {
   runApp(const MyApp());
@@ -34,6 +35,7 @@ class _SignInPageState extends State<SignInPage> {
   final TextEditingController _passwordController = TextEditingController();
   String _usernameError = '';
   String _passwordError = '';
+  bool _isLoading = false; // 新增一個變數來追蹤登入狀態
 
   @override
   void dispose() {
@@ -42,10 +44,38 @@ class _SignInPageState extends State<SignInPage> {
     super.dispose();
   }
 
+  // 修改驗證方法，增加成功登入後的頁面跳轉
   void _validateInputs() {
     setState(() {
       _usernameError = _usernameController.text.isEmpty ? '使用者帳號不存在' : '';
       _passwordError = _passwordController.text.isEmpty ? '密碼錯誤' : '';
+    });
+
+    // 檢查兩個欄位是否都已填寫(無錯誤)
+    if (_usernameError.isEmpty && _passwordError.isEmpty) {
+      _login();
+    }
+  }
+
+  // 新增一個登入方法來處理登入流程
+  void _login() {
+    // 設置狀態為正在載入
+    setState(() {
+      _isLoading = true;
+    });
+
+    // 模擬網路請求，實際專案中，您會在這裡執行真正的登入API請求
+    Future.delayed(const Duration(seconds: 1), () {
+      // 完成載入
+      setState(() {
+        _isLoading = false;
+      });
+
+      // 跳轉到主頁面，使用pushReplacement避免用戶按返回鍵回到登入頁面
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const MainMarket()),
+      );
     });
   }
 
@@ -143,11 +173,11 @@ class _SignInPageState extends State<SignInPage> {
                       TextButton(
                         onPressed: (){
                           Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => AccountVerificationPage()),);
+                            context,
+                            MaterialPageRoute(builder: (context) => AccountVerificationPage()),);
                         },
                         child:Text(
-                            '忘記密碼了嗎?',
+                          '忘記密碼了嗎?',
                           style: TextStyle(
                             color: Colors.black,
                             fontSize: 12,
@@ -188,10 +218,10 @@ class _SignInPageState extends State<SignInPage> {
 
                       const SizedBox(height: 260),
 
-                      // 登入按鈕
+                      // 登入按鈕，增加了載入狀態
                       Center(
                         child: ElevatedButton(
-                          onPressed: _validateInputs,
+                          onPressed: _isLoading ? null : _validateInputs, // 如果正在載入，按鈕不可用
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFFFF9238),
                             minimumSize: const Size(90, 45),
@@ -199,7 +229,16 @@ class _SignInPageState extends State<SignInPage> {
                               borderRadius: BorderRadius.circular(22.0),
                             ),
                           ),
-                          child: const Text(
+                          child: _isLoading
+                              ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2.0,
+                            ),
+                          )
+                              : const Text(
                             '登入',
                             style: TextStyle(fontSize: 18, color: Colors.white),
                           ),
