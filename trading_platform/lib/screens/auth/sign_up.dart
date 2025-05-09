@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:first_flutter_project/api_service.dart';
+import '../auth/sign_in.dart';
 
 /*void main() {
   runApp(const MyApp());
@@ -42,9 +43,17 @@ class _SignUpPageState extends State<SignUpPage> {
   final TextEditingController _confirmPasswordController = TextEditingController(); // 确认密码控制器
   final TextEditingController _emailController = TextEditingController(); // 电子邮箱控制器
   final TextEditingController _verificationCodeController = TextEditingController(); // 验证码控制器
+
+  bool _isLoading = false;  // 用於顯示加載指示器
+  String _errorMessage = ''; // 用於顯示錯誤訊息
   final ApiService apiService = ApiService();
 
   void handleRegister() async {
+    setState(() {
+      _isLoading = true;  // 顯示加載動畫
+      _errorMessage = ''; // 清空錯誤訊息
+    });
+
     String username = _usernameController.text.trim();
     String email = _emailController.text.trim();
     String password = _passwordController.text.trim();
@@ -58,6 +67,11 @@ class _SignUpPageState extends State<SignUpPage> {
     try {
       final response = await apiService.registerUser(username, email, password);
       _showSuccessDialog(response['message']);
+      // 點擊按鈕時跳轉至登入頁面
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => SignInPage()),
+      );
     } catch (e) {
       _showErrorDialog(e.toString());
     }
@@ -304,6 +318,8 @@ class _SignUpPageState extends State<SignUpPage> {
                               // 执行注册逻辑
                               // 例如: _register();
                             }
+                            //跳過驗證
+                            handleRegister();
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFFFF9C44), // 橙色背景

@@ -6,20 +6,37 @@ class ApiService {
 
   Future<Map<String, dynamic>> registerUser(String username, String email, String password) async {
     final url = Uri.parse('$baseUrl/register');
-    final response = await http.post(
-      url,
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode({
-        "username": username,
-        "email": email,
-        "password": password,
-      }),
-    );
+    try {
+      final response = await http.post(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "username": username,
+          "email": email,
+          "password": password,
+        }),
+      );
 
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
-    } else {
-      throw Exception("Failed to register");
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        final responseData = jsonDecode(response.body);
+        String errorMessage;
+
+        /// 如果 `detail` 是列表，則將其轉換為字串
+        if (responseData["detail"] is List) {
+          errorMessage = responseData["detail"].join(", ");
+        } else {
+          errorMessage = responseData["detail"];
+        }
+
+        return {"success": false, "message": errorMessage};
+        // 返回後端的錯誤訊息
+        //final responseData = jsonDecode(response.body);
+        //return {"success": false, "message": errorResponse["detail"] ?? "註冊失敗"};
+      }
+    } catch (e) {
+      return {"success": false, "message": "無法連線到伺服器"};
     }
   }
 
