@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../auth/sign_in.dart';
 
 class PasswordResetPage extends StatefulWidget {
   final String userId; // 使用者帳號
@@ -65,7 +66,10 @@ class _PasswordResetPageState extends State<PasswordResetPage> {
 
     // 若成功，返回登入頁面
     // 可以直接回到最初頁面，清除導航堆疊
-    Navigator.of(context).popUntil((route) => route.isFirst);
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => SignInPage()),
+    );
 
     // 這裡可加入提示密碼修改成功的彈窗
     ScaffoldMessenger.of(context).showSnackBar(
