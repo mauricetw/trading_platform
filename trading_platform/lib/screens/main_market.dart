@@ -110,12 +110,13 @@ class _MainMarketState extends State<MainMarket> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: _onItemTapped,
+
         type: BottomNavigationBarType.fixed,
-        backgroundColor: const Color(0xFF004E98), // 設定背景顏色為 004E98 (加上FF表示不透明)
-        unselectedItemColor: const Color(0xFFFF8D36), // 設定未選中圖標顏色為 FF8D36
-        selectedItemColor: const Color(0xFF3DFF9E), // 設定選中圖標顏色為 3DFF9E
-        unselectedLabelStyle: const TextStyle(color: Color(0xFFFF8D36)), // 設定未選中文字顏色為 FF8D36
-        selectedLabelStyle: const TextStyle(color: Color(0xFF3DFF9E)), // 設定選中文字顏色為 3DFF9E
+        backgroundColor: const Color(0xFF004E98),
+        unselectedItemColor: const Color(0xFFFF8D36),
+        selectedItemColor: const Color(0xFF3DFF9E),
+        unselectedLabelStyle: const TextStyle(color: Color(0xFFFF8D36)),
+        selectedLabelStyle: const TextStyle(color: Color(0xFF3DFF9E)),
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home),

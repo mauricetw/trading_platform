@@ -1,10 +1,8 @@
 import 'package:first_flutter_project/screens/settings/setting.dart';
 import 'package:flutter/material.dart';
 import '../models/user/user.dart';
-
-// 導入您創建的購物車和評價頁面檔案
-import 'cart.dart'; // 假設您的購物車頁面檔案名為 cart_page.dart
-import 'review.dart'; // 假設您的評價頁面檔案名為 review_page.dart
+import 'cart.dart';
+import 'review.dart';
 
 
 class Profile extends StatelessWidget {
