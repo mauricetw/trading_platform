@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'reset_password_confirm.dart';
+import 'package:first_flutter_project/api_service.dart';
 
 class AccountVerificationPage extends StatefulWidget {
   const AccountVerificationPage({Key? key}) : super(key: key);
@@ -12,9 +13,10 @@ class _AccountVerificationPageState extends State<AccountVerificationPage> {
   final TextEditingController _accountController = TextEditingController();
   bool _showError = false;
 
-  // 模擬驗證帳號
-  void _verifyAccountAndProceed() {
+
+  void _verifyAccountAndProceed() async {
     final account = _accountController.text.trim();
+    final ApiService apiService = ApiService();
 
     if (account.isEmpty) {
       setState(() {
@@ -23,21 +25,23 @@ class _AccountVerificationPageState extends State<AccountVerificationPage> {
       return;
     }
 
-    // 這裡應該有實際的API調用來驗證帳號
-    // 模擬驗證成功的情況
-    if (account == "123456" || account.contains('@')) {
-      // 驗證成功，跳轉到密碼重設頁面
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => PasswordResetPage(userId: account),
-        ),
+    setState(() {
+      _showError = false;
+    });
+
+    try {
+      await apiService.forgotPassword(account);
+
+      // 顯示成功訊息
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('驗證信已發送至 $account，請檢查您的信箱。')),
       );
-    } else {
-      // 驗證失敗，顯示錯誤
-      setState(() {
-        _showError = true;
-      });
+
+    } catch (e) {
+      print("Error: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('無法發送驗證信：$e')),
+      );
     }
   }
 

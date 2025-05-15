@@ -72,22 +72,33 @@ class _SignInPageState extends State<SignInPage> {
 
     try {
       final response = await apiService.login(identifier, password);
-      String token = response['access_token'];
-      print("Login Successful! Token: $token");
 
-      // 儲存 Token
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      await prefs.setString('token', token);
+      if (response["success"]) {
+        Map<String, dynamic> data = response["data"];
+        String token = data["token"] ?? "No token";
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Login Successful!")),
-      );
+        print("Login Successful! Token: $token");
 
-      // 跳轉到主頁面，使用pushReplacement避免用戶按返回鍵回到登入頁面
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const MainMarket()),
-      );
+        // 儲存 Token
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        await prefs.setString('token', token);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Login Successful!")),
+        );
+
+        // 跳轉到主頁面，使用pushReplacement避免用戶按返回鍵回到登入頁面
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const MainMarket()),
+        );
+      } else {
+        // 顯示錯誤訊息
+        String errorMessage = response["error"] ?? "Login failed.";
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMessage)),
+        );
+      }
     } catch (e) {
       print("Login failed: $e");
       ScaffoldMessenger.of(context).showSnackBar(
@@ -101,7 +112,8 @@ class _SignInPageState extends State<SignInPage> {
   }
 
 
-    @override
+
+  @override
     Widget build(BuildContext context) {
       return Scaffold(
         body: Container(

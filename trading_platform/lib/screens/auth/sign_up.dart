@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:first_flutter_project/api_service.dart';
 import '../auth/sign_in.dart';
 
-/*void main() {
+void main() {
   runApp(const MyApp());
 }
 
@@ -21,7 +21,7 @@ class MyApp extends StatelessWidget {
       home: const SignUpPage(), // 设置应用的首页为注册页面
     );
   }
-}*/
+}
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
