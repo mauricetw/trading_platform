@@ -106,10 +106,17 @@ class _MainMarketState extends State<MainMarket> {
           ),
         ],
       ),
+
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex, // 設定目前選取的項目
-        onTap: _onItemTapped, // 設定項目點擊時要執行的函式
-        type: BottomNavigationBarType.fixed, // 添加這個屬性
+        currentIndex: _currentIndex,
+        onTap: _onItemTapped,
+
+        type: BottomNavigationBarType.fixed,
+        backgroundColor: const Color(0xFF004E98),
+        unselectedItemColor: const Color(0xFFFF8D36),
+        selectedItemColor: const Color(0xFF3DFF9E),
+        unselectedLabelStyle: const TextStyle(color: Color(0xFFFF8D36)),
+        selectedLabelStyle: const TextStyle(color: Color(0xFF3DFF9E)),
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home),

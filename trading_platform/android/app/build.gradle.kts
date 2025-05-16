@@ -30,6 +30,7 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        ndkVersion = "27.0.12077973" // 將版本設置為 27.0.12077973
     }
 
     buildTypes {
