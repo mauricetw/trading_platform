@@ -5,6 +5,7 @@ import 'providers/auth_provider.dart';
 import 'providers/wishlist_item.dart';
 import 'providers/category_provider.dart';
 import 'screens/auth/login_main.dart';
+import 'screens/auth/reset_password.dart';
 
 
 void main() {
@@ -167,7 +168,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: const LoginScreen(), // 使用您的登入畫面作為首頁
+      home: const MainMarket(), // 使用您的登入畫面作為首頁
     );
   }
 }

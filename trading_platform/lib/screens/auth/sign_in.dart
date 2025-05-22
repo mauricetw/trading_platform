@@ -1,4 +1,4 @@
-import 'package:first_flutter_project/screens/auth/reset_password.dart';
+import 'package:first_flutter_project/screens/auth/forget_password.dart';
 import 'package:flutter/material.dart';
 import '../auth/login_main.dart';
 import 'package:first_flutter_project/screens/main_market.dart';
@@ -95,7 +95,7 @@ class _SignInPageState extends State<SignInPage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  padding: const EdgeInsets.fromLTRB(45, 20, 45, 20),
+                  padding: const EdgeInsets.fromLTRB(50, 45, 50, 45),
                   alignment: Alignment.centerLeft,
                 ),
                 Container(

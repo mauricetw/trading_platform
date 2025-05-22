@@ -154,12 +154,12 @@ class _SignUpPageState extends State<SignUpPage> {
                           contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
                         ),
                         // 可以添加验证器确保与密码一致
-                        // validator: (value) {
-                        //   if (value != _passwordController.text) {
-                        //     return '两次输入的密码不一致';
-                        //   }
-                        //   return null;
-                        // },
+                        validator: (value) {
+                          if (value != _passwordController.text) {
+                            return '两次输入的密码不一致';
+                          }
+                          return null;
+                        },
                       ),
                       const SizedBox(height: 20),
 
@@ -217,7 +217,7 @@ class _SignUpPageState extends State<SignUpPage> {
                               backgroundColor: const Color(0xFFFF9C44), // 橙色背景
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 15), // 内边距
                             ),
-                            child: const Text('重新獲送', style: TextStyle(color: Colors.black)), // 按钮文本
+                            child: const Text('發送信件', style: TextStyle(color: Colors.black)), // 按钮文本
                           ),
                         ],
                       ),
