@@ -32,6 +32,7 @@ class _HomePageState extends State<HomePage> {
       imageUrl: 'https://via.placeholder.com/150x120',
       categoryId: 1,
       isFavorite: true,
+      isSold: false,
     ),
     Product(
       id: 2,
@@ -41,6 +42,7 @@ class _HomePageState extends State<HomePage> {
       imageUrl: 'https://via.placeholder.com/150x120',
       categoryId: 2,
       isFavorite: false,
+      isSold: true, // 這個商品已售出
     ),
     Product(
       id: 3,
@@ -50,6 +52,7 @@ class _HomePageState extends State<HomePage> {
       imageUrl: 'https://via.placeholder.com/150x120',
       categoryId: 2,
       isFavorite: false,
+      isSold: false,
     ),
     Product(
       id: 4,
@@ -59,6 +62,7 @@ class _HomePageState extends State<HomePage> {
       imageUrl: 'https://via.placeholder.com/150x120',
       categoryId: 3,
       isFavorite: true,
+      isSold: false,
     ),
     Product(
       id: 5,
@@ -68,6 +72,7 @@ class _HomePageState extends State<HomePage> {
       imageUrl: 'https://via.placeholder.com/150x120',
       categoryId: 2,
       isFavorite: false,
+      isSold: false,
     ),
     Product(
       id: 6,
@@ -77,6 +82,7 @@ class _HomePageState extends State<HomePage> {
       imageUrl: 'https://via.placeholder.com/150x120',
       categoryId: 4,
       isFavorite: false,
+      isSold: false,
     ),
   ];
 
@@ -209,7 +215,7 @@ class _HomePageState extends State<HomePage> {
         crossAxisCount: 2,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
-        childAspectRatio: 0.75,
+        childAspectRatio: 0.8, // 調整比例讓卡片高一點
       ),
       itemCount: _filteredProducts.length,
       itemBuilder: (context, index) {
@@ -265,6 +271,28 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ),
                   ),
+                  // 商品狀態標籤（如果已售出）
+                  if (product.isSold)
+                    Positioned(
+                      top: 8,
+                      left: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Text(
+                          'SOLD',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  // 收藏按鈕
                   Positioned(
                     top: 8,
                     right: 8,
@@ -297,39 +325,41 @@ class _HomePageState extends State<HomePage> {
                 padding: const EdgeInsets.all(12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      product.name,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        height: 1.3,
+                    Flexible(
+                      child: Text(
+                        product.name,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          height: 1.2,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
                     ),
-                    const Spacer(),
-                    Row(
+                    const SizedBox(height: 8),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           'NT\$ ${_formatPrice(product.price)}',
                           style: const TextStyle(
-                            fontSize: 16,
+                            fontSize: 15,
                             fontWeight: FontWeight.bold,
                             color: Color(0xFF1E88E5),
                           ),
                         ),
-                        if (product.originalPrice != null) ...[
-                          const SizedBox(width: 8),
+                        if (product.originalPrice != null)
                           Text(
                             'NT\$ ${_formatPrice(product.originalPrice!)}',
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: 11,
                               color: Colors.grey[600],
                               decoration: TextDecoration.lineThrough,
                             ),
                           ),
-                        ],
                       ],
                     ),
                   ],
@@ -444,6 +474,7 @@ class Product {
   final String imageUrl;
   final int categoryId;
   bool isFavorite;
+  final bool isSold; // 新增售出狀態
 
   Product({
     required this.id,
@@ -453,5 +484,6 @@ class Product {
     required this.imageUrl,
     required this.categoryId,
     this.isFavorite = false,
+    this.isSold = false, // 預設未售出
   });
 }
