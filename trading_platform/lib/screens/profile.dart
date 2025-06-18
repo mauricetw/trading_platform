@@ -3,16 +3,36 @@ import 'package:flutter/material.dart';
 import '../models/user/user.dart';
 import 'cart.dart';
 import 'review.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
+import './auth/login_main.dart';
 
 
 class Profile extends StatelessWidget {
   final User currentUser;
-
   const Profile({super.key, required this.currentUser});
+
 
   @override
   Widget build(BuildContext context) {
-    final user = currentUser;
+    final authProvider = Provider.of<AuthProvider>(context);
+
+    // 判斷是否登入
+    if (!authProvider.isLoggedIn) {
+      // 延遲導航直到 build 完成，避免錯誤
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.push(context, MaterialPageRoute(builder: (context) => LoginScreen())); // 替換成你的登入頁 route
+      });
+
+      return const Center(
+        child: Text('請先登入', style: TextStyle(fontSize: 24)),
+      );
+
+    }
+
+    final user = authProvider.currentUser!;
+
+    //final user = currentUser;
 
     return Center(
       child: SingleChildScrollView(

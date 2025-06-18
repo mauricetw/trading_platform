@@ -4,6 +4,9 @@ import '../auth/login_main.dart';
 import 'package:first_flutter_project/api_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:first_flutter_project/screens/main_market.dart';
+import 'package:provider/provider.dart';
+import 'package:first_flutter_project/providers/auth_provider.dart';
+import 'package:first_flutter_project/models/user/user.dart';
 
 /*void main() {
   runApp(const MyApp());
@@ -79,6 +82,21 @@ class _SignInPageState extends State<SignInPage> {
 
         print("Login Successful! Token: $token");
 
+        //print(data["id"]);
+        //print(data["username"]);
+        //print(data["email"]);
+
+        //從response中建立User物件
+        /*Map<String, String> userdata={
+          "id":data["id"],
+          "username":data["username"],
+          "email":data["email"]
+        };*/
+        final String id = data["id"];
+        print(id);
+
+        //User user = User.fromJson(userdata);
+
         // 儲存 Token
         SharedPreferences prefs = await SharedPreferences.getInstance();
         await prefs.setString('token', token);
@@ -86,6 +104,10 @@ class _SignInPageState extends State<SignInPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Login Successful!")),
         );
+
+        //更新登入狀態
+        /*final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        authProvider.login(user);*/
 
         // 跳轉到主頁面，使用pushReplacement避免用戶按返回鍵回到登入頁面
         Navigator.pushReplacement(
