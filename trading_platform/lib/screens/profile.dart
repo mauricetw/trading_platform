@@ -34,169 +34,151 @@ class Profile extends StatelessWidget {
 
     //final user = currentUser;
 
-    return Center(
-      child: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(50.0),
+    return Scaffold( // 使用 Scaffold 作為頁面根佈局
+      backgroundColor: const Color(0xFFEBEBEB), // UserProfileFrame 的背景顏色
+      body: SafeArea( // 避免內容被系統狀態列或瀏海遮擋
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20.0), // 整體內邊距
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.stretch, // 使 Column 子元件填滿水平空間
             children: [
-              // 大頭貼
-              CircleAvatar(
-                radius: 50,
-                backgroundImage: user.avatarUrl != null ? NetworkImage(
-                    user.avatarUrl!) : null,
-                child: user.avatarUrl == null
-                    ? const Icon(Icons.person, size: 50)
-                    : null,
+              // --- 使用者資訊區塊 (大頭貼, 名稱, ID, 評價統計) ---
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center, // 垂直居中對齊 Row 內的元件
+                children: [
+                  // 大頭貼
+                  CircleAvatar(
+                    radius: 54, // UserProfileFrame 中的大頭貼半徑 (108 / 2)
+                    backgroundColor: const Color(0xFFD9D9D9), // 預設背景色
+                    backgroundImage: user.avatarUrl != null ? NetworkImage(user.avatarUrl!) : null,
+                    child: user.avatarUrl == null ? const Icon(Icons.person, size: 54, color: Colors.grey) : null,
+                  ),
+                  const SizedBox(width: 20), // 大頭貼和文字資訊之間的間距
+                  // 名稱和 ID
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildInfoText(user.username, fontSize: 24, fontWeight: FontWeight.w500), // 使用者名稱
+                        const SizedBox(height: 5),
+                        _buildInfoText(user.id ?? 'N/A', fontSize: 20, color: Colors.black54), // 使用者 ID
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 10), // 文字資訊和評價統計之間的間距
+                  // 評價統計
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      _buildInfoText('平均買家評價', fontSize: 14, color: Colors.black87),
+                      _buildInfoText('$averageBuyReviewRate ★', fontSize: 16, fontWeight: FontWeight.bold),
+                      const SizedBox(height: 8),
+                      _buildInfoText('平均賣家評價', fontSize: 14, color: Colors.black87),
+                      _buildInfoText('$averageSellReviewRate ★', fontSize: 16, fontWeight: FontWeight.bold),
+                    ],
+                  )
+                ],
               ),
-              const SizedBox(height: 10),
-              // 使用者名稱/暱稱
-              Text(
-                user.username,
-                style: const TextStyle(
-                    fontSize: 30, fontWeight: FontWeight.bold
+              const SizedBox(height: 25), // 使用者資訊區塊和學校資訊區塊之間的間距
+
+              // --- 學校資訊區塊 ---
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 20.0, horizontal: 16.0), // 內邊距
+                decoration: ShapeDecoration(
+                  color: const Color(0xFFD9D9D9), // UserProfileFrame 中的背景顏色
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)), // 圓角
+                  shadows: [ // 輕微陰影效果
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      spreadRadius: 1,
+                      blurRadius: 3,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    _buildInfoText(userSchool, fontSize: 18, fontWeight: FontWeight.w500, textAlign: TextAlign.center),
+                    if (user.schoolName != null && user.schoolName!.isNotEmpty && userLocation.isNotEmpty) const SizedBox(height: 5),
+                    _buildInfoText(userLocation, fontSize: 16, color: Colors.black54, textAlign: TextAlign.center),
+                    // 如果您想顯示 User model 中的 bio 或 schoolName，可以取消註解以下內容
+                    // if (user.bio != null && user.bio!.isNotEmpty) ...
+                    // if (user.schoolName != null && user.schoolName!.isNotEmpty) ...
+                  ],
                 ),
               ),
-              const SizedBox(height: 5),
-              // 簡介/校名 (同一列)
+              const SizedBox(height: 30), // 學校資訊區塊和按鈕區塊之間的間距
+
+              // --- 按鈕區塊 (2x2 佈局的藍色按鈕) ---
               Row(
-                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  if (user.bio != null && user.bio!.isNotEmpty) Flexible(
-                      child: Text(user.bio!, overflow: TextOverflow.ellipsis,)),
-                  if (user.bio != null && user.bio!.isNotEmpty &&
-                      user.schoolName != null &&
-                      user.schoolName!.isNotEmpty) const SizedBox(width: 10),
-                  if (user.schoolName != null &&
-                      user.schoolName!.isNotEmpty) Flexible(child: Text(
-                    user.schoolName!, overflow: TextOverflow.ellipsis,)),
-                ],
-              ),
-              const SizedBox(height: 50),
-
-              // *** 上下各兩個按鈕的垂直佈局 ***
-              Column( // 外層使用 Column 垂直排列兩行按鈕
-                children: [
-                  Row( // 第一行按鈕
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    // 在按鈕之間平均分配空間
-                    children: [
-                      // 收藏按鈕
-                      Expanded( // 使用 Expanded 讓按鈕填充可用空間
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            print('點擊收藏');
-                            // TODO: 導航到收藏頁面
-                          },
-                          icon: const Icon(
-                              Icons.favorite_border,
-                              color: Colors.white,
-                          ),
-                          label: const Text('收藏'),
-                          style: ElevatedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            backgroundColor: const Color(0xFF004E98),
-                            padding: const EdgeInsets.symmetric(vertical: 20.0),
-                            textStyle: const TextStyle(fontSize: 18.0, color: Colors.white),
-                            shape: RoundedRectangleBorder( // 添加圓角矩形邊框
-                              borderRadius: BorderRadius.circular(
-                                  100.0), // 調整圓角半徑
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 20.0), // 設置按鈕之間的水平間距
-                      // 購物車按鈕
-                      Expanded( // 使用 Expanded 讓按鈕填充可用空間
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            print('點擊購物車');
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) => const CartPage()),
-                            );
-                          },
-                          icon: const Icon(
-                              Icons.shopping_cart_outlined,
-                              color: Colors.white,
-                          ),
-                          label: const Text('購物車'),
-                          style: ElevatedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            backgroundColor: const Color(0xFF004E98),
-                            padding: const EdgeInsets.symmetric(vertical: 20.0),
-                            textStyle: const TextStyle(fontSize: 18.0),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(100.0),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                  _buildSecondaryButton(
+                    label: '收藏',
+                    icon: Icons.favorite_border,
+                    onPressed: () {
+                      print('點擊收藏');
+                      // TODO: 導航到收藏頁面
+                    },
                   ),
-                  const SizedBox(height: 25.0), // 設置兩行按鈕之間的垂直間距
-                  Row( // 第二行按鈕
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    // 在按鈕之間平均分配空間
-                    children: [
-                      // 評價按鈕
-                      Expanded( // 使用 Expanded 讓按鈕填充可用空間
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            print('點擊評價');
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) => const ReviewPage()),
-                            );
-                          },
-                          icon: const Icon(Icons.star_border),
-                          label: const Text('評價'),
-                          style: ElevatedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            backgroundColor: const Color(0xFF004E98),
-                            padding: const EdgeInsets.symmetric(vertical: 20.0),
-                            textStyle: const TextStyle(fontSize: 18.0),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(100.0),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 20.0), // 設置按鈕之間的水平間距
-                      // 設定按鈕
-                      Expanded( // 使用 Expanded 讓按鈕填充可用空間
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            print('點擊設定');
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) => const SettingsPage()),
-                            );
-                          },
-                          icon: const Icon(Icons.settings_outlined),
-                          label: const Text('設定'),
-                          style: ElevatedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            backgroundColor: const Color(0xFF004E98),
-                            padding: const EdgeInsets.symmetric(vertical: 20.0),
-                            textStyle: const TextStyle(fontSize: 18.0),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(100.0),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                  const SizedBox(width: 15), // 按鈕之間的間距
+                  _buildSecondaryButton(
+                    label: '購物車',
+                    icon: Icons.shopping_cart_outlined,
+                    onPressed: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => const CartPage()));
+                    },
                   ),
                 ],
               ),
-              // *** 垂直佈局結束 ***
+              const SizedBox(height: 15), // 兩行按鈕之間的間距
+              Row(
+                children: [
+                  _buildSecondaryButton(
+                    label: '評價',
+                    icon: Icons.star_border,
+                    onPressed: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => const ReviewPage()));
+                    },
+                  ),
+                  const SizedBox(width: 15), // 按鈕之間的間距
+                  _buildSecondaryButton(
+                    label: '設定',
+                    icon: Icons.settings_outlined,
+                    onPressed: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsPage()));
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 30), // 藍色按鈕區塊和橘色按鈕區塊之間的間距
 
+              // --- 主要功能按鈕 (橘色) ---
+              _buildPrimaryButton(
+                label: '訂單資訊', // 在 UserProfileFrame 中是「訂單狀態」
+                // icon: Icons.receipt_long_outlined, // 您可以選擇是否添加圖示
+                onPressed: () {
+                  print('點擊訂單資訊');
+                  // TODO: 導航到訂單資訊頁面
+                },
+              ),
+              const SizedBox(height: 15), // 按鈕之間的間距
+              _buildPrimaryButton(
+                label: '銷售商品管理', // 在 UserProfileFrame 中是「管理上架商品」
+                // icon: Icons.storefront_outlined, // 您可以選擇是否添加圖示
+                onPressed: () {
+                  print('點擊銷售商品管理');
+                  // TODO: 導航到銷售商品管理頁面
+                },
+              ),
+              const SizedBox(height: 20), // 頁面底部額外間距
+
+              // --- UserProfileFrame 中的底部藍色列 (可選) ---
+              // Container(
+              //   height: 74, // UserProfileFrame 中的高度
+              //   color: const Color(0xFF004E98),
+              //   child: Center(child: _buildInfoText("底部導覽列", color: Colors.white)),
+              // ),
             ],
           ),
         ),
