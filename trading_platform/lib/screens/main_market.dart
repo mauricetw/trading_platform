@@ -76,15 +76,7 @@ class _MainMarketState extends State<MainMarket> {
     return Scaffold(
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Search...',
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.search),
-                  onPressed: _navigateToSearchPage,
+          
                 ),
               ),
             ),
