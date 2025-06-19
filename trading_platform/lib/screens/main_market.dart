@@ -76,7 +76,41 @@ class _MainMarketState extends State<MainMarket> {
     return Scaffold(
       body: Column(
         children: [
-          
+          // 搜索欄設計
+          Container(
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF004E98), Color(0xFF004E98)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.9),
+                    borderRadius: BorderRadius.circular(25),
+                  ),
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText: '輸入關鍵字查詢...',
+                      prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                    ),
+                    onSubmitted: (_) => _navigateToSearchPage(),
+                  ),
                 ),
               ),
             ),
@@ -86,12 +120,9 @@ class _MainMarketState extends State<MainMarket> {
               controller: _pageController, // 設定 PageView 的控制器
               onPageChanged: _onPageChanged, // 設定頁面切換時要執行的函式
               children: [
-                // 商品列表會在這裡顯示
-                const Center(
-                  child: Text('商品列表會在這裡顯示'), // 之後要換成真正的商品列表
-                ),
-                const ChatList(), // 訊息頁面
-                const Annoucement(), // 通知頁面
+                const HomePage(), // 使用新建的 HomePage
+                const ChatList(),
+                const Annoucement(),
                 Profile(currentUser: dummyUser), // 個人檔案頁面
               ],
             ),
