@@ -220,7 +220,12 @@ class _SignUpPageState extends State<SignUpPage> {
                           contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
                         ),
                         // 可以添加验证器确保与密码一致
-                        
+                        validator: (value) {
+                          if (value != _passwordController.text) {
+                            return '两次输入的密码不一致';
+                          }
+                          return null;
+                        },
                       ),
                       const SizedBox(height: 20),
 

@@ -5,6 +5,7 @@ import 'providers/auth_provider.dart';
 import 'providers/wishlist_item.dart';
 import 'providers/category_provider.dart';
 import 'screens/auth/login_main.dart';
+import 'screens/auth/reset_password.dart';
 
 
 void main() {

@@ -3,6 +3,7 @@ import 'search.dart';
 import 'annoucement.dart';
 import 'profile.dart';
 import 'chat_list.dart';
+import 'home_page.dart'; // 導入新建的 HomePage
 import '../models/user/user.dart';
 
 class MainMarket extends StatefulWidget {
@@ -55,9 +56,11 @@ class _MainMarketState extends State<MainMarket> {
     _pageController.animateToPage(
         index, // 切換到指定的頁面
         duration: const Duration(milliseconds: 300), // 切換動畫的時間
-        curve: Curves.ease); // 切換動畫的曲線
+        curve: Curves.ease, // 切換動畫的曲線
+    );
   }
 
+  //測資
   @override
   Widget build(BuildContext context) {
 
@@ -123,13 +126,12 @@ class _MainMarketState extends State<MainMarket> {
                 const HomePage(), // 使用新建的 HomePage
                 const ChatList(),
                 const Annoucement(),
-                Profile(currentUser: dummyUser), // 個人檔案頁面
+                Profile(currentUser: dummyUser),
               ],
             ),
           ),
         ],
       ),
-
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           gradient: const LinearGradient(

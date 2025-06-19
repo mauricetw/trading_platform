@@ -136,47 +136,47 @@ class _SignInPageState extends State<SignInPage> {
 
 
   @override
-    Widget build(BuildContext context) {
-      return Scaffold(
-        body: Container(
-          color: Colors.grey[300],
-          child: Center(
-            child: Container(
-              width: 540,
-              height: 960,
-              decoration: BoxDecoration(
-                color: Color.fromRGBO(0, 78, 150, 1),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.fromLTRB(45, 20, 45, 20),
-                    alignment: Alignment.centerLeft,
-                  ),
-                  Container(
-                    padding: const EdgeInsets.fromLTRB(45, 20, 45, 20),
-                    color: Color.fromRGBO(0, 78, 150, 1),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // 返回按鈕
-                        Container(
-                          child: ElevatedButton.icon(
-                            onPressed: () {
-                              Navigator.pop(context);
-                            },
-                            icon: const Icon(Icons.arrow_back,
-                                color: Color.fromRGBO(0, 78, 150, 1)), // 返回图标
-                            label: const Text('返回', style: TextStyle(
-                                color: Color.fromRGBO(0, 78, 150, 1))), // 按钮文本
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color.fromRGBO(
-                                  61, 255, 258, 1), // 背景
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20),
-                              ),
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Container(
+        color: Colors.grey[300],
+        child: Center(
+          child: Container(
+            width: 540,
+            height: 960,
+            decoration: BoxDecoration(
+              color: Color.fromRGBO(0, 78, 150, 1),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.fromLTRB(45, 20, 45, 20),
+                  alignment: Alignment.centerLeft,
+                ),
+                Container(
+                  padding: const EdgeInsets.fromLTRB(45, 20, 45, 20),
+                  color: Color.fromRGBO(0, 78, 150, 1),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 返回按鈕
+                      Container(
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.pop(context);
+                          },
+                          icon: const Icon(Icons.arrow_back,
+                              color: Color.fromRGBO(0, 78, 150, 1)), // 返回图标
+                          label: const Text('返回', style: TextStyle(
+                              color: Color.fromRGBO(0, 78, 150, 1))), // 按钮文本
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color.fromRGBO(
+                                61, 255, 258, 1), // 背景
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+
                             ),
                           ),
                         ),
@@ -203,29 +203,22 @@ class _SignInPageState extends State<SignInPage> {
                             ),
                           ),
                         ),
+                      ),
 
-                        const SizedBox(height: 20.0),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) =>
+                                AccountVerificationPage()),);
+                        },
+                        child: Text(
+                          '忘記密碼了嗎?',
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontSize: 12,
+                            decoration: TextDecoration.underline,
 
-                        // 使用者密碼
-                        const Text(
-                          '使用者密碼',
-                          style: TextStyle(color: Colors.white, fontSize: 16),
-                        ),
-                        const SizedBox(height: 8.0),
-                        TextField(
-                          controller: _passwordController,
-                          obscureText: true,
-                          decoration: InputDecoration(
-                            filled: true,
-                            fillColor: Colors.white,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(4.0),
-                              borderSide: BorderSide.none,
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              vertical: 12.0,
-                              horizontal: 12.0,
-                            ),
                           ),
                         ),
 
@@ -237,24 +230,19 @@ class _SignInPageState extends State<SignInPage> {
                                   AccountVerificationPage()),);
                           },
                           child: Text(
-                            '忘記密碼了嗎?',
-                            style: TextStyle(
-                              color: Colors.black,
-                              fontSize: 12,
-                              decoration: TextDecoration.underline,
-                            ),
+                            '*$_usernameError',
+                            style: const TextStyle(
+                                color: Colors.greenAccent, fontSize: 12),
                           ),
                         ),
+                      if (_passwordError.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4.0),
+                          child: Text(
+                            '*$_passwordError',
+                            style: const TextStyle(
+                                color: Colors.greenAccent, fontSize: 12),
 
-                        // 錯誤訊息
-                        if (_usernameError.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 8.0),
-                            child: Text(
-                              '*$_usernameError',
-                              style: const TextStyle(
-                                  color: Colors.greenAccent, fontSize: 12),
-                            ),
                           ),
                         if (_passwordError.isNotEmpty)
                           Padding(
@@ -274,25 +262,33 @@ class _SignInPageState extends State<SignInPage> {
                               61, 255, 258, 1), fontSize: 12),
                         ),
 
-                        const Text(
-                          '*密碼錯誤',
-                          style: TextStyle(color: Color.fromRGBO(
-                              61, 255, 258, 1), fontSize: 12),
-                        ),
+                      const SizedBox(height: 20),
 
-                        const SizedBox(height: 260),
+                      const Text(
+                        '*使用者帳號不存在',
+                        style: TextStyle(color: Color.fromRGBO(
+                            61, 255, 258, 1), fontSize: 12),
+                      ),
 
-                        // 登入按鈕，增加了載入狀態
-                        Center(
-                          child: ElevatedButton(
-                            onPressed: _isLoading ? null : _validateInputs,
-                            // 如果正在載入，按鈕不可用
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFFF9238),
-                              minimumSize: const Size(90, 45),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(22.0),
-                              ),
+                      const Text(
+                        '*密碼錯誤',
+                        style: TextStyle(color: Color.fromRGBO(
+                            61, 255, 258, 1), fontSize: 12),
+                      ),
+
+                      const SizedBox(height: 260),
+
+                      // 登入按鈕，增加了載入狀態
+                      Center(
+                        child: ElevatedButton(
+                          onPressed: _isLoading ? null : _validateInputs,
+                          // 如果正在載入，按鈕不可用
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFFF9238),
+                            minimumSize: const Size(90, 45),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(22.0),
+
                             ),
                             child: _isLoading
                                 ? const SizedBox(
@@ -308,6 +304,12 @@ class _SignInPageState extends State<SignInPage> {
                               style: TextStyle(
                                   fontSize: 18, color: Colors.white),
                             ),
+                          )
+                              : const Text(
+                            '登入',
+                            style: TextStyle(
+                                fontSize: 18, color: Colors.white),
+
                           ),
                         ),
 
