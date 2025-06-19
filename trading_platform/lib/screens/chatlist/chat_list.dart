@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'chatroom.dart'; // 假設 chatroom.dart 存在且 ChatRoomScreen 已定義
 
-// 假設您的 ChatRoomSummary 模型在這裡 (如果還在 ChatListScreen 文件中)
+// ChatRoomSummary class (假設和之前一樣)
 class ChatRoomSummary {
-  final String id; // 這將作為 chatRoomId
+  final String id;
   final String otherPartyName;
   final String? otherPartyAvatarUrl;
   final String lastMessage;
   final DateTime lastMessageTime;
   final int unreadCount;
-  final String? otherPartyId; // <--- 確保這個字段存在並且被正確填充
+  final String? otherPartyId;
 
   ChatRoomSummary({
     required this.id,
@@ -22,65 +22,50 @@ class ChatRoomSummary {
   });
 }
 
-
 class ChatListScreen extends StatefulWidget {
   const ChatListScreen({super.key});
-  // 如果 currentUserId 是從父組件傳遞的:
-  // final String currentUserId;
-  // const ChatListScreen({super.key, required this.currentUserId});
 
   @override
   State<ChatListScreen> createState() => _ChatListScreenState();
 }
 
 class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+  late TabController _tabController; // 用於同步 TabBarView
 
+  // --- 顏色定義 ---
+  static const Color appBarColor = Color(0xFF004E98); // AppBar 固定深藍色
+  static const Color activeTabBackgroundColor = Color(0xFFFF8D36); // 選中 Tab 的背景色 (橘色)
+  static const Color inactiveTabBackgroundColor = Color(0xFF004E98); // 未選中 Tab 的背景色 (灰色)
+
+  static const Color appBarTextColor = Colors.white; // AppBar 文字顏色
+  static const Color activeTabTextColor = Colors.white;    // 選中 Tab 的文字顏色 (在橘色背景上建議用白色)
+  static const Color inactiveTabTextColor = Colors.black54;  // 未選中 Tab 的文字顏色 (在灰色背景上建議用深灰色或黑色)
+  // ---           ---
+
+  int _selectedTabIndex = 0; // 用於追蹤自訂 Tab 的選中狀態
+
+  // 模擬數據和狀態 (和之前一樣)
   List<ChatRoomSummary> _buyerChats = [];
   List<ChatRoomSummary> _sellerChats = [];
   bool _isLoadingBuyerChats = true;
   bool _isLoadingSellerChats = true;
-
-  // 用於存儲當前登錄用戶的ID
-  String? _currentUserId; // 初始化為 null
+  String? _currentUserId;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _initializeScreenData();
-  }
-
-  Future<void> _initializeScreenData() async {
-    // --- 在這裡獲取當前登錄用戶的 ID ---
-    // 這是一個關鍵步驟，您需要用您的實際邏輯替換它
-
-    // 方法3: 模擬獲取 (用於測試，請務必替換)
-    await Future.delayed(const Duration(milliseconds: 100)); // 模擬異步獲取
-    if (mounted) { // 檢查組件是否還掛載
-      setState(() {
-        _currentUserId = "user_self_id_chatlist_example"; // <<<<---- ！！！請用您的實際邏輯替換這個！！！
-      });
-
-      if (_currentUserId == null) {
-        print("ChatListScreen: Current User ID is null after attempting to fetch.");
-        if (mounted) { // 再次檢查
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('無法獲取用戶資訊，請嘗試重新登錄。')),
-          );
-          setState(() { // 停止加載指示器
-            _isLoadingBuyerChats = false;
-            _isLoadingSellerChats = false;
+    _tabController.addListener(() {
+      if (_tabController.index != _selectedTabIndex) {
+        if (mounted) {
+          setState(() {
+            _selectedTabIndex = _tabController.index;
           });
         }
-        return;
       }
-      // 確保在獲取到 _currentUserId 後再加載聊天數據
-      _loadBuyerChats();
-      _loadSellerChats();
-    }
+    });
+    _initializeScreenData();
   }
-
 
   @override
   void dispose() {
@@ -88,11 +73,30 @@ class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProvid
     super.dispose();
   }
 
+  Future<void> _initializeScreenData() async {
+    await Future.delayed(const Duration(milliseconds: 100)); // 模擬獲取用戶ID
+    if (mounted) {
+      setState(() {
+        _currentUserId = "user_self_id_chatlist_example"; // 模擬用戶ID
+      });
+      if (_currentUserId == null) {
+        // 實際應用中可能需要錯誤處理或重試
+        print("錯誤：無法獲取 currentUserId");
+        setState(() {
+          _isLoadingBuyerChats = false;
+          _isLoadingSellerChats = false;
+        });
+        return;
+      }
+      _loadBuyerChats();
+      _loadSellerChats();
+    }
+  }
+
   Future<void> _loadBuyerChats() async {
-    if (_currentUserId == null) return; // 如果沒有用戶ID，則不加載
     if (!mounted) return;
     setState(() => _isLoadingBuyerChats = true);
-    await Future.delayed(const Duration(seconds: 1)); // 模擬網絡請求
+    await Future.delayed(const Duration(seconds: 1)); // 模擬網絡延遲
     if (!mounted) return;
     setState(() {
       _buyerChats = [
@@ -104,7 +108,6 @@ class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProvid
   }
 
   Future<void> _loadSellerChats() async {
-    if (_currentUserId == null) return;
     if (!mounted) return;
     setState(() => _isLoadingSellerChats = true);
     await Future.delayed(const Duration(seconds: 1));
@@ -118,38 +121,31 @@ class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProvid
   }
 
   void _navigateToChatRoom(BuildContext context, ChatRoomSummary chatSummary) {
-    // 確保 _currentUserId 已經被賦值
     if (_currentUserId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('錯誤：無法獲取當前用戶資訊。請重試。')),
       );
-      print("Navigation Error: _currentUserId is null.");
       return;
     }
-
-    // 確保 otherPartyId 存在
     if (chatSummary.otherPartyId == null || chatSummary.otherPartyId!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('錯誤：無法確定聊天對象的ID。')),
       );
-      print("Navigation Error: chatSummary.otherPartyId is null or empty for chatRoomId: ${chatSummary.id}");
       return;
     }
-
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => ChatRoomScreen( // 確保 ChatRoomScreen 已正確導入並且構造函數匹配
-          chatRoomId: chatSummary.id, // chatRoomId
+        builder: (context) => ChatRoomScreen(
+          chatRoomId: chatSummary.id,
           otherUserName: chatSummary.otherPartyName,
           otherUserAvatarUrl: chatSummary.otherPartyAvatarUrl,
-          otherUserId: chatSummary.otherPartyId!,   // <--- 傳遞對方用戶ID
-          currentUserId: _currentUserId!,          // <--- 傳遞當前登錄用戶ID
+          otherUserId: chatSummary.otherPartyId!,
+          currentUserId: _currentUserId!,
         ),
       ),
     );
   }
-
 
   Widget _buildChatList(BuildContext context, List<ChatRoomSummary> chats, bool isLoading) {
     if (_currentUserId == null && !isLoading) {
@@ -197,8 +193,8 @@ class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProvid
                     style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
                   ),
                 ),
-              ] else ... [
-                const SizedBox(height: 4 + 10 + 4), // 保持高度一致性 (近似值)
+              ] else ...[
+                const SizedBox(height: 4 + 2 + 10 + 2), // 保持佔位高度
               ]
             ],
           ),
@@ -208,34 +204,66 @@ class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProvid
     );
   }
 
+  // 自訂的 Tab 按鈕 Widget
+  Widget _buildCustomTab({
+    required String text,
+    required int index,
+  }) {
+    bool isSelected = _selectedTabIndex == index;
+    Color backgroundColor = isSelected ? activeTabBackgroundColor : inactiveTabBackgroundColor;
+    Color textColor = isSelected ? activeTabTextColor : inactiveTabTextColor;
+
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          if (mounted) {
+            setState(() {
+              _selectedTabIndex = index;
+              _tabController.animateTo(index); // 同步 TabBarView
+            });
+          }
+        },
+        child: Container(
+          height: kToolbarHeight, // 和 AppBar bottom 的預期高度一致
+          color: backgroundColor,
+          alignment: Alignment.center,
+          child: Text(
+            text,
+            style: TextStyle(
+              color: textColor,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    // 定義您想要的 AppBar 顏色
-    const Color appBarBackgroundColor = Color(0xFF004E98);
-    // 定義 AppBar 內容的顏色 (例如文字和圖標)
-    const Color appBarContentColor = Colors.white;
-
-
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          '我的聊天', // 您可以將標題文字放在這裡
-          style: TextStyle(color: appBarContentColor), // 設置標題文字顏色
+          '我的聊天',
+          style: TextStyle(color: appBarTextColor),
         ),
-        backgroundColor: appBarBackgroundColor, // <--- 設置 AppBar 的背景顏色
-        elevation: 0, // 可選：移除 AppBar 下方的陰影，使其更扁平
-        iconTheme: const IconThemeData(color: appBarContentColor), // 確保返回按鈕等圖標顏色一致
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: '與賣家溝通'),
-            Tab(text: '與買家溝通'),
-          ],
-          labelStyle: const TextStyle(fontWeight: FontWeight.bold),
-          labelColor: appBarContentColor, // 選中標籤的文字顏色
-          unselectedLabelColor: appBarContentColor.withOpacity(0.7), // 未選中標籤的文字顏色
-          indicatorColor: appBarContentColor, // 指示器的顏色
-          indicatorWeight: 3.0, // 指示器的厚度
+        backgroundColor: appBarColor, // AppBar 固定深藍色
+        elevation: 0,
+        iconTheme: const IconThemeData(color: appBarTextColor), // AppBar 圖標顏色
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(kToolbarHeight), // Tab 區域的高度
+          child: Row(
+            children: <Widget>[
+              _buildCustomTab(
+                text: '與賣家溝通', // 買家視角
+                index: 0,
+              ),
+              _buildCustomTab(
+                text: '與買家溝通', // 賣家視角
+                index: 1,
+              ),
+            ],
+          ),
         ),
       ),
       body: TabBarView(
@@ -248,3 +276,32 @@ class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProvid
     );
   }
 }
+
+// 再次提醒: 您需要有一個 ChatRoomScreen 的實現
+// class ChatRoomScreen extends StatelessWidget {
+//   final String chatRoomId;
+//   final String otherUserName;
+//   final String? otherUserAvatarUrl;
+//   final String otherUserId;
+//   final String currentUserId;
+
+//   const ChatRoomScreen({
+//     Key? key,
+//     required this.chatRoomId,
+//     required this.otherUserName,
+//     this.otherUserAvatarUrl,
+//     required this.otherUserId,
+//     required this.currentUserId,
+//   }) : super(key: key);
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return Scaffold(
+//       appBar: AppBar(title: Text("與 ${otherUserName} 的聊天")),
+//       body: Center(
+//         child: Text(
+//             '聊天室 ID: $chatRoomId\n與: $otherUserName (ID: $otherUserId)\n您的ID: $currentUserId'),
+//       ),
+//     );
+//   }
+// }
