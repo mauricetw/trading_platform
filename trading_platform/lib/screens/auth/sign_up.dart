@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:first_flutter_project/api_service.dart';
 import '../auth/sign_in.dart';
 
-/*void main() {
+void main() {
   runApp(const MyApp());
 }
 
@@ -21,7 +21,7 @@ class MyApp extends StatelessWidget {
       home: const SignUpPage(), // 设置应用的首页为注册页面
     );
   }
-}*/
+}
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -288,7 +288,7 @@ class _SignUpPageState extends State<SignUpPage> {
                               backgroundColor: const Color(0xFFFF9C44), // 橙色背景
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 15), // 内边距
                             ),
-                            child: const Text('發送信件', style: TextStyle(color: Colors.black)), // 按钮文本
+                            child: const Text('重新獲送', style: TextStyle(color: Colors.black)), // 按钮文本
                           ),
                         ],
                       ),

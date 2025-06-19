@@ -18,13 +18,13 @@ class MainMarket extends StatefulWidget {
 
 class _MainMarketState extends State<MainMarket> {
   final TextEditingController _searchController = TextEditingController();
-  int _currentIndex = 0;
-  final PageController _pageController = PageController(initialPage: 0);
+  int _currentIndex = 0; // 用於追蹤目前顯示的頁面索引
+  final PageController _pageController = PageController(initialPage: 0); // 用於管理 PageView
 
   @override
   void dispose() {
     _searchController.dispose();
-    _pageController.dispose();
+    _pageController.dispose(); // 記得釋放 PageController
     super.dispose();
   }
 
@@ -44,29 +44,34 @@ class _MainMarketState extends State<MainMarket> {
     }
   }
 
+  // 當 PageView 的頁面被滑動切換時，這個函式會被呼叫
   void _onPageChanged(int index) {
     setState(() {
-      _currentIndex = index;
+      _currentIndex = index; // 更新目前頁面的索引
     });
   }
 
+  // 當底部導航列的項目被點擊時，這個函式會被呼叫
   void _onItemTapped(int index) {
     _pageController.animateToPage(
-      index,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.ease,
+        index, // 切換到指定的頁面
+        duration: const Duration(milliseconds: 300), // 切換動畫的時間
+        curve: Curves.ease, // 切換動畫的曲線
     );
   }
 
   //測資
   @override
   Widget build(BuildContext context) {
+
+    // 創建一個模擬的 User 物件
+    // 在實際應用中，你會在這裡從狀態管理或其他地方獲取真實的使用者資料
     final User dummyUser = User(
       id: 'test_user_id',
       username: '測試用戶',
       email: 'test@example.com',
       registeredAt: DateTime.now(),
-      isSeller: true,
+      isSeller: true, // 或者 false，根據你的測試需求
       bio: '這是一個測試帳號的簡介',
       schoolName: '測試大學',
     );
@@ -115,8 +120,8 @@ class _MainMarketState extends State<MainMarket> {
           ),
           Expanded(
             child: PageView(
-              controller: _pageController,
-              onPageChanged: _onPageChanged,
+              controller: _pageController, // 設定 PageView 的控制器
+              onPageChanged: _onPageChanged, // 設定頁面切換時要執行的函式
               children: [
                 const HomePage(), // 使用新建的 HomePage
                 const ChatList(),
