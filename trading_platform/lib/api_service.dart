@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  final String baseUrl = "https://tradingdatabase-production.up.railway.app";
+  final String baseUrl = "http://10.0.2.2:8000";
 
   Future<Map<String, dynamic>> registerUser(String username, String email, String password) async {
     final url = Uri.parse('$baseUrl/register');
@@ -42,29 +42,69 @@ class ApiService {
 
   Future<Map<String, dynamic>> login(String identifier, String password) async {
     final url = Uri.parse('$baseUrl/login');
-    final response = await http.post(
-      url,
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode({
-        "identifier": identifier, // 可以是 email 或 username
-        "password": password,
-      }),
-    );
+    try {
+      final response = await http.post(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "login": identifier,
+          "password": password,
+        }),
+      );
 
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
-    } else {
-      throw Exception("Login failed");
+      if (response.statusCode == 200) {
+        // 成功登入
+        Map<String, dynamic> responseData = jsonDecode(response.body);
+        return {
+          "success": true,
+          "data": responseData,
+        };
+      } else {
+        // 處理 HTTP 狀態碼
+        Map<String, dynamic> errorData;
+        try {
+          errorData = jsonDecode(response.body);
+        } catch (e) {
+          errorData = {
+            "message": "無法解析錯誤訊息",
+            "details": response.body,
+          };
+        }
+
+        return {
+          "success": false,
+          "error": errorData["message"] ?? "未知錯誤",
+          "statusCode": response.statusCode,
+        };
+      }
+    } catch (e) {
+      // 捕獲網路錯誤或其他異常
+      return {
+        "success": false,
+        "error": "無法連接伺服器。請檢查網路連線。",
+        "exception": e.toString(),
+      };
     }
   }
 
-  Future<void> forgotPassword(String username) async {
+  Future<void> forgotPassword(String identifier) async {
     final url = Uri.parse('$baseUrl/forgot-password');
-    await http.post(
-      url,
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode({"username": username}),
-    );
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'login': identifier}),
+      );
+
+      if (response.statusCode == 200) {
+        print('驗證信發送成功');
+      } else {
+        final errorData = jsonDecode(response.body);
+        throw Exception(errorData['detail'] ?? '發送驗證信失敗');
+      }
+    } catch (e) {
+      throw Exception('伺服器連線失敗：$e');
+    }
   }
 
   Future<void> resetPassword(String token, String newPassword) async {
@@ -79,3 +119,4 @@ class ApiService {
     );
   }
 }
+

@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 import '../models/user/user.dart';
 import 'cart.dart';
 import 'review.dart';
+
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
+import './auth/login_main.dart';
 // TODO: 如果存在「訂單資訊」和「銷售商品管理」頁面，請取消註解並匯入
 // import 'order_info_page.dart';
 // import 'sell_product_management_page.dart';
@@ -87,7 +91,25 @@ class Profile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final user = currentUser;
+    final authProvider = Provider.of<AuthProvider>(context);
+
+    // 判斷是否登入
+    if (!authProvider.isLoggedIn) {
+      // 延遲導航直到 build 完成，避免錯誤
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.push(context, MaterialPageRoute(builder: (context) => LoginScreen())); // 替換成你的登入頁 route
+      });
+
+      return const Center(
+        child: Text('請先登入', style: TextStyle(fontSize: 24)),
+      );
+
+    }
+
+    final user = authProvider.currentUser!;
+
+    //final user = currentUser;
+
 
     return Scaffold( // 使用 Scaffold 作為頁面根佈局
       backgroundColor: const Color(0xFFEBEBEB), // UserProfileFrame 的背景顏色
