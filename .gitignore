@@ -14,7 +14,7 @@ ENV/
 
 # IDE 設定
 .vscode/
-
+.idea/
 
 # 系統檔
 .DS_Store
