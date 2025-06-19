@@ -1,10 +1,12 @@
+// main_market.dart
 import 'package:flutter/material.dart';
 import 'search.dart';
 import 'annoucement.dart';
 import 'profile.dart';
-import 'chat_list.dart';
-import 'home_page.dart'; // 導入新建的 HomePage
+import 'chatlist/chat_list.dart';
+import 'home_page.dart';
 import '../models/user/user.dart';
+import '../widgets/market_search_bar.dart'; // <--- Import the new search bar widget
 
 class MainMarket extends StatefulWidget {
   const MainMarket({super.key});
@@ -17,24 +19,24 @@ class MainMarket extends StatefulWidget {
 }
 
 class _MainMarketState extends State<MainMarket> {
-  final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _marketSearchController = TextEditingController(); // Renamed for clarity
   int _currentIndex = 0;
   final PageController _pageController = PageController(initialPage: 0);
 
   @override
   void dispose() {
-    _searchController.dispose();
+    _marketSearchController.dispose();
     _pageController.dispose();
     super.dispose();
   }
 
-  void _navigateToSearchPage() {
-    String searchText = _searchController.text;
+  void _navigateToMarketSearchPage() { // Renamed for clarity
+    String searchText = _marketSearchController.text;
     if (searchText.isNotEmpty) {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => SearchPage(searchText: searchText),
+          builder: (context) => SearchPage(searchText: searchText), // Assuming SearchPage is for market search
         ),
       );
     } else {
@@ -58,7 +60,6 @@ class _MainMarketState extends State<MainMarket> {
     );
   }
 
-  //測資
   @override
   Widget build(BuildContext context) {
     final User dummyUser = User(
@@ -71,55 +72,26 @@ class _MainMarketState extends State<MainMarket> {
       schoolName: '測試大學',
     );
 
+    // Determine if the market search bar should be visible
+    bool showMarketSearchBar = _currentIndex == 0; // Show only for the first tab (HomePage)
+
     return Scaffold(
       body: Column(
         children: [
-          // 搜索欄設計
-          Container(
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF004E98), Color(0xFF004E98)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+          // Conditionally display the MarketSearchBar
+          if (showMarketSearchBar)
+            MarketSearchBar(
+              controller: _marketSearchController,
+              onSubmitted: (_) => _navigateToMarketSearchPage(),
             ),
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.9),
-                    borderRadius: BorderRadius.circular(25),
-                  ),
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: '輸入關鍵字查詢...',
-                      prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
-                    ),
-                    onSubmitted: (_) => _navigateToSearchPage(),
-                  ),
-                ),
-              ),
-            ),
-          ),
           Expanded(
             child: PageView(
               controller: _pageController,
               onPageChanged: _onPageChanged,
+              physics: const NeverScrollableScrollPhysics(), // Optional: Disable swipe if you only want bottom nav control
               children: [
-                const HomePage(), // 使用新建的 HomePage
-                const ChatList(),
+                const HomePage(),
+                const ChatListScreen(),
                 const Annoucement(),
                 Profile(currentUser: dummyUser),
               ],
@@ -128,6 +100,7 @@ class _MainMarketState extends State<MainMarket> {
         ],
       ),
       bottomNavigationBar: Container(
+        // ... (your existing BottomNavigationBar Container decoration)
         decoration: BoxDecoration(
           gradient: const LinearGradient(
             colors: [Color(0xFF004E98), Color(0xFF004198)],
