@@ -1,4 +1,3 @@
-// main_market.dart
 import 'package:flutter/material.dart';
 import 'search.dart';
 import 'annoucement.dart';
@@ -92,7 +91,7 @@ class _MainMarketState extends State<MainMarket> {
               children: [
                 const HomePage(),
                 const ChatListScreen(),
-                const Annoucement(),
+                const AnnouncementListScreen(),
                 Profile(currentUser: dummyUser),
               ],
             ),
