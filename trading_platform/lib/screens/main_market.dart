@@ -130,34 +130,50 @@ class _MainMarketState extends State<MainMarket> {
         ],
       ),
 
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: _onItemTapped,
-
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: const Color(0xFF004E98),
-        unselectedItemColor: const Color(0xFFFF8D36),
-        selectedItemColor: const Color(0xFF3DFF9E),
-        unselectedLabelStyle: const TextStyle(color: Color(0xFFFF8D36)),
-        selectedLabelStyle: const TextStyle(color: Color(0xFF3DFF9E)),
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: '首頁',
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF004E98), Color(0xFF004198)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.message),
-            label: '訊息',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.notifications),
-            label: '通知',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: '個人檔案',
-          ),
-        ],
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: BottomNavigationBar(
+          currentIndex: _currentIndex,
+          onTap: _onItemTapped,
+          type: BottomNavigationBarType.fixed,
+          backgroundColor: Colors.transparent,
+          selectedItemColor: Colors.white,
+          unselectedItemColor: Colors.white.withOpacity(0.7),
+          selectedFontSize: 12,
+          unselectedFontSize: 12,
+          elevation: 0,
+          items: const [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.home),
+              label: '首頁',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.message),
+              label: '訊息',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.notifications),
+              label: '通知',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.person),
+              label: '個人檔案',
+            ),
+          ],
+        ),
       ),
     );
   }
