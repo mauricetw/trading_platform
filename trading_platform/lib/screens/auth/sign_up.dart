@@ -182,12 +182,7 @@ class _SignUpPageState extends State<SignUpPage> {
                           contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 15), // 内容内边距
                         ),
                         // 可以添加验证器
-                        // validator: (value) {
-                        //   if (value == null || value.isEmpty) {
-                        //     return '请输入用户名';
-                        //   }
-                        //   return null;
-                        // },
+                        
                       ),
                       const SizedBox(height: 20), // 垂直间距
 

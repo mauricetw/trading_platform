@@ -110,6 +110,7 @@ class Profile extends StatelessWidget {
 
     //final user = currentUser;
 
+
     return Scaffold( // 使用 Scaffold 作為頁面根佈局
       backgroundColor: const Color(0xFFEBEBEB), // UserProfileFrame 的背景顏色
       body: SafeArea( // 避免內容被系統狀態列或瀏海遮擋

@@ -176,55 +176,31 @@ class _SignInPageState extends State<SignInPage> {
                                 61, 255, 258, 1), // 背景
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(20),
+
                             ),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 60),
+                        const SizedBox(height: 60),
 
-                      // 使用者帳號
-                      const Text(
-                        '使用者帳號',
-                        style: TextStyle(color: Colors.white, fontSize: 16),
-                      ),
-                      const SizedBox(height: 8.0),
-                      TextField(
-                        controller: _usernameController,
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Colors.white,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(4.0),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            vertical: 12.0,
-                            horizontal: 12.0,
-                          ),
+                        // 使用者帳號
+                        const Text(
+                          '使用者帳號',
+                          style: TextStyle(color: Colors.white, fontSize: 16),
                         ),
-                      ),
-
-                      const SizedBox(height: 20.0),
-
-                      // 使用者密碼
-                      const Text(
-                        '使用者密碼',
-                        style: TextStyle(color: Colors.white, fontSize: 16),
-                      ),
-                      const SizedBox(height: 8.0),
-                      TextField(
-                        controller: _passwordController,
-                        obscureText: true,
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Colors.white,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(4.0),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            vertical: 12.0,
-                            horizontal: 12.0,
+                        const SizedBox(height: 8.0),
+                        TextField(
+                          controller: _usernameController,
+                          decoration: InputDecoration(
+                            filled: true,
+                            fillColor: Colors.white,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(4.0),
+                              borderSide: BorderSide.none,
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 12.0,
+                              horizontal: 12.0,
+                            ),
                           ),
                         ),
                       ),
@@ -242,14 +218,17 @@ class _SignInPageState extends State<SignInPage> {
                             color: Colors.black,
                             fontSize: 12,
                             decoration: TextDecoration.underline,
+
                           ),
                         ),
-                      ),
 
-                      // 錯誤訊息
-                      if (_usernameError.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8.0),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) =>
+                                  AccountVerificationPage()),);
+                          },
                           child: Text(
                             '*$_usernameError',
                             style: const TextStyle(
@@ -263,7 +242,24 @@ class _SignInPageState extends State<SignInPage> {
                             '*$_passwordError',
                             style: const TextStyle(
                                 color: Colors.greenAccent, fontSize: 12),
+
                           ),
+                        if (_passwordError.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4.0),
+                            child: Text(
+                              '*$_passwordError',
+                              style: const TextStyle(
+                                  color: Colors.greenAccent, fontSize: 12),
+                            ),
+                          ),
+
+                        const SizedBox(height: 20),
+
+                        const Text(
+                          '*使用者帳號不存在',
+                          style: TextStyle(color: Color.fromRGBO(
+                              61, 255, 258, 1), fontSize: 12),
                         ),
 
                       const SizedBox(height: 20),
@@ -292,42 +288,48 @@ class _SignInPageState extends State<SignInPage> {
                             minimumSize: const Size(90, 45),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(22.0),
+
                             ),
-                          ),
-                          child: _isLoading
-                              ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2.0,
+                            child: _isLoading
+                                ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2.0,
+                              ),
+                            )
+                                : const Text(
+                              '登入',
+                              style: TextStyle(
+                                  fontSize: 18, color: Colors.white),
                             ),
                           )
                               : const Text(
                             '登入',
                             style: TextStyle(
                                 fontSize: 18, color: Colors.white),
+
                           ),
                         ),
-                      ),
 
-                      const SizedBox(height: 16),
+                        const SizedBox(height: 16),
 
-                      // 忘記密碼
-                      const Center(
-                        child: Text(
-                          '發生問題請點此處',
-                          style: TextStyle(color: Colors.white, fontSize: 12),
+                        // 忘記密碼
+                        const Center(
+                          child: Text(
+                            '發生問題請點此處',
+                            style: TextStyle(color: Colors.white, fontSize: 12),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
-      ),
-    );
+      );
+    }
   }
-}
