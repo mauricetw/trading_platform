@@ -92,7 +92,7 @@ class _MainMarketState extends State<MainMarket> {
               children: [
                 const HomePage(),
                 const ChatListScreen(),
-                const Annoucement(),
+                const AnnouncementListScreen(),
                 Profile(currentUser: dummyUser),
               ],
             ),
