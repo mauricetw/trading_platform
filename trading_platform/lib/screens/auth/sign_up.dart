@@ -35,7 +35,7 @@ class _SignUpPageState extends State<SignUpPage> {
   // GlobalKey用于获取Form的状态，可以用来验证表单
   final _formKey = GlobalKey<FormState>();
   // 默认显示错误信息，在真实应用中应该根据表单验证结果设置
-  bool _hasErrors = false;
+  final bool _hasErrors = false;
 
   // 创建文本控制器，用于获取和设置各个输入框的值
   final TextEditingController _usernameController = TextEditingController(); // 用户名控制器
@@ -61,19 +61,29 @@ class _SignUpPageState extends State<SignUpPage> {
 
     if (password != confirmPassword) {
       _showErrorDialog("Passwords do not match");
+      setState(() => _isLoading = false);
       return;
     }
 
     try {
       final response = await apiService.registerUser(username, email, password);
-      _showSuccessDialog(response['message']);
-      // 點擊按鈕時跳轉至登入頁面
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => SignInPage()),
-      );
+      if (response["success"]) {
+        _showSuccessDialog(response["message"] ?? "註冊成功");
+        // 點擊按鈕時跳轉至登入頁面
+        //Navigator.push(
+        //  context,
+        //  MaterialPageRoute(builder: (context) => SignInPage()),
+        //);
+      } else {
+        _showErrorDialog(response["message"] ?? "註冊失敗");
+      }
+
     } catch (e) {
-      _showErrorDialog(e.toString());
+      _showErrorDialog("註冊過程發生錯誤：$e");
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 

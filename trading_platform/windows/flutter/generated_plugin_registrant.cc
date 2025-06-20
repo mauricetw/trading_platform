@@ -10,8 +10,8 @@
 #include <firebase_core/firebase_core_plugin_c_api.h>
 
 void RegisterPlugins(flutter::PluginRegistry* registry) {
-    CloudFirestorePluginCApiRegisterWithRegistrar(
-            registry->GetRegistrarForPlugin("CloudFirestorePluginCApi"));
-    FirebaseCorePluginCApiRegisterWithRegistrar(
-            registry->GetRegistrarForPlugin("FirebaseCorePluginCApi"));
+  CloudFirestorePluginCApiRegisterWithRegistrar(
+      registry->GetRegistrarForPlugin("CloudFirestorePluginCApi"));
+  FirebaseCorePluginCApiRegisterWithRegistrar(
+      registry->GetRegistrarForPlugin("FirebaseCorePluginCApi"));
 }

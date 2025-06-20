@@ -2,6 +2,11 @@ import 'package:first_flutter_project/screens/auth/forget_password.dart';
 import 'package:flutter/material.dart';
 import '../auth/login_main.dart';
 import 'package:first_flutter_project/screens/main_market.dart';
+import 'package:first_flutter_project/api_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:first_flutter_project/models/user/user.dart';
+import 'package:provider/provider.dart';
+import 'package:first_flutter_project/providers/auth_provider.dart';
 
 void main() {
   runApp(const MyApp());
@@ -58,29 +63,55 @@ class _SignInPageState extends State<SignInPage> {
   }
 
   // 新增一個登入方法來處理登入流程
-  void _login() {
-    // 設置狀態為正在載入
+  void _login() async {
     setState(() {
       _isLoading = true;
     });
 
-    // 模擬網路請求，實際專案中，您會在這裡執行真正的登入API請求
-    Future.delayed(const Duration(seconds: 1), () {
-      // 完成載入
+    String identifier = _usernameController.text.trim();
+    String password = _passwordController.text.trim();
+
+    try {
+      final apiService = ApiService();
+      final response = await apiService.login(identifier, password);
+
+      if (response["success"]) {
+        final data = response["data"];
+
+        // 儲存 token
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        await prefs.setString('token', data['token']);
+
+        final user = User.fromJson(data);
+
+        // 通知 provider 更新登入狀態
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        authProvider.login(user);
+
+        // 跳轉頁面
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const MainMarket()),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(response["error"] ?? "登入失敗")),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("登入過程發生錯誤: $e")),
+      );
+    } finally {
       setState(() {
         _isLoading = false;
       });
-
-      // 跳轉到主頁面，使用pushReplacement避免用戶按返回鍵回到登入頁面
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const MainMarket()),
-      );
-    });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+
     return Scaffold(
       body: Container(
         color: Colors.grey[300],
