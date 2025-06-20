@@ -1,9 +1,7 @@
-import 'package:first_flutter_project/screens/auth/reset_password_confirm.dart';
 import 'package:flutter/material.dart';
-import 'reset_password.dart';
 
 class AccountVerificationPage extends StatefulWidget {
-  const AccountVerificationPage({Key? key}) : super(key: key);
+  const AccountVerificationPage({super.key});
 
   @override
   State<AccountVerificationPage> createState() => _AccountVerificationPageState();

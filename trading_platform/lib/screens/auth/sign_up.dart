@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:first_flutter_project/api_service.dart';
+import 'package:first_flutter_project/services/api_service.dart';
 import '../auth/sign_in.dart';
 
-/*void main() {
+void main() {
   runApp(const MyApp());
 }
 
@@ -21,7 +21,7 @@ class MyApp extends StatelessWidget {
       home: const SignUpPage(), // 设置应用的首页为注册页面
     );
   }
-}*/
+}
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -35,7 +35,7 @@ class _SignUpPageState extends State<SignUpPage> {
   // GlobalKey用于获取Form的状态，可以用来验证表单
   final _formKey = GlobalKey<FormState>();
   // 默认显示错误信息，在真实应用中应该根据表单验证结果设置
-  bool _hasErrors = false;
+  final bool _hasErrors = false;
 
   // 创建文本控制器，用于获取和设置各个输入框的值
   final TextEditingController _usernameController = TextEditingController(); // 用户名控制器
@@ -182,12 +182,7 @@ class _SignUpPageState extends State<SignUpPage> {
                           contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 15), // 内容内边距
                         ),
                         // 可以添加验证器
-                        // validator: (value) {
-                        //   if (value == null || value.isEmpty) {
-                        //     return '请输入用户名';
-                        //   }
-                        //   return null;
-                        // },
+                        
                       ),
                       const SizedBox(height: 20), // 垂直间距
 
@@ -288,7 +283,7 @@ class _SignUpPageState extends State<SignUpPage> {
                               backgroundColor: const Color(0xFFFF9C44), // 橙色背景
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 15), // 内边距
                             ),
-                            child: const Text('發送信件', style: TextStyle(color: Colors.black)), // 按钮文本
+                            child: const Text('重新獲送', style: TextStyle(color: Colors.black)), // 按钮文本
                           ),
                         ],
                       ),

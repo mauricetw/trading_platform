@@ -4,8 +4,6 @@ import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/wishlist_item.dart';
 import 'providers/category_provider.dart';
-import 'screens/auth/login_main.dart';
-import 'screens/auth/reset_password.dart';
 
 
 void main() {
@@ -158,7 +156,7 @@ void main() {
 // }
 
 class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {

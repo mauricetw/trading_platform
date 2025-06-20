@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart'; // 假設你可能還會用到日期或價格格式化
+// 假設你可能還會用到日期或價格格式化
 import '../models/product/product.dart'; // 您的 Product model 路徑
 import '../models/user/user.dart';      // 您的 User model 路徑
 

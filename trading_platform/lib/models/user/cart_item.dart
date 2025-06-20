@@ -1,5 +1,4 @@
 // 可能需要導入 Product Model，取決於你在 CartItem 中儲存多少 Product 資訊
-import '../product/product.dart';
 
 class CartItem {
   // 購物車項目的唯一 ID (可選，如果後端為購物車項目生成 ID)

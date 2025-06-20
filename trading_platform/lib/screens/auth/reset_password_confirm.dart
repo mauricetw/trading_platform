@@ -1,237 +1,233 @@
-import 'package:first_flutter_project/screens/auth/reset_password.dart';
 import 'package:flutter/material.dart';
+import '../auth/sign_in.dart';
 
-class PasswordResetConfirmPage extends StatefulWidget {
-  final String userId;
+class PasswordResetPage extends StatefulWidget {
+  final String userId; // 使用者帳號
 
-  const PasswordResetConfirmPage({
-    Key? key,
+  const PasswordResetPage({
+    super.key,
     required this.userId,
-  }) : super(key: key);
+  });
 
   @override
-  State<PasswordResetConfirmPage> createState() => _PasswordResetPageConfirmState();
+  State<PasswordResetPage> createState() => _PasswordResetPageState();
 }
 
-class _PasswordResetPageConfirmState extends State<PasswordResetConfirmPage> {
-  final TextEditingController _passwordController = TextEditingController();
-  String? _passwordError;
+class _PasswordResetPageState extends State<PasswordResetPage> {
+  final _newPasswordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+
+  bool _passwordsNotMatch = false;
+  bool _passwordTooShort = false;
+  bool _passwordSameAsPrevious = false;
 
   @override
   void dispose() {
-    _passwordController.dispose();
+    _newPasswordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
-  void _validatePassword(String value) {
-    if (value.isEmpty) {
-      setState(() {
-        _passwordError = "驗證碼錯誤";
-      });
-    } else {
-      setState(() {
-        _passwordError = null;
-      });
-    }
-  }
+  void _validateAndSubmit() {
+    // 重設錯誤狀態
+    setState(() {
+      _passwordsNotMatch = false;
+      _passwordTooShort = false;
+      _passwordSameAsPrevious = false;
+    });
 
-  void _handleNextStep() {
-    _validatePassword(_passwordController.text);
-    if (_passwordError == null) {
-      // 處理下一步邏輯
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => PasswordResetPage(
-            userId: widget.userId,
-          ),
-        ),
-      );
+    final newPassword = _newPasswordController.text;
+    final confirmPassword = _confirmPasswordController.text;
+
+    // 驗證密碼
+    if (newPassword.length < 8) {
+      setState(() {
+        _passwordTooShort = true;
+      });
+      return;
     }
+
+    if (newPassword != confirmPassword) {
+      setState(() {
+        _passwordsNotMatch = true;
+      });
+      return;
+    }
+
+    // 模擬檢查是否與上一個密碼相同
+    if (newPassword == "oldpassword") {  // 實際應用中需要後端驗證
+      setState(() {
+        _passwordSameAsPrevious = true;
+      });
+      return;
+    }
+
+    // 這裡應該有API調用來更新密碼
+
+    // 若成功，返回登入頁面
+    // 可以直接回到最初頁面，清除導航堆疊
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => SignInPage()),
+    );
+
+    // 這裡可加入提示密碼修改成功的彈窗
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('密碼修改成功！')),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFFFFF), // 使用淺藍灰色背景
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(50, 45, 50, 45),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 20),
-
-              // 返回按鈕
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0E5DA5), // 深藍色按鈕
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  minimumSize: const Size(80, 36),
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.chevron_left, color: Colors.white, size: 20),
-                    Text(
-                      '返回',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 40),
-
-              // 使用者編號標題
-              const Text(
-                '使用者編號',
-                style: TextStyle(
-                  color: Color(0xFF0E5DA5), // 深藍色文字
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-
-              const SizedBox(height: 8),
-
-              // 使用者編號
-              Text(
-                widget.userId,
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-
-              const SizedBox(height: 30),
-
-              // 輸入驗證碼標題
-              const Text(
-                '輸入驗證碼',
-                style: TextStyle(
-                  color: Color(0xFF0E5DA5), // 深藍色文字
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-
-              const SizedBox(height: 8),
-
-              // 驗證碼輸入框
-              Container(
-                height: 48,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0E5DA5), // 深藍色背景
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: TextField(
-                  controller: _passwordController,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: const InputDecoration(
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(horizontal: 16),
-                    hintText: '',
-                  ),
-                  onChanged: (value) {
-                    // 清除錯誤提示
-                    if (_passwordError != null) {
-                      setState(() {
-                        _passwordError = null;
-                      });
-                    }
-                  },
-                ),
-              ),
-
-              // 錯誤提示
-              if (_passwordError != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8.0),
-                  child: Text(
-                    _passwordError!,
-                    style: const TextStyle(
-                      color: Colors.red,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-
-              // 填充空間
-              const Spacer(),
-
-              // 下一步按鈕
-              Center(
-                child: ElevatedButton(
-                  onPressed: _handleNextStep,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFF7913E), // 橙色按鈕
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    minimumSize: const Size(120, 44),
-                  ),
-                  child: const Text(
-                    '下一步',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                    ),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              // 沒有收到郵件提示
-              Center(
-                child: TextButton(
-                  onPressed: () {
-                    // 重發郵件邏輯
-                  },
-                  child: const Text(
-                    '沒有收到？重發郵件',
-                    style: TextStyle(
-                      color: Colors.black54,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 40),
-            ],
+      backgroundColor: const Color(0xFFEAEEF2),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0055A7),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Icon(
+              Icons.arrow_back,
+              color: Colors.white,
+            ),
           ),
+        ),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 20),
+            // 使用者帳號
+            const Text(
+              '使用者帳號',
+              style: TextStyle(
+                fontSize: 18,
+                color: Color(0xFF0055A7),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              widget.userId, // 動態顯示使用者ID
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 30),
+
+            // 新密碼
+            const Text(
+              '新使用者密碼',
+              style: TextStyle(
+                fontSize: 18,
+                color: Color(0xFF0055A7),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _newPasswordController,
+              obscureText: true,
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: Colors.blue[800],
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+              style: const TextStyle(color: Colors.white),
+            ),
+            const SizedBox(height: 30),
+
+            // 再次確認密碼
+            const Text(
+              '再次確認密碼',
+              style: TextStyle(
+                fontSize: 18,
+                color: Color(0xFF0055A7),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _confirmPasswordController,
+              obscureText: true,
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: Colors.blue[800],
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+              style: const TextStyle(color: Colors.white),
+            ),
+            const SizedBox(height: 20),
+
+            // 錯誤訊息
+            if (_passwordTooShort)
+              const Text(
+                '* 密碼規範不正確',
+                style: TextStyle(color: Colors.red, fontSize: 14),
+              ),
+            if (_passwordsNotMatch)
+              const Text(
+                '* 兩個密碼不同',
+                style: TextStyle(color: Colors.red, fontSize: 14),
+              ),
+            if (_passwordSameAsPrevious)
+              const Text(
+                '* 密碼與前一次相同',
+                style: TextStyle(color: Colors.red, fontSize: 14),
+              ),
+
+            const Spacer(),
+
+            // 確認按鈕
+            Center(
+              child: ElevatedButton(
+                onPressed: _validateAndSubmit,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFFA726), // 橙色按鈕
+                  minimumSize: const Size(120, 50),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(25),
+                  ),
+                ),
+                child: const Text(
+                  '確認',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // 返回登入頁面提示
+            const Center(
+              child: Text(
+                '點選即返回登入畫面',
+                style: TextStyle(
+                  color: Colors.black54,
+                ),
+              ),
+            ),
+            const SizedBox(height: 40),
+          ],
         ),
       ),
     );
   }
-}
-
-// 示範用的主應用
-class PasswordResetConfirmApp extends StatelessWidget {
-  const PasswordResetConfirmApp({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false, // 移除debug標籤
-      title: '密碼重置',
-      theme: ThemeData(
-        primaryColor: const Color(0xFF0E5DA5), // 主題色為深藍色
-        scaffoldBackgroundColor: const Color(0xFFE4E6EC), // 底色為淺藍灰色
-      ),
-      home: const PasswordResetConfirmPage(userId: '123456'),
-    );
-  }
-}
-
-void main() {
-  runApp(const PasswordResetConfirmApp());
 }

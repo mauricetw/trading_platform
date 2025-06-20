@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import '../auth/sign_up.dart';
 import '../auth/sign_in.dart';
 
-/*void main() {
+void main() {
   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -20,7 +20,7 @@ class MyApp extends StatelessWidget {
       home: const LoginScreen(),
     );
   }
-}*/
+}
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});

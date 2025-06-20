@@ -1,9 +1,10 @@
-import 'package:first_flutter_project/screens/auth/forget_password.dart';
+import 'package:first_flutter_project/screens/auth/reset_password.dart';
 import 'package:flutter/material.dart';
-import '../auth/login_main.dart';
+import 'package:first_flutter_project/services/api_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:first_flutter_project/screens/main_market.dart';
 
-void main() {
+/*void main() {
   runApp(const MyApp());
 }
 
@@ -21,10 +22,10 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: true,
     );
   }
-}
+}*/
 
 class SignInPage extends StatefulWidget {
-  const SignInPage({Key? key}) : super(key: key);
+  const SignInPage({super.key});
 
   @override
   State<SignInPage> createState() => _SignInPageState();
@@ -35,6 +36,8 @@ class _SignInPageState extends State<SignInPage> {
   final TextEditingController _passwordController = TextEditingController();
   String _usernameError = '';
   String _passwordError = '';
+  final ApiService apiService = ApiService();
+
   bool _isLoading = false; // 新增一個變數來追蹤登入狀態
 
   @override
@@ -47,37 +50,86 @@ class _SignInPageState extends State<SignInPage> {
   // 修改驗證方法，增加成功登入後的頁面跳轉
   void _validateInputs() {
     setState(() {
-      _usernameError = _usernameController.text.isEmpty ? '使用者帳號不存在' : '';
-      _passwordError = _passwordController.text.isEmpty ? '密碼錯誤' : '';
+      _usernameError = _usernameController.text.isEmpty ? '使用者帳號不能為空' : '';
+      _passwordError = _passwordController.text.isEmpty ? '密碼不能為空' : '';
     });
-
     // 檢查兩個欄位是否都已填寫(無錯誤)
     if (_usernameError.isEmpty && _passwordError.isEmpty) {
       _login();
     }
   }
 
-  // 新增一個登入方法來處理登入流程
-  void _login() {
-    // 設置狀態為正在載入
+
+
+  void _login() async {
     setState(() {
       _isLoading = true;
     });
 
-    // 模擬網路請求，實際專案中，您會在這裡執行真正的登入API請求
-    Future.delayed(const Duration(seconds: 1), () {
-      // 完成載入
+    String identifier = _usernameController.text.trim();
+    String password = _passwordController.text.trim();
+
+    try {
+      final response = await apiService.login(identifier, password);
+
+      if (response["success"]) {
+        Map<String, dynamic> data = response["data"];
+        String token = data["token"] ?? "No token";
+
+        print("Login Successful! Token: $token");
+
+        //print(data["id"]);
+        //print(data["username"]);
+        //print(data["email"]);
+
+        //從response中建立User物件
+        /*Map<String, String> userdata={
+          "id":data["id"],
+          "username":data["username"],
+          "email":data["email"]
+        };*/
+        final String id = data["id"];
+        print(id);
+
+        //User user = User.fromJson(userdata);
+
+        // 儲存 Token
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        await prefs.setString('token', token);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Login Successful!")),
+        );
+
+        //更新登入狀態
+        /*final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        authProvider.login(user);*/
+
+        // 跳轉到主頁面，使用pushReplacement避免用戶按返回鍵回到登入頁面
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const MainMarket()),
+        );
+      } else {
+        // 顯示錯誤訊息
+        String errorMessage = response["error"] ?? "Login failed.";
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMessage)),
+        );
+      }
+    } catch (e) {
+      print("Login failed: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Login failed: $e")),
+      );
+    } finally {
       setState(() {
         _isLoading = false;
       });
-
-      // 跳轉到主頁面，使用pushReplacement避免用戶按返回鍵回到登入頁面
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const MainMarket()),
-      );
-    });
+    }
   }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -95,7 +147,7 @@ class _SignInPageState extends State<SignInPage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  padding: const EdgeInsets.fromLTRB(50, 45, 50, 45),
+                  padding: const EdgeInsets.fromLTRB(45, 20, 45, 20),
                   alignment: Alignment.centerLeft,
                 ),
                 Container(
@@ -111,10 +163,13 @@ class _SignInPageState extends State<SignInPage> {
                           onPressed: () {
                             Navigator.pop(context);
                           },
-                          icon: const Icon(Icons.arrow_back, color: Color.fromRGBO(0, 78, 150, 1)), // 返回图标
-                          label: const Text('返回', style: TextStyle(color: Color.fromRGBO(0, 78, 150, 1))), // 按钮文本
+                          icon: const Icon(Icons.arrow_back,
+                              color: Color.fromRGBO(0, 78, 150, 1)), // 返回图标
+                          label: const Text('返回', style: TextStyle(
+                              color: Color.fromRGBO(0, 78, 150, 1))), // 按钮文本
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color.fromRGBO(61, 255, 258, 1), // 背景
+                            backgroundColor: const Color.fromRGBO(
+                                61, 255, 258, 1), // 背景
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(20),
                             ),
@@ -171,12 +226,13 @@ class _SignInPageState extends State<SignInPage> {
                       ),
 
                       TextButton(
-                        onPressed: (){
+                        onPressed: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (context) => AccountVerificationPage()),);
+                            MaterialPageRoute(builder: (context) =>
+                                AccountVerificationPage()),);
                         },
-                        child:Text(
+                        child: Text(
                           '忘記密碼了嗎?',
                           style: TextStyle(
                             color: Colors.black,
@@ -192,7 +248,8 @@ class _SignInPageState extends State<SignInPage> {
                           padding: const EdgeInsets.only(top: 8.0),
                           child: Text(
                             '*$_usernameError',
-                            style: const TextStyle(color: Colors.greenAccent, fontSize: 12),
+                            style: const TextStyle(
+                                color: Colors.greenAccent, fontSize: 12),
                           ),
                         ),
                       if (_passwordError.isNotEmpty)
@@ -200,7 +257,8 @@ class _SignInPageState extends State<SignInPage> {
                           padding: const EdgeInsets.only(top: 4.0),
                           child: Text(
                             '*$_passwordError',
-                            style: const TextStyle(color: Colors.greenAccent, fontSize: 12),
+                            style: const TextStyle(
+                                color: Colors.greenAccent, fontSize: 12),
                           ),
                         ),
 
@@ -208,12 +266,14 @@ class _SignInPageState extends State<SignInPage> {
 
                       const Text(
                         '*使用者帳號不存在',
-                        style: TextStyle(color: Color.fromRGBO(61, 255, 258, 1), fontSize: 12),
+                        style: TextStyle(color: Color.fromRGBO(
+                            61, 255, 258, 1), fontSize: 12),
                       ),
 
                       const Text(
                         '*密碼錯誤',
-                        style: TextStyle(color: Color.fromRGBO(61, 255, 258, 1), fontSize: 12),
+                        style: TextStyle(color: Color.fromRGBO(
+                            61, 255, 258, 1), fontSize: 12),
                       ),
 
                       const SizedBox(height: 260),
@@ -221,7 +281,8 @@ class _SignInPageState extends State<SignInPage> {
                       // 登入按鈕，增加了載入狀態
                       Center(
                         child: ElevatedButton(
-                          onPressed: _isLoading ? null : _validateInputs, // 如果正在載入，按鈕不可用
+                          onPressed: _isLoading ? null : _validateInputs,
+                          // 如果正在載入，按鈕不可用
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFFFF9238),
                             minimumSize: const Size(90, 45),
@@ -240,7 +301,8 @@ class _SignInPageState extends State<SignInPage> {
                           )
                               : const Text(
                             '登入',
-                            style: TextStyle(fontSize: 18, color: Colors.white),
+                            style: TextStyle(
+                                fontSize: 18, color: Colors.white),
                           ),
                         ),
                       ),

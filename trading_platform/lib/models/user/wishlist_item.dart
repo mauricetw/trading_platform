@@ -1,45 +1,88 @@
-import '../product/product.dart'; // 假設你需要引用 Product Model
+import 'package:json_annotation/json_annotation.dart';
+// 如果你決定將來嵌入 Product 的部分信息，或者需要引用 Product 類型
+// import '../product/product.dart';
 
+part 'wishlist_item.g.dart';
+
+@JsonSerializable() // 假設沒有嵌套其他需要 explicitToJson 的自定義類
 class WishlistItem {
-  final String id; // 收藏項目的唯一 ID
-  final String userId; // 收藏該商品的用戶 ID
+  final String id;        // 收藏項目的唯一 ID (例如，由後端數據庫生成)
+  final String userId;    // 收藏該商品的用戶 ID
   final String productId; // 被收藏的商品 ID
+  final DateTime createdAt; // 添加到願望清單的時間
 
-  // 可選：直接包含商品的部分或全部信息，以避免額外查找
-  // 這樣做的好處是在顯示收藏列表時可以直接使用，不用額外查 Product
-  // 但如果商品信息變動頻繁，這裡的信息可能會過期，需要權衡
-  // final Product product; // 包含 Product 對象引用
-
-  // 可選：記錄收藏時間
-  final DateTime createdAt;
+  // 可選: 如果你決定嵌入部分商品信息作為快照
+  // final String? productNameSnapshot;
+  // final String? productImageUrlSnapshot;
+  // final double? productPriceSnapshot;
 
   WishlistItem({
     required this.id,
     required this.userId,
     required this.productId,
-    // this.product,
     required this.createdAt,
+    // this.productNameSnapshot,
+    // this.productImageUrlSnapshot,
+    // this.productPriceSnapshot,
   });
 
-  factory WishlistItem.fromJson(Map<String, dynamic> json) {
+  // --- 手動實現 copyWith, ==, hashCode ---
+
+  WishlistItem copyWith({
+    String? id,
+    String? userId,
+    String? productId,
+    DateTime? createdAt,
+    // String? productNameSnapshot,
+    // String? productImageUrlSnapshot,
+    // double? productPriceSnapshot,
+  }) {
     return WishlistItem(
-      id: json['id'] as String,
-      userId: json['userId'] as String,
-      productId: json['productId'] as String,
-      // 如果 JSON 包含商品資訊，解析 Product
-      // product: json['product'] != null ? Product.fromJson(json['product'] as Map<String, dynamic>) : null,
-      createdAt: DateTime.parse(json['createdAt'] as String),
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      productId: productId ?? this.productId,
+      createdAt: createdAt ?? this.createdAt,
+      // productNameSnapshot: productNameSnapshot ?? this.productNameSnapshot,
+      // productImageUrlSnapshot: productImageUrlSnapshot ?? this.productImageUrlSnapshot,
+      // productPriceSnapshot: productPriceSnapshot ?? this.productPriceSnapshot,
     );
   }
 
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'userId': userId,
-      'productId': productId,
-      // 如果包含 Product，也需要轉換為 JSON
-      // 'product': product?.toJson(),
-      'createdAt': createdAt.toIso8601String(),
-    };
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    return other is WishlistItem &&
+        other.id == id &&
+        other.userId == userId &&
+        other.productId == productId &&
+        other.createdAt == createdAt;
+    // && other.productNameSnapshot == productNameSnapshot
+    // && other.productImageUrlSnapshot == productImageUrlSnapshot
+    // && other.productPriceSnapshot == productPriceSnapshot;
   }
+
+  @override
+  int get hashCode {
+    // final int productNameSnapshotHash = productNameSnapshot?.hashCode ?? 0;
+    // final int productImageUrlSnapshotHash = productImageUrlSnapshot?.hashCode ?? 0;
+    // final int productPriceSnapshotHash = productPriceSnapshot?.hashCode ?? 0;
+
+    return id.hashCode ^
+    userId.hashCode ^
+    productId.hashCode ^
+    createdAt.hashCode;
+    // ^ productNameSnapshotHash
+    // ^ productImageUrlSnapshotHash
+    // ^ productPriceSnapshotHash;
+  }
+
+  @override
+  String toString() {
+    return 'WishlistItem(id: $id, userId: $userId, productId: $productId, createdAt: $createdAt)';
+  }
+
+  // --- 由 json_serializable 生成 ---
+  factory WishlistItem.fromJson(Map<String, dynamic> json) => _$WishlistItemFromJson(json);
+  Map<String, dynamic> toJson() => _$WishlistItemToJson(this);
 }
