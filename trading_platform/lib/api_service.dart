@@ -10,6 +10,7 @@ class ApiService {
   final String baseUrl = "http://10.0.2.2:8000"; // 您現有的基礎 URL
 
   // --- 現有的認證相關方法 ---
+  //註冊API
   Future<Map<String, dynamic>> registerUser(String username, String email, String password) async {
     final url = Uri.parse('$baseUrl/register');
     try {
@@ -41,6 +42,7 @@ class ApiService {
     }
   }
 
+  //登入API
   Future<Map<String, dynamic>> login(String identifier, String password) async {
     final url = Uri.parse('$baseUrl/login');
     try {
@@ -85,6 +87,7 @@ class ApiService {
     }
   }
 
+  //忘記密碼API
   Future<void> forgotPassword(String identifier) async {
     final url = Uri.parse('$baseUrl/forgot-password');
     try {
@@ -106,6 +109,31 @@ class ApiService {
     }
   }
 
+  //驗證碼API
+  Future<Map<String, dynamic>> verifyCode(int userId, String code) async {
+    final url = Uri.parse('$baseUrl/verify-code');
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'user_id': userId, 'code': code}),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return {
+        'success': true,
+        'token': data['token'], // 後端應該回傳 token
+      };
+    } else {
+      final error = jsonDecode(response.body);
+      return {
+        'success': false,
+        'message': error['detail'] ?? '驗證失敗',
+      };
+    }
+  }
+
+  //重設密碼API
   Future<void> resetPassword(String token, String newPassword) async {
     final url = Uri.parse('$baseUrl/reset-password');
     try {
@@ -121,7 +149,10 @@ class ApiService {
         final errorData = jsonDecode(response.body);
         throw Exception(errorData['detail'] ?? '重設密碼失敗 (狀態碼: ${response.statusCode})');
       }
-      print('密碼重設成功');
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        print('密碼重設成功');
+        return;
+      }
     } catch (e) {
       print("Reset password error: $e");
       throw Exception('伺服器連線失敗或請求處理出錯：$e');

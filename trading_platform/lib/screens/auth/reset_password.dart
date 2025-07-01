@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:first_flutter_project/api_service.dart';
 
 class PasswordResetPage extends StatefulWidget {
-  final String userId; // 使用者帳號
+  final String token; // 這是從驗證碼步驟傳入的 token
 
   const PasswordResetPage({
     Key? key,
-    required this.userId,
+    required this.token,
   }) : super(key: key);
 
   @override
@@ -18,6 +19,7 @@ class _PasswordResetPageState extends State<PasswordResetPage> {
 
   bool _passwordsNotMatch = false;
   bool _passwordTooShort = false;
+  bool _isLoading = false;
   bool _passwordSameAsPrevious = false;
 
   @override
@@ -27,16 +29,17 @@ class _PasswordResetPageState extends State<PasswordResetPage> {
     super.dispose();
   }
 
-  void _validateAndSubmit() {
+  void _validateAndSubmit() async {
+    if (_isLoading) return; // 避免重複提交
+
     // 重設錯誤狀態
     setState(() {
       _passwordsNotMatch = false;
       _passwordTooShort = false;
-      _passwordSameAsPrevious = false;
     });
 
-    final newPassword = _newPasswordController.text;
-    final confirmPassword = _confirmPasswordController.text;
+    final newPassword = _newPasswordController.text.trim();
+    final confirmPassword = _confirmPasswordController.text.trim();
 
     // 驗證密碼
     if (newPassword.length < 8) {
@@ -53,24 +56,42 @@ class _PasswordResetPageState extends State<PasswordResetPage> {
       return;
     }
 
+    setState(() => _isLoading = true);
+
     // 模擬檢查是否與上一個密碼相同
+    /*
     if (newPassword == "oldpassword") {  // 實際應用中需要後端驗證
       setState(() {
         _passwordSameAsPrevious = true;
       });
       return;
     }
+    */
 
     // 這裡應該有API調用來更新密碼
+    try {
+      final api = ApiService();
+      await api.resetPassword(widget.token, newPassword);
 
-    // 若成功，返回登入頁面
-    // 可以直接回到最初頁面，清除導航堆疊
-    Navigator.of(context).popUntil((route) => route.isFirst);
-
-    // 這裡可加入提示密碼修改成功的彈窗
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('密碼修改成功！')),
-    );
+      if (mounted) {
+        Navigator.of(context).popUntil((route) => route.isFirst);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('密碼修改成功！')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('重設密碼失敗：$e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -120,9 +141,9 @@ class _PasswordResetPageState extends State<PasswordResetPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 20),
-            // 使用者帳號
+            // 驗證 Token 顯示
             const Text(
-              '使用者帳號',
+              '驗證憑證（Token）',
               style: TextStyle(
                 fontSize: 18,
                 color: Color(0xFF0055A7),
@@ -131,10 +152,10 @@ class _PasswordResetPageState extends State<PasswordResetPage> {
             ),
             const SizedBox(height: 10),
             Text(
-              widget.userId, // 動態顯示使用者ID
+              widget.token, // 動態顯示使用者ID
               style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
+                fontSize: 12, // Token 通常很長，改成較小字體
+                fontWeight: FontWeight.w400,
               ),
             ),
             const SizedBox(height: 30),
@@ -211,7 +232,7 @@ class _PasswordResetPageState extends State<PasswordResetPage> {
             // 確認按鈕
             Center(
               child: ElevatedButton(
-                onPressed: _validateAndSubmit,
+                onPressed: _isLoading ? null : _validateAndSubmit,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFFFA726), // 橙色按鈕
                   minimumSize: const Size(120, 50),
@@ -219,7 +240,16 @@ class _PasswordResetPageState extends State<PasswordResetPage> {
                     borderRadius: BorderRadius.circular(25),
                   ),
                 ),
-                child: const Text(
+                child: _isLoading
+                    ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                )
+                    : const Text(
                   '確認',
                   style: TextStyle(
                     fontSize: 18,

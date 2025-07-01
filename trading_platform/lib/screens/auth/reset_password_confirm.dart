@@ -1,5 +1,6 @@
 import 'package:first_flutter_project/screens/auth/reset_password.dart';
 import 'package:flutter/material.dart';
+import 'package:first_flutter_project/api_service.dart';
 
 class PasswordResetConfirmPage extends StatefulWidget {
   final String userId;
@@ -14,39 +15,52 @@ class PasswordResetConfirmPage extends StatefulWidget {
 }
 
 class _PasswordResetPageConfirmState extends State<PasswordResetConfirmPage> {
-  final TextEditingController _passwordController = TextEditingController();
-  String? _passwordError;
+  final TextEditingController _codeController = TextEditingController();
+  String? _errorText;
+  bool _isLoading = false;
 
   @override
   void dispose() {
-    _passwordController.dispose();
+    _codeController.dispose();
     super.dispose();
   }
 
-  void _validatePassword(String value) {
-    if (value.isEmpty) {
-      setState(() {
-        _passwordError = "驗證碼錯誤";
-      });
-    } else {
-      setState(() {
-        _passwordError = null;
-      });
+  void _handleNextStep() async {
+    final code = _codeController.text.trim();
+    if (code.isEmpty) {
+      setState(() => _errorText = '驗證碼不可為空');
+      return;
     }
-  }
 
-  void _handleNextStep() {
-    _validatePassword(_passwordController.text);
-    if (_passwordError == null) {
-      // 處理下一步邏輯
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => PasswordResetPage(
-            userId: widget.userId,
-          ),
-        ),
-      );
+    setState(() {
+      _errorText = null;
+      _isLoading = true;
+    });
+
+    try {
+      final response = await ApiService().verifyCode(int.parse(widget.userId), code);
+
+      if (response['success']) {
+        final token = response['token']; // 從後端取得的 token
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PasswordResetPage(token: token),
+            ),
+          );
+        }
+      } else {
+        setState(() {
+          _errorText = response['message'] ?? '驗證失敗';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _errorText = '驗證失敗：$e';
+      });
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
@@ -88,119 +102,72 @@ class _PasswordResetPageConfirmState extends State<PasswordResetConfirmPage> {
               ),
 
               const SizedBox(height: 40),
-
-              // 使用者編號標題
-              const Text(
-                '使用者編號',
-                style: TextStyle(
-                  color: Color(0xFF0E5DA5), // 深藍色文字
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-
-              const SizedBox(height: 8),
-
-              // 使用者編號
-              Text(
-                widget.userId,
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-
-              const SizedBox(height: 30),
-
-              // 輸入驗證碼標題
               const Text(
                 '輸入驗證碼',
-                style: TextStyle(
-                  color: Color(0xFF0E5DA5), // 深藍色文字
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0E5DA5)),
               ),
-
               const SizedBox(height: 8),
 
-              // 驗證碼輸入框
               Container(
                 height: 48,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0E5DA5), // 深藍色背景
+                  color: const Color(0xFF0E5DA5),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: TextField(
-                  controller: _passwordController,
+                  controller: _codeController,
                   style: const TextStyle(color: Colors.white),
                   decoration: const InputDecoration(
                     border: InputBorder.none,
                     contentPadding: EdgeInsets.symmetric(horizontal: 16),
-                    hintText: '',
+                    hintText: '請輸入驗證碼',
+                    hintStyle: TextStyle(color: Colors.white70),
                   ),
-                  onChanged: (value) {
-                    // 清除錯誤提示
-                    if (_passwordError != null) {
-                      setState(() {
-                        _passwordError = null;
-                      });
+                  onChanged: (_) {
+                    if (_errorText != null) {
+                      setState(() => _errorText = null);
                     }
                   },
                 ),
               ),
 
-              // 錯誤提示
-              if (_passwordError != null)
+              if (_errorText != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 8.0),
                   child: Text(
-                    _passwordError!,
-                    style: const TextStyle(
-                      color: Colors.red,
-                      fontSize: 12,
-                    ),
+                    _errorText!,
+                    style: const TextStyle(color: Colors.red, fontSize: 12),
                   ),
                 ),
 
-              // 填充空間
               const Spacer(),
 
-              // 下一步按鈕
               Center(
                 child: ElevatedButton(
-                  onPressed: _handleNextStep,
+                  onPressed: _isLoading ? null : _handleNextStep,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFF7913E), // 橙色按鈕
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
+                    backgroundColor: const Color(0xFFF7913E),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                     minimumSize: const Size(120, 44),
                   ),
-                  child: const Text(
+                  child: _isLoading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text(
                     '下一步',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                    ),
+                    style: TextStyle(color: Colors.white, fontSize: 16),
                   ),
                 ),
               ),
 
               const SizedBox(height: 16),
-
-              // 沒有收到郵件提示
               Center(
                 child: TextButton(
                   onPressed: () {
-                    // 重發郵件邏輯
+                    // 加入重發驗證碼的功能（如有）
                   },
                   child: const Text(
                     '沒有收到？重發郵件',
-                    style: TextStyle(
-                      color: Colors.black54,
-                      fontSize: 14,
-                    ),
+                    style: TextStyle(color: Colors.black54, fontSize: 14),
                   ),
                 ),
               ),

@@ -1,6 +1,7 @@
 import 'package:first_flutter_project/screens/auth/reset_password_confirm.dart';
 import 'package:flutter/material.dart';
 import 'reset_password.dart';
+import 'package:first_flutter_project/api_service.dart';
 
 class AccountVerificationPage extends StatefulWidget {
   const AccountVerificationPage({Key? key}) : super(key: key);
@@ -14,7 +15,7 @@ class _AccountVerificationPageState extends State<AccountVerificationPage> {
   bool _showError = false;
 
   // 模擬驗證帳號
-  void _verifyAccountAndProceed() {
+  void _verifyAccountAndProceed() async {
     final account = _accountController.text.trim();
 
     if (account.isEmpty) {
@@ -24,18 +25,17 @@ class _AccountVerificationPageState extends State<AccountVerificationPage> {
       return;
     }
 
-    // 這裡應該有實際的API調用來驗證帳號
-    // 模擬驗證成功的情況
-    if (account == "123456" || account.contains('@')) {
-      // 驗證成功，跳轉到密碼重設頁面
+    // 實際的API調用來驗證帳號
+    try {
+      await ApiService().forgotPassword(account);
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => PasswordResetConfirmPage(userId: account),
         ),
       );
-    } else {
-      // 驗證失敗，顯示錯誤
+    } catch (e) {
+      print("Error: $e");
       setState(() {
         _showError = true;
       });
