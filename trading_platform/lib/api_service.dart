@@ -159,6 +159,20 @@ class ApiService {
     }
   }
 
+  //讀取使用者資料
+  Future<User?> getUserProfile(String userId) async {
+  final url = Uri.parse('$baseUrl/users/$userId');
+  final response = await http.get(url);
+
+  if (response.statusCode == 200) {
+    final json = jsonDecode(response.body);
+    return User.fromJson(json['user']);
+  } else {
+    throw Exception('無法載入使用者資料');
+  }
+}
+
+
   // --- 新增的公告相關方法 ---
 
   /// 獲取所有公告列表
