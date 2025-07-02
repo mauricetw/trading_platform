@@ -145,7 +145,7 @@ class _ProfileState extends State<Profile> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center, // 垂直居中對齊 Row 內的元件
                 children: [
-                  // 大頭貼
+                  // 大頭貼(尚未儲存大頭貼)
                   CircleAvatar(
                     radius: 54, // UserProfileFrame 中的大頭貼半徑 (108 / 2)
                     backgroundColor: const Color(0xFFD9D9D9), // 預設背景色
@@ -165,7 +165,7 @@ class _ProfileState extends State<Profile> {
                     ),
                   ),
                   const SizedBox(width: 10), // 文字資訊和評價統計之間的間距
-                  // 評價統計
+                  // 評價統計(尚無實際評價)
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
