@@ -12,11 +12,20 @@ import './auth/login_main.dart';
 // import 'sell_product_management_page.dart';
 
 class Profile extends StatelessWidget {
+  const Profile({super.key});
+
+  @override
+  State<Profile> createState() => _ProfileState();
+}
+
+class _ProfileState extends State<Profile> {
+  late Future<User?> _userFuture;
+  
   final User currentUser;
 
   // 從 UserProfileFrame 設計稿中提取的靜態或預設文字，理想情況下應來自 currentUser 或其他來源
   final String userLocation = "台北市大安區"; // 範例地點
-  final String userSchool = "台灣科技大學"; // 範例學校
+  //final String userSchool = "台灣科技大學"; // 範例學校
 
   // 評價相關的模擬數據
   final double averageBuyReviewRate = 4.5;
@@ -24,7 +33,20 @@ class Profile extends StatelessWidget {
   final double averageSellReviewRate = 4.8;
   final String totalSellReviews = "85";
 
-  const Profile({super.key, required this.currentUser});
+  //const Profile({super.key, required this.currentUser});
+
+  @override
+  void initState() {
+    super.initState();
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    if (!authProvider.isLoggedIn) {
+      Future.microtask(() {
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => LoginScreen()));
+      });
+    } else {
+      _userFuture = ApiService().getUserProfile(authProvider.currentUser!.id!);
+    }
+  }
 
   // 輔助函式：建立資訊文字樣式
   Widget _buildInfoText(String text, {double fontSize = 16, Color color = Colors.black, FontWeight fontWeight = FontWeight.normal, TextAlign textAlign = TextAlign.start}) {
@@ -110,7 +132,6 @@ class Profile extends StatelessWidget {
 
     //final user = currentUser;
 
-
     return Scaffold( // 使用 Scaffold 作為頁面根佈局
       backgroundColor: const Color(0xFFEBEBEB), // UserProfileFrame 的背景顏色
       body: SafeArea( // 避免內容被系統狀態列或瀏海遮擋
@@ -176,7 +197,8 @@ class Profile extends StatelessWidget {
                 ),
                 child: Column(
                   children: [
-                    _buildInfoText(userSchool, fontSize: 18, fontWeight: FontWeight.w500, textAlign: TextAlign.center),
+                    _buildInfoText(user.schoolName ?? '尚未設定學校', fontSize: 18, fontWeight: FontWeight.w500),
+                    //_buildInfoText(userSchool, fontSize: 18, fontWeight: FontWeight.w500, textAlign: TextAlign.center),
                     if (user.schoolName != null && user.schoolName!.isNotEmpty && userLocation.isNotEmpty) const SizedBox(height: 5),
                     _buildInfoText(userLocation, fontSize: 16, color: Colors.black54, textAlign: TextAlign.center),
                     // 如果您想顯示 User model 中的 bio 或 schoolName，可以取消註解以下內容
