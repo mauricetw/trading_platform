@@ -34,6 +34,7 @@ class _HomePageState extends State<HomePage> {
 
   // 更新的模擬商品數據，使用新的 Product Model 和詳細的 User Model
   final List<Product> _products = [
+    /*
     Product(
       id: 'product-001',
       name: '大二下專業必修課本/甜品創作實記',
@@ -69,6 +70,8 @@ class _HomePageState extends State<HomePage> {
       ),
       // shippingInfo: ShippingInformation(cost: 60.0, provider: "CampusDelivery"), // Example
     ),
+    */
+    /*
     Product(
       id: 'product-002',
       name: '九成新iPad 10 (64GB, Wi-Fi)',
@@ -102,6 +105,8 @@ class _HomePageState extends State<HomePage> {
         productCount: 12,
       ),
     ),
+    */
+    /*
     Product(
       id: 'product-003',
       name: 'iPhone 13 Pro Max (256GB, 藍色)',
@@ -134,6 +139,8 @@ class _HomePageState extends State<HomePage> {
         isVerified: true,
       ),
     ),
+    */
+    /*
     Product(
       id: 'product-004',
       name: '韓版寬鬆毛衣 (米白色)',
@@ -165,13 +172,27 @@ class _HomePageState extends State<HomePage> {
         schoolName: '輔仁大學',
       ),
     ),
+    */
     // ... 可以添加更多商品，確保每個 Product 的 seller 都符合 User model
   ];
 
   @override
   void initState() {
     super.initState();
-    _filteredProducts = List.from(_products); // Initialize with a copy
+    _filteredProducts(); // Initialize with a copy
+  }
+
+  void _fetchProducts() async {
+    try {
+      List<Product> products = await ApiService().getProducts(); //從 FastAPI 拿資料
+      setState(() {
+        _products = products;
+        _filteredProducts = List.from(products);
+      });
+    } catch (e) {
+      print("取得商品資訊失敗: $e");
+      // 可顯示錯誤訊息或重試按鈕
+    }
   }
 
   // 價格格式化 (使用 intl 套件)
