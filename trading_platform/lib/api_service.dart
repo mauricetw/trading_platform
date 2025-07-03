@@ -161,16 +161,42 @@ class ApiService {
 
   //讀取使用者資料
   Future<User?> getUserProfile(String userId) async {
-  final url = Uri.parse('$baseUrl/users/$userId');
-  final response = await http.get(url);
-
-  if (response.statusCode == 200) {
-    final json = jsonDecode(response.body);
-    return User.fromJson(json['user']);
-  } else {
-    throw Exception('無法載入使用者資料');
+    final url = Uri.parse('$baseUrl/users/$userId');
+    final response = await http.get(url);
+  
+    if (response.statusCode == 200) {
+      final json = jsonDecode(response.body);
+      return User.fromJson(json['user']);
+    } else {
+      throw Exception('無法載入使用者資料');
+    }
   }
-}
+
+  // --- 商品頁面相關方法 ---
+  Future<List<Product>> getProducts() async {
+    final response = await http.get(Uri.parse('$baseUrl/products'));
+
+    if (response.statusCode == 200) {
+      final List<dynamic> jsonList = json.decode(response.body);
+      return jsonList.map((json) => Product.fromJson(json)).toList();
+    } else {
+      throw Exception('取得商品資訊失敗：${response.statusCode}');
+    }
+  }
+
+  Future<Product> createProduct(Product product) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/products'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode(product.toJson()),  // 確保 `toJson()` 有對應欄位
+    );
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return Product.fromJson(json.decode(response.body));
+    } else {
+      throw Exception('上架商品失敗：${response.statusCode}');
+    }
+  }
 
 
   // --- 新增的公告相關方法 ---
