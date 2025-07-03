@@ -10,6 +10,7 @@ import '../models/user/user.dart';    // Ensure this is your detailed User model
 // 假設您的 ProductScreen 路徑如下
 import 'product.dart'; // Assuming this is your Product Detail Screen
 
+import 'package:first_flutter_project/api_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
