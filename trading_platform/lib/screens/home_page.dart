@@ -174,7 +174,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    _filteredProducts();
+    _fetchProducts(); // 修正錯誤：呼叫函式不是 List
   }
 
   void _fetchProducts() async {

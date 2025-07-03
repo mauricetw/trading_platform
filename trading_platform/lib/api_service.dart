@@ -4,6 +4,7 @@ import 'package:first_flutter_project/models/announcement/announcement.dart'; //
 // 如果有 SearchResultItem 或 Product 等模型，也需要導入
 // import 'package:first_flutter_project/models/search_result_item.dart';
 import 'package:first_flutter_project/models/product/product.dart';
+import 'package:first_flutter_project/models/user/user.dart';
 
 
 class ApiService {

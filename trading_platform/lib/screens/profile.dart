@@ -10,8 +10,9 @@ import './auth/login_main.dart';
 // TODO: 如果存在「訂單資訊」和「銷售商品管理」頁面，請取消註解並匯入
 // import 'order_info_page.dart';
 // import 'sell_product_management_page.dart';
+import 'package:first_flutter_project/api_service.dart';
 
-class Profile extends StatelessWidget {
+class Profile extends StatefulWidget {
   const Profile({super.key});
 
   @override
@@ -20,8 +21,6 @@ class Profile extends StatelessWidget {
 
 class _ProfileState extends State<Profile> {
   late Future<User?> _userFuture;
-  
-  final User currentUser;
 
   // 從 UserProfileFrame 設計稿中提取的靜態或預設文字，理想情況下應來自 currentUser 或其他來源
   final String userLocation = "台北市大安區"; // 範例地點
