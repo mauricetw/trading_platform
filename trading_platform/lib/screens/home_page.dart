@@ -10,7 +10,6 @@ import '../models/user/user.dart';    // Ensure this is your detailed User model
 // 假設您的 ProductScreen 路徑如下
 import 'product.dart'; // Assuming this is your Product Detail Screen
 
-
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -24,7 +23,7 @@ class _HomePageState extends State<HomePage> {
 
   // 商品分類模型 (保持不變)
   final List<Category> _categories = [
-    Category(id: 1, name: '書籍文具', icon: '📚', count: 156), // counts could be dynamic later
+    Category(id: 1, name: '書籍文具', icon: '📚', count: 156),
     Category(id: 2, name: '電子產品', icon: '📱', count: 89),
     Category(id: 3, name: '服裝配件', icon: '👕', count: 234),
     Category(id: 4, name: '家居用品', icon: '🏠', count: 178),
@@ -44,8 +43,8 @@ class _HomePageState extends State<HomePage> {
       categoryId: 1,
       category: '書籍文具',
       stockQuantity: 15,
-      isFavorite: true, // Example state
-      isSold: false,    // Example state
+      isFavorite: true,
+      isSold: false,
       status: 'available',
       createdAt: DateTime.now().subtract(const Duration(days: 30)),
       updatedAt: DateTime.now().subtract(const Duration(days: 2)),
@@ -53,21 +52,20 @@ class _HomePageState extends State<HomePage> {
       averageRating: 4.7,
       reviewCount: 18,
       tags: ['教科書', '甜點', '大學'],
-      seller: User( // <--- CORRECTED User instantiation
+      seller: User(
         id: 'user-001',
         username: '校園二手書店',
-        email: 'bookstore@example.com', // Required
-        registeredAt: DateTime.now().subtract(const Duration(days: 365)), // Required
+        email: 'bookstore@example.com',
+        registeredAt: DateTime.now().subtract(const Duration(days: 365)),
         avatarUrl: 'https://source.unsplash.com/random/100x100?store',
         isSeller: true,
         sellerName: '校園二手書店 (認證)',
         sellerDescription: '專營各類二手教科書、參考書及文具用品。',
         sellerRating: 4.8,
-        productCount: 50, // Example count
+        productCount: 50,
         schoolName: '臺灣大學',
         isVerified: true,
       ),
-      // shippingInfo: ShippingInformation(cost: 60.0, provider: "CampusDelivery"), // Example
     ),
     Product(
       id: 'product-002',
@@ -80,7 +78,7 @@ class _HomePageState extends State<HomePage> {
       category: '電子產品',
       stockQuantity: 0,
       isFavorite: false,
-      isSold: true, // Based on stockQuantity or status
+      isSold: true,
       status: 'sold',
       createdAt: DateTime.now().subtract(const Duration(days: 60)),
       updatedAt: DateTime.now().subtract(const Duration(days: 5)),
@@ -88,11 +86,11 @@ class _HomePageState extends State<HomePage> {
       averageRating: 4.0,
       reviewCount: 1,
       tags: ['iPad', '二手平板', 'Apple'],
-      seller: User( // <--- CORRECTED User instantiation
+      seller: User(
         id: 'user-002',
         username: '科技愛好者李四',
-        email: 'tech.li@example.com', // Required
-        registeredAt: DateTime.now().subtract(const Duration(days: 180)), // Required
+        email: 'tech.li@example.com',
+        registeredAt: DateTime.now().subtract(const Duration(days: 180)),
         avatarUrl: 'https://source.unsplash.com/random/100x100?person,tech',
         bio: '熱愛分享各種3C產品使用心得。',
         schoolName: '交通大學',
@@ -121,11 +119,11 @@ class _HomePageState extends State<HomePage> {
       averageRating: 4.9,
       reviewCount: 3,
       tags: ['iPhone', '二手手機', 'Apple'],
-      seller: User( // <--- CORRECTED User instantiation
+      seller: User(
         id: 'user-003',
         username: '果粉小王',
-        email: 'wang.applefan@example.com', // Required
-        registeredAt: DateTime.now().subtract(const Duration(days: 500)), // Required
+        email: 'wang.applefan@example.com',
+        registeredAt: DateTime.now().subtract(const Duration(days: 500)),
         avatarUrl: 'https://source.unsplash.com/random/100x100?person,apple',
         isSeller: true,
         sellerName: '小王的蘋果二手專賣',
@@ -151,11 +149,11 @@ class _HomePageState extends State<HomePage> {
       updatedAt: DateTime.now().subtract(const Duration(days: 1)),
       salesCount: 12,
       tags: ['毛衣', '韓版', '冬季'],
-      seller: User( // <--- CORRECTED User instantiation
+      seller: User(
         id: 'user-004',
         username: '時尚衣櫥小舖',
-        email: 'fashion.closet@example.com', // Required
-        registeredAt: DateTime.now().subtract(const Duration(days: 90)), // Required
+        email: 'fashion.closet@example.com',
+        registeredAt: DateTime.now().subtract(const Duration(days: 90)),
         avatarUrl: 'https://source.unsplash.com/random/100x100?fashion',
         isSeller: true,
         sellerName: '時尚衣櫥小舖',
@@ -165,98 +163,178 @@ class _HomePageState extends State<HomePage> {
         schoolName: '輔仁大學',
       ),
     ),
-    // ... 可以添加更多商品，確保每個 Product 的 seller 都符合 User model
   ];
 
   @override
   void initState() {
     super.initState();
-    _filteredProducts = List.from(_products); // Initialize with a copy
+    _filteredProducts = List.from(_products);
   }
 
   // 價格格式化 (使用 intl 套件)
   String _formatPrice(double price) {
-    // 確保 price 不是 null，雖然在 Product model 中 price 是 non-nullable
     final formatCurrency = NumberFormat.currency(locale: "zh_TW", symbol: "NT\$", decimalDigits: 0);
     return formatCurrency.format(price);
   }
 
+  // 獲取響應式數值的輔助方法
+  int _getCrossAxisCount(BuildContext context, {required String gridType}) {
+    final screenWidth = MediaQuery.of(context).size.width;
+
+    if (gridType == 'category') {
+      // 分類網格的響應式調整
+      if (screenWidth < 360) return 2; // 小螢幕
+      if (screenWidth < 600) return 3; // 一般手機
+      if (screenWidth < 900) return 4; // 大螢幕手機/小平板
+      return 5; // 平板
+    } else if (gridType == 'product') {
+      // 商品網格的響應式調整
+      if (screenWidth < 360) return 1; // 小螢幕
+      if (screenWidth < 600) return 2; // 一般手機
+      if (screenWidth < 900) return 3; // 大螢幕手機/小平板
+      return 4; // 平板
+    }
+    return 2; // 預設值
+  }
+
+  double _getChildAspectRatio(BuildContext context, {required String gridType}) {
+    final screenWidth = MediaQuery.of(context).size.width;
+
+    if (gridType == 'category') {
+      // 分類卡片的高寬比
+      if (screenWidth < 360) return 0.9;
+      if (screenWidth < 600) return 1.0;
+      return 1.1;
+    } else if (gridType == 'product') {
+      // 商品卡片的高寬比
+      if (screenWidth < 360) return 0.8;
+      if (screenWidth < 600) return 0.75;
+      return 0.8;
+    }
+    return 1.0; // 預設值
+  }
+
+  double _getResponsiveFontSize(BuildContext context, double baseSize) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    double scaleFactor = 1.0;
+
+    if (screenWidth < 360) {
+      scaleFactor = 0.85;
+    } else if (screenWidth < 600) {
+      scaleFactor = 1.0;
+    } else if (screenWidth < 900) {
+      scaleFactor = 1.1;
+    } else {
+      scaleFactor = 1.2;
+    }
+
+    return baseSize * scaleFactor;
+  }
+
+  double _getResponsiveSpacing(BuildContext context, double baseSpacing) {
+    final screenWidth = MediaQuery.of(context).size.width;
+
+    if (screenWidth < 360) return baseSpacing * 0.8;
+    if (screenWidth < 600) return baseSpacing;
+    if (screenWidth < 900) return baseSpacing * 1.2;
+    return baseSpacing * 1.5;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final horizontalPadding = _getResponsiveSpacing(context, 16.0);
+
     return Scaffold(
-      // appBar: AppBar(title: const Text('校園市集')),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.symmetric(
+          horizontal: horizontalPadding,
+          vertical: _getResponsiveSpacing(context, 16.0),
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSectionTitle('商品分類'),
-            const SizedBox(height: 16),
-            _buildCategoriesGrid(),
-            const SizedBox(height: 32),
+            _buildSectionTitle('商品分類', context),
+            SizedBox(height: _getResponsiveSpacing(context, 16.0)),
+            _buildCategoriesGrid(context),
+            SizedBox(height: _getResponsiveSpacing(context, 32.0)),
             _buildSectionTitle(_selectedCategoryId == null
                 ? '熱門商品'
-                : _getCategoryName(_selectedCategoryId!)),
-            const SizedBox(height: 16),
+                : _getCategoryName(_selectedCategoryId!), context),
+            SizedBox(height: _getResponsiveSpacing(context, 16.0)),
             _filteredProducts.isEmpty
                 ? Center(
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 32.0),
+                padding: EdgeInsets.symmetric(
+                  vertical: _getResponsiveSpacing(context, 32.0),
+                ),
                 child: Text(
                   _selectedCategoryId == null ? '目前沒有商品' : '此分類下沒有商品',
-                  style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                  style: TextStyle(
+                    fontSize: _getResponsiveFontSize(context, 16),
+                    color: Colors.grey[600],
+                  ),
                 ),
               ),
             )
-                : _buildProductsGrid(),
+                : _buildProductsGrid(context),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSectionTitle(String title) {
+  Widget _buildSectionTitle(String title, BuildContext context) {
     return Text(
       title,
-      style: const TextStyle(
-        fontSize: 20,
+      style: TextStyle(
+        fontSize: _getResponsiveFontSize(context, 20),
         fontWeight: FontWeight.bold,
         color: Colors.black87,
       ),
     );
   }
 
-  Widget _buildCategoriesGrid() {
+  Widget _buildCategoriesGrid(BuildContext context) {
+    final crossAxisCount = _getCrossAxisCount(context, gridType: 'category');
+    final childAspectRatio = _getChildAspectRatio(context, gridType: 'category');
+    final spacing = _getResponsiveSpacing(context, 12.0);
+
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3, // Adjust for different screen sizes if needed
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 1.0,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: crossAxisCount,
+        crossAxisSpacing: spacing,
+        mainAxisSpacing: spacing,
+        childAspectRatio: childAspectRatio,
       ),
       itemCount: _categories.length,
       itemBuilder: (context, index) {
         final category = _categories[index];
-        return _buildCategoryCard(category);
+        return _buildCategoryCard(category, context);
       },
     );
   }
 
-  Widget _buildCategoryCard(Category category) {
+  Widget _buildCategoryCard(Category category, BuildContext context) {
     bool isSelected = _selectedCategoryId == category.id;
+    final screenWidth = MediaQuery.of(context).size.width;
+
+    // 動態調整圖示大小
+    double iconSize = screenWidth < 360 ? 35 : screenWidth < 600 ? 45 : 50;
+    double iconFontSize = screenWidth < 360 ? 18 : screenWidth < 600 ? 22 : 24;
+
     return GestureDetector(
       onTap: () => _filterByCategory(category.id),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         decoration: BoxDecoration(
-          color: isSelected ? Theme.of(context).primaryColor.withOpacity(0.1) : Colors.white,
+          color: isSelected ? Theme.of(context).primaryColor.withValues(alpha: 0.1) : Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: isSelected ? Border.all(color: Theme.of(context).primaryColor, width: 1.5) : null,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.08),
+              color: Colors.black.withValues(alpha: 0.08),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -266,43 +344,45 @@ class _HomePageState extends State<HomePage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 45,
-              height: 45,
+              width: iconSize,
+              height: iconSize,
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: isSelected
                       ? [Theme.of(context).primaryColor, Theme.of(context).primaryColorDark]
-                      : [const Color(0xFF1E88E5), const Color(0xFF1565C0)], // Example default gradient
+                      : [const Color(0xFF1E88E5), const Color(0xFF1565C0)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
-                borderRadius: BorderRadius.circular(22.5),
+                borderRadius: BorderRadius.circular(iconSize / 2),
               ),
               child: Center(
                 child: Text(
                   category.icon,
-                  style: const TextStyle(fontSize: 22),
+                  style: TextStyle(fontSize: iconFontSize),
                 ),
               ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              category.name,
-              style: TextStyle(
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                fontSize: 12,
-                color: isSelected ? Theme.of(context).primaryColor : Colors.black87,
+            SizedBox(height: _getResponsiveSpacing(context, 8.0)),
+            Flexible(
+              child: Text(
+                category.name,
+                style: TextStyle(
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                  fontSize: _getResponsiveFontSize(context, 12),
+                  color: isSelected ? Theme.of(context).primaryColor : Colors.black87,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 4),
+            SizedBox(height: _getResponsiveSpacing(context, 4.0)),
             Text(
               '${category.count} 件',
               style: TextStyle(
-                fontSize: 10,
-                color: isSelected ? Theme.of(context).primaryColor.withOpacity(0.8) : Colors.grey[600],
+                fontSize: _getResponsiveFontSize(context, 10),
+                color: isSelected ? Theme.of(context).primaryColor.withValues(alpha: 0.8) : Colors.grey[600],
               ),
             ),
           ],
@@ -311,33 +391,41 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildProductsGrid() {
+  Widget _buildProductsGrid(BuildContext context) {
+    final crossAxisCount = _getCrossAxisCount(context, gridType: 'product');
+    final childAspectRatio = _getChildAspectRatio(context, gridType: 'product');
+    final spacing = _getResponsiveSpacing(context, 12.0);
+
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2, // Adjust for different screen sizes if needed
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 0.75, // Adjust for card content
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: crossAxisCount,
+        crossAxisSpacing: spacing,
+        mainAxisSpacing: spacing,
+        childAspectRatio: childAspectRatio,
       ),
       itemCount: _filteredProducts.length,
       itemBuilder: (context, index) {
         final product = _filteredProducts[index];
-        return _buildProductCard(product);
+        return _buildProductCard(product, context);
       },
     );
   }
 
-  Widget _buildProductCard(Product product) {
+  Widget _buildProductCard(Product product, BuildContext context) {
     String imageUrlToDisplay = 'https://via.placeholder.com/300x250/E0E0E0/000000?Text=No+Image';
     if (product.imageUrls.isNotEmpty && product.imageUrls.first.isNotEmpty) {
       imageUrlToDisplay = product.imageUrls.first;
     }
 
-    // These are now directly from the Product model
     bool isProductSold = product.isSold;
     bool isProductFavorite = product.isFavorite;
+    final screenWidth = MediaQuery.of(context).size.width;
+
+    // 動態調整卡片內部間距
+    double cardPadding = screenWidth < 360 ? 8.0 : 10.0;
+    double iconSize = screenWidth < 360 ? 16 : 18;
 
     return GestureDetector(
       onTap: () => _viewProduct(product),
@@ -347,7 +435,7 @@ class _HomePageState extends State<HomePage> {
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.08),
+              color: Colors.black.withValues(alpha: 0.08),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -376,7 +464,13 @@ class _HomePageState extends State<HomePage> {
                         errorBuilder: (context, error, stackTrace) {
                           return Container(
                             color: Colors.grey[200],
-                            child: Center(child: Icon(Icons.broken_image, size: 40, color: Colors.grey[400])),
+                            child: Center(
+                              child: Icon(
+                                Icons.broken_image,
+                                size: screenWidth < 360 ? 30 : 40,
+                                color: Colors.grey[400],
+                              ),
+                            ),
                           );
                         },
                         loadingBuilder: (BuildContext context, Widget child, ImageChunkEvent? loadingProgress) {
@@ -398,16 +492,19 @@ class _HomePageState extends State<HomePage> {
                       top: 8,
                       left: 8,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: screenWidth < 360 ? 6 : 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
-                          color: Colors.redAccent.withOpacity(0.9),
+                          color: Colors.redAccent.withValues(alpha: 0.9),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Text(
+                        child: Text(
                           'SOLD',
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: 10,
+                            fontSize: _getResponsiveFontSize(context, 10),
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -418,15 +515,15 @@ class _HomePageState extends State<HomePage> {
                     child: GestureDetector(
                       onTap: () => _toggleFavorite(product),
                       child: Container(
-                        padding: const EdgeInsets.all(6),
+                        padding: EdgeInsets.all(screenWidth < 360 ? 4 : 6),
                         decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.3),
+                          color: Colors.black.withValues(alpha: 0.3),
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
                           isProductFavorite ? Icons.favorite : Icons.favorite_border,
                           color: isProductFavorite ? Colors.redAccent : Colors.white,
-                          size: 18,
+                          size: iconSize,
                         ),
                       ),
                     ),
@@ -437,20 +534,22 @@ class _HomePageState extends State<HomePage> {
             Expanded(
               flex: 2,
               child: Padding(
-                padding: const EdgeInsets.all(10.0),
+                padding: EdgeInsets.all(cardPadding),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      product.name,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        height: 1.2,
+                    Flexible(
+                      child: Text(
+                        product.name,
+                        style: TextStyle(
+                          fontSize: _getResponsiveFontSize(context, 14),
+                          fontWeight: FontWeight.w500,
+                          height: 1.2,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
                     ),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -459,7 +558,7 @@ class _HomePageState extends State<HomePage> {
                         Text(
                           _formatPrice(product.price),
                           style: TextStyle(
-                            fontSize: 16,
+                            fontSize: _getResponsiveFontSize(context, 16),
                             fontWeight: FontWeight.bold,
                             color: Theme.of(context).primaryColor,
                           ),
@@ -468,7 +567,7 @@ class _HomePageState extends State<HomePage> {
                           Text(
                             _formatPrice(product.originalPrice!),
                             style: TextStyle(
-                              fontSize: 11,
+                              fontSize: _getResponsiveFontSize(context, 11),
                               color: Colors.grey[600],
                               decoration: TextDecoration.lineThrough,
                             ),
@@ -501,30 +600,23 @@ class _HomePageState extends State<HomePage> {
     try {
       return _categories.firstWhere((category) => category.id == categoryId).name;
     } catch (e) {
-      return "未知分類"; // Fallback name
+      return "未知分類";
     }
   }
 
   void _toggleFavorite(Product productToToggle) {
     setState(() {
-      // Find the index of the product in the original _products list
       final productIndex = _products.indexWhere((p) => p.id == productToToggle.id);
       if (productIndex != -1) {
-        // Create a new Product instance with the toggled favorite state
-        // This assumes your Product model has a copyWith method
         final updatedProduct = _products[productIndex].copyWith(
           isFavorite: !_products[productIndex].isFavorite,
         );
-        // Replace the old product with the updated one in the _products list
         _products[productIndex] = updatedProduct;
 
-        // Also update the product in _filteredProducts if it exists there
         final filteredProductIndex = _filteredProducts.indexWhere((p) => p.id == productToToggle.id);
         if (filteredProductIndex != -1) {
           _filteredProducts[filteredProductIndex] = updatedProduct;
         } else {
-          // If for some reason it wasn't in filtered list (e.g. category changed),
-          // re-filter. This is a safe fallback.
           _filteredProducts = _products.where((p) {
             return _selectedCategoryId == null || p.categoryId == _selectedCategoryId;
           }).toList();
@@ -533,7 +625,7 @@ class _HomePageState extends State<HomePage> {
     });
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(productToToggle.isFavorite ? '已取消收藏' : '已加入收藏 ❤️'), // Logic inverted due to reading state before update
+        content: Text(productToToggle.isFavorite ? '已取消收藏' : '已加入收藏 ❤️'),
         duration: const Duration(seconds: 1),
       ),
     );
