@@ -198,3 +198,51 @@ class _AccountVerificationPageState extends State<AccountVerificationPage> {
     super.dispose();
   }
 }
+
+// 您需要創建這個密碼重設確認頁面
+class PasswordResetConfirmPage extends StatelessWidget {
+  final String userId;
+
+  const PasswordResetConfirmPage({
+    super.key,
+    required this.userId,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('密碼重設確認'),
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text(
+              '驗證成功！',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              '帳號：$userId',
+              style: const TextStyle(fontSize: 16),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              '請檢查您的電子信箱以重設密碼',
+              style: TextStyle(fontSize: 16),
+            ),
+            const SizedBox(height: 40),
+            ElevatedButton(
+              onPressed: () {
+                // 返回到登入頁面或其他頁面
+                Navigator.pop(context);
+              },
+              child: const Text('返回'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
