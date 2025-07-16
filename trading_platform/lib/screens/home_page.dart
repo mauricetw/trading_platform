@@ -1,10 +1,10 @@
 // lib/pages/home_page.dart
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart'; // 用於價格格式化 (可選，但推薦)
+import 'package:intl/intl.dart'; // 用於價格格式化
 
 // 假設您的 model 檔案路徑如下，請根據您的專案結構修改
 import '../models/product/product.dart'; // Ensure this is the renewed Product model
-import '../models/user/user.dart';    // Ensure this is your detailed User model
+import '../models/user/user.dart';    // Ensure this is your detailed User model and contains favoriteProductIds
 // import '../models/shipping_info.dart'; // 如果 Product model 需要
 
 // 假設您的 ProductScreen 路徑如下
@@ -21,6 +21,10 @@ class _HomePageState extends State<HomePage> {
   List<Product> _filteredProducts = [];
   int? _selectedCategoryId;
 
+  // 新增：模擬當前用戶
+  // 在真實應用中，這個用戶對象應該從您的認證/狀態管理器獲取
+  User? _currentUser;
+
   // 商品分類模型 (保持不變)
   final List<Category> _categories = [
     Category(id: 1, name: '書籍文具', icon: '📚', count: 156),
@@ -31,8 +35,8 @@ class _HomePageState extends State<HomePage> {
     Category(id: 6, name: '運動戶外', icon: '⚽', count: 123),
   ];
 
-  // 更新的模擬商品數據，使用新的 Product Model 和詳細的 User Model
-  final List<Product> _products = [
+  // 初始商品數據列表 (isFavorite 不再直接在此處設置)
+  final List<Product> _initialProducts = [
     Product(
       id: 'product-001',
       name: '大二下專業必修課本/甜品創作實記',
@@ -43,7 +47,7 @@ class _HomePageState extends State<HomePage> {
       categoryId: 1,
       category: '書籍文具',
       stockQuantity: 15,
-      isFavorite: true,
+      // isFavorite: true, // 移除或忽略，由 currentUser.favoriteProductIds 決定
       isSold: false,
       status: 'available',
       createdAt: DateTime.now().subtract(const Duration(days: 30)),
@@ -52,7 +56,7 @@ class _HomePageState extends State<HomePage> {
       averageRating: 4.7,
       reviewCount: 18,
       tags: ['教科書', '甜點', '大學'],
-      seller: User(
+      seller: User( // 賣家 User 對象
         id: 'user-001',
         username: '校園二手書店',
         email: 'bookstore@example.com',
@@ -65,6 +69,7 @@ class _HomePageState extends State<HomePage> {
         productCount: 50,
         schoolName: '臺灣大學',
         isVerified: true,
+        favoriteProductIds: [], // 賣家本身通常不需要收藏列表
       ),
     ),
     Product(
@@ -77,7 +82,7 @@ class _HomePageState extends State<HomePage> {
       categoryId: 2,
       category: '電子產品',
       stockQuantity: 0,
-      isFavorite: false,
+      // isFavorite: false, // 移除或忽略
       isSold: true,
       status: 'sold',
       createdAt: DateTime.now().subtract(const Duration(days: 60)),
@@ -98,6 +103,7 @@ class _HomePageState extends State<HomePage> {
         sellerName: '李四的3C小舖',
         sellerRating: 4.5,
         productCount: 12,
+        favoriteProductIds: [],
       ),
     ),
     Product(
@@ -110,7 +116,7 @@ class _HomePageState extends State<HomePage> {
       categoryId: 2,
       category: '電子產品',
       stockQuantity: 1,
-      isFavorite: false,
+      // isFavorite: false, // 移除或忽略
       isSold: false,
       status: 'available',
       createdAt: DateTime.now().subtract(const Duration(days: 120)),
@@ -130,6 +136,7 @@ class _HomePageState extends State<HomePage> {
         sellerRating: 4.9,
         productCount: 8,
         isVerified: true,
+        favoriteProductIds: [],
       ),
     ),
     Product(
@@ -142,7 +149,7 @@ class _HomePageState extends State<HomePage> {
       categoryId: 3,
       category: '服裝配件',
       stockQuantity: 8,
-      isFavorite: true,
+      // isFavorite: true, // 移除或忽略
       isSold: false,
       status: 'available',
       createdAt: DateTime.now().subtract(const Duration(days: 20)),
@@ -161,14 +168,34 @@ class _HomePageState extends State<HomePage> {
         sellerRating: 4.6,
         productCount: 35,
         schoolName: '輔仁大學',
+        favoriteProductIds: [],
       ),
     ),
   ];
 
+  List<Product> _products = []; // 用於界面顯示的商品列表
+
   @override
   void initState() {
     super.initState();
-    _filteredProducts = List.from(_products);
+    _loadCurrentUserData(); // 模擬加載用戶數據
+    _products = List.from(_initialProducts); // 使用 _initialProducts 初始化
+    _filteredProducts = List.from(_products); // 初始化過濾後的商品列表
+  }
+
+  // 模擬加載用戶數據
+  void _loadCurrentUserData() {
+    // 在真實應用中，您會異步獲取用戶數據，例如從 Provider 或 API
+    setState(() {
+      _currentUser = User(
+        id: 'current-user-id-001', // 模擬用戶ID
+        username: '當前用戶',
+        email: 'currentuser@example.com',
+        registeredAt: DateTime.now().subtract(const Duration(days: 100)),
+        favoriteProductIds: ['product-001', 'product-004'], // 示例：該用戶收藏了這兩個商品
+        // 其他 User 屬性可以根據需要添加
+      );
+    });
   }
 
   // 價格格式化 (使用 intl 套件)
@@ -177,63 +204,49 @@ class _HomePageState extends State<HomePage> {
     return formatCurrency.format(price);
   }
 
-  // 獲取響應式數值的輔助方法
+  // 獲取響應式數值的輔助方法 (保持不變)
   int _getCrossAxisCount(BuildContext context, {required String gridType}) {
     final screenWidth = MediaQuery.of(context).size.width;
-
     if (gridType == 'category') {
-      // 分類網格的響應式調整
-      if (screenWidth < 360) return 2; // 小螢幕
-      if (screenWidth < 600) return 3; // 一般手機
-      if (screenWidth < 900) return 4; // 大螢幕手機/小平板
-      return 5; // 平板
+      if (screenWidth < 360) return 2;
+      if (screenWidth < 600) return 3;
+      if (screenWidth < 900) return 4;
+      return 5;
     } else if (gridType == 'product') {
-      // 商品網格的響應式調整
-      if (screenWidth < 360) return 1; // 小螢幕
-      if (screenWidth < 600) return 2; // 一般手機
-      if (screenWidth < 900) return 3; // 大螢幕手機/小平板
-      return 4; // 平板
+      if (screenWidth < 360) return 1;
+      if (screenWidth < 600) return 2;
+      if (screenWidth < 900) return 3;
+      return 4;
     }
-    return 2; // 預設值
+    return 2;
   }
 
   double _getChildAspectRatio(BuildContext context, {required String gridType}) {
     final screenWidth = MediaQuery.of(context).size.width;
-
     if (gridType == 'category') {
-      // 分類卡片的高寬比
       if (screenWidth < 360) return 0.9;
       if (screenWidth < 600) return 1.0;
       return 1.1;
     } else if (gridType == 'product') {
-      // 商品卡片的高寬比
-      if (screenWidth < 360) return 0.8;
-      if (screenWidth < 600) return 0.75;
+      if (screenWidth < 360) return 0.8; // 針對單列商品調整比例
+      if (screenWidth < 600) return 0.75; // 默認手機
       return 0.8;
     }
-    return 1.0; // 預設值
+    return 1.0;
   }
 
   double _getResponsiveFontSize(BuildContext context, double baseSize) {
     final screenWidth = MediaQuery.of(context).size.width;
     double scaleFactor = 1.0;
-
-    if (screenWidth < 360) {
-      scaleFactor = 0.85;
-    } else if (screenWidth < 600) {
-      scaleFactor = 1.0;
-    } else if (screenWidth < 900) {
-      scaleFactor = 1.1;
-    } else {
-      scaleFactor = 1.2;
-    }
-
+    if (screenWidth < 360) scaleFactor = 0.85;
+    else if (screenWidth < 600) scaleFactor = 1.0;
+    else if (screenWidth < 900) scaleFactor = 1.1;
+    else scaleFactor = 1.2;
     return baseSize * scaleFactor;
   }
 
   double _getResponsiveSpacing(BuildContext context, double baseSpacing) {
     final screenWidth = MediaQuery.of(context).size.width;
-
     if (screenWidth < 360) return baseSpacing * 0.8;
     if (screenWidth < 600) return baseSpacing;
     if (screenWidth < 900) return baseSpacing * 1.2;
@@ -319,8 +332,6 @@ class _HomePageState extends State<HomePage> {
   Widget _buildCategoryCard(Category category, BuildContext context) {
     bool isSelected = _selectedCategoryId == category.id;
     final screenWidth = MediaQuery.of(context).size.width;
-
-    // 動態調整圖示大小
     double iconSize = screenWidth < 360 ? 35 : screenWidth < 600 ? 45 : 50;
     double iconFontSize = screenWidth < 360 ? 18 : screenWidth < 600 ? 22 : 24;
 
@@ -329,12 +340,12 @@ class _HomePageState extends State<HomePage> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         decoration: BoxDecoration(
-          color: isSelected ? Theme.of(context).primaryColor.withValues(alpha: 0.1) : Colors.white,
+          color: isSelected ? Theme.of(context).primaryColor.withOpacity(0.1) : Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: isSelected ? Border.all(color: Theme.of(context).primaryColor, width: 1.5) : null,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
+              color: Colors.black.withOpacity(0.08),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -350,7 +361,7 @@ class _HomePageState extends State<HomePage> {
                 gradient: LinearGradient(
                   colors: isSelected
                       ? [Theme.of(context).primaryColor, Theme.of(context).primaryColorDark]
-                      : [const Color(0xFF1E88E5), const Color(0xFF1565C0)],
+                      : [const Color(0xFF1E88E5), const Color(0xFF1565C0)], // 默認漸變色
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -359,7 +370,7 @@ class _HomePageState extends State<HomePage> {
               child: Center(
                 child: Text(
                   category.icon,
-                  style: TextStyle(fontSize: iconFontSize),
+                  style: TextStyle(fontSize: iconFontSize, color: Colors.white), // 確保圖示可見
                 ),
               ),
             ),
@@ -382,7 +393,7 @@ class _HomePageState extends State<HomePage> {
               '${category.count} 件',
               style: TextStyle(
                 fontSize: _getResponsiveFontSize(context, 10),
-                color: isSelected ? Theme.of(context).primaryColor.withValues(alpha: 0.8) : Colors.grey[600],
+                color: isSelected ? Theme.of(context).primaryColor.withOpacity(0.8) : Colors.grey[600],
               ),
             ),
           ],
@@ -408,22 +419,21 @@ class _HomePageState extends State<HomePage> {
       itemCount: _filteredProducts.length,
       itemBuilder: (context, index) {
         final product = _filteredProducts[index];
-        return _buildProductCard(product, context);
+        // 判斷商品是否被當前用戶收藏
+        bool isFavByCurrentUser = _currentUser?.favoriteProductIds.contains(product.id) ?? false;
+        return _buildProductCard(product, context, isFavByCurrentUser);
       },
     );
   }
 
-  Widget _buildProductCard(Product product, BuildContext context) {
+  Widget _buildProductCard(Product product, BuildContext context, bool isCurrentlyFavorite) {
     String imageUrlToDisplay = 'https://via.placeholder.com/300x250/E0E0E0/000000?Text=No+Image';
     if (product.imageUrls.isNotEmpty && product.imageUrls.first.isNotEmpty) {
       imageUrlToDisplay = product.imageUrls.first;
     }
 
     bool isProductSold = product.isSold;
-    bool isProductFavorite = product.isFavorite;
     final screenWidth = MediaQuery.of(context).size.width;
-
-    // 動態調整卡片內部間距
     double cardPadding = screenWidth < 360 ? 8.0 : 10.0;
     double iconSize = screenWidth < 360 ? 16 : 18;
 
@@ -435,7 +445,7 @@ class _HomePageState extends State<HomePage> {
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
+              color: Colors.black.withOpacity(0.08),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -489,15 +499,15 @@ class _HomePageState extends State<HomePage> {
                   ),
                   if (isProductSold)
                     Positioned(
-                      top: 8,
-                      left: 8,
+                      top: _getResponsiveSpacing(context, 8.0),
+                      left: _getResponsiveSpacing(context, 8.0),
                       child: Container(
                         padding: EdgeInsets.symmetric(
                           horizontal: screenWidth < 360 ? 6 : 8,
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.redAccent.withValues(alpha: 0.9),
+                          color: Colors.redAccent.withOpacity(0.9),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
@@ -511,18 +521,18 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ),
                   Padding(
-                    padding: const EdgeInsets.all(8.0),
+                    padding: EdgeInsets.all(_getResponsiveSpacing(context, 6.0)), // 調整圖標外邊距
                     child: GestureDetector(
                       onTap: () => _toggleFavorite(product),
                       child: Container(
                         padding: EdgeInsets.all(screenWidth < 360 ? 4 : 6),
                         decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.3),
+                          color: Colors.black.withOpacity(0.3),
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
-                          isProductFavorite ? Icons.favorite : Icons.favorite_border,
-                          color: isProductFavorite ? Colors.redAccent : Colors.white,
+                          isCurrentlyFavorite ? Icons.favorite : Icons.favorite_border,
+                          color: isCurrentlyFavorite ? Colors.redAccent : Colors.white,
                           size: iconSize,
                         ),
                       ),
@@ -588,7 +598,7 @@ class _HomePageState extends State<HomePage> {
     setState(() {
       if (_selectedCategoryId == categoryId) {
         _selectedCategoryId = null;
-        _filteredProducts = List.from(_products);
+        _filteredProducts = List.from(_products); // 恢復到所有商品 (或基於當前 _products)
       } else {
         _selectedCategoryId = categoryId;
         _filteredProducts = _products.where((product) => product.categoryId == categoryId).toList();
@@ -605,37 +615,70 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _toggleFavorite(Product productToToggle) {
-    setState(() {
-      final productIndex = _products.indexWhere((p) => p.id == productToToggle.id);
-      if (productIndex != -1) {
-        final updatedProduct = _products[productIndex].copyWith(
-          isFavorite: !_products[productIndex].isFavorite,
-        );
-        _products[productIndex] = updatedProduct;
+    if (_currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('請先登錄才能收藏商品')),
+      );
+      return;
+    }
 
-        final filteredProductIndex = _filteredProducts.indexWhere((p) => p.id == productToToggle.id);
-        if (filteredProductIndex != -1) {
-          _filteredProducts[filteredProductIndex] = updatedProduct;
-        } else {
-          _filteredProducts = _products.where((p) {
-            return _selectedCategoryId == null || p.categoryId == _selectedCategoryId;
-          }).toList();
-        }
+    // 先记录下操作前的收藏状态，用于后续判断是添加还是移除
+    final bool wasFavoriteBeforeToggle = _currentUser!.favoriteProductIds.contains(productToToggle.id);
+    bool isNowFavorite; // 在 setState 外部声明，以便 SnackBar 可以访问
+
+    setState(() {
+      List<String> updatedFavoriteIds = List.from(_currentUser!.favoriteProductIds);
+
+      if (wasFavoriteBeforeToggle) { // 如果之前已收藏，则现在是移除
+        updatedFavoriteIds.remove(productToToggle.id);
+        isNowFavorite = false; // 更新状态
+        // TODO: 調用 API 將商品從後端收藏中移除
+        print('API CALL: Remove ${productToToggle.id} from favorites for user ${_currentUser!.id}');
+      } else { // 如果之前未收藏，则现在是添加
+        updatedFavoriteIds.add(productToToggle.id);
+        isNowFavorite = true; // 更新状态
+        // TODO: 調用 API 將商品添加到後端收藏中
+        print('API CALL: Add ${productToToggle.id} to favorites for user ${_currentUser!.id}');
       }
+
+      // 更新本地用戶對象的收藏列表
+      _currentUser = _currentUser!.copyWith(favoriteProductIds: updatedFavoriteIds);
     });
+
+    // setState 完成后，_currentUser 的状态已经更新
+    // 我们可以直接从更新后的 _currentUser 判断当前的收藏状态来显示 SnackBar
+    // 或者使用在 setState 中更新的 isNowFavorite 变量
+    // 为了更清晰，我们使用 isNowFavorite (它在 setState 之后的值是正确的)
+
+    // 在这里，isNowFavorite 应该已经被正确赋值
+    // 但为了确保，我们重新从 _currentUser 获取最新的状态来决定提示信息
+    // 这是一个更保险的做法，确保提示信息与实际状态一致
+    final bool currentFavoriteStatus = _currentUser!.favoriteProductIds.contains(productToToggle.id);
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(productToToggle.isFavorite ? '已取消收藏' : '已加入收藏 ❤️'),
+        content: Text(currentFavoriteStatus ? '已加入收藏 ❤️' : '已取消收藏'),
         duration: const Duration(seconds: 1),
       ),
     );
   }
 
+
   void _viewProduct(Product product) {
+    // 傳遞商品到詳情頁
+    // 如果 ProductScreen 也需要知道收藏狀態，您可能需要傳遞 _currentUser 或 isCurrentlyFavorite
+    bool isCurrentlyFavorite = _currentUser?.favoriteProductIds.contains(product.id) ?? false;
+
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => ProductScreen(product: product),
+        // 假設 ProductScreen 可以接收 product 和 isFavorite 狀態
+        // 您可能需要修改 ProductScreen 的構造函數
+        builder: (context) => ProductScreen(
+          product: product,
+          // initialIsFavorite: isCurrentlyFavorite, // 示例：如果ProductScreen需要初始收藏狀態
+          // currentUser: _currentUser, // 或者直接傳遞用戶對象，讓 ProductScreen 自己處理
+        ),
       ),
     );
   }

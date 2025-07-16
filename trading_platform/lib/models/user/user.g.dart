@@ -10,9 +10,9 @@ User _$UserFromJson(Map<String, dynamic> json) => User(
   id: json['id'] as String,
   username: json['username'] as String,
   email: json['email'] as String,
+  registeredAt: DateTime.parse(json['registeredAt'] as String),
   phoneNumber: json['phoneNumber'] as String?,
   avatarUrl: json['avatarUrl'] as String?,
-  registeredAt: DateTime.parse(json['registeredAt'] as String),
   lastLoginAt:
       json['lastLoginAt'] == null
           ? null
@@ -26,6 +26,11 @@ User _$UserFromJson(Map<String, dynamic> json) => User(
   sellerDescription: json['sellerDescription'] as String?,
   sellerRating: (json['sellerRating'] as num?)?.toDouble(),
   productCount: (json['productCount'] as num?)?.toInt(),
+  favoriteProductIds:
+      (json['favoriteProductIds'] as List<dynamic>?)
+          ?.map((e) => e as String)
+          .toList() ??
+      [],
 );
 
 Map<String, dynamic> _$UserToJson(User instance) => <String, dynamic>{
@@ -45,4 +50,5 @@ Map<String, dynamic> _$UserToJson(User instance) => <String, dynamic>{
   'sellerDescription': instance.sellerDescription,
   'sellerRating': instance.sellerRating,
   'productCount': instance.productCount,
+  'favoriteProductIds': instance.favoriteProductIds,
 };

@@ -4,6 +4,7 @@ import '../models/user/user.dart';
 import 'cart.dart';
 import 'review.dart';
 import 'orderlist.dart';
+import 'seller/product_management.dart';
 // TODO: 如果存在「訂單資訊」和「銷售商品管理」頁面，請取消註解並匯入
 // import 'order_info_page.dart';
 // import 'sell_product_management_page.dart';
@@ -224,6 +225,7 @@ class Profile extends StatelessWidget {
                 // icon: Icons.storefront_outlined, // 您可以選擇是否添加圖示
                 onPressed: () {
                   print('點擊銷售商品管理');
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => SellerDashboardScreen()));
                   // TODO: 導航到銷售商品管理頁面
                 },
               ),

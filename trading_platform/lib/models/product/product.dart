@@ -28,9 +28,6 @@ class Product {
   final ShippingInformation? shippingInfo; // 可空嵌套對象
   final User? seller; // 可空嵌套對象
 
-  // Fields required/used by HomePage logic (ensure these are present)
-  @JsonKey(defaultValue: false)
-  final bool isFavorite; // Used by _toggleFavorite and _buildProductCard
   @JsonKey(defaultValue: false)
   final bool isSold;     // Used by _buildProductCard to show "SOLD" tag
 
@@ -53,7 +50,6 @@ class Product {
     this.tags,
     this.shippingInfo,
     this.seller,
-    this.isFavorite = false, // 構造函數中的默認值
     this.isSold = false,     // 構造函數中的默認值
   });
 
@@ -99,7 +95,6 @@ class Product {
       tags: tags ?? this.tags,
       shippingInfo: shippingInfo ?? this.shippingInfo,
       seller: seller ?? this.seller,
-      isFavorite: isFavorite ?? this.isFavorite,
       isSold: isSold ?? this.isSold,
     );
   }
@@ -131,7 +126,6 @@ class Product {
         _listEquals(other.tags, tags) && // tags 是可空的
         other.shippingInfo == shippingInfo && // 假設 ShippingInformation 也實現了 ==
         other.seller == seller &&             // 假設 User 也實現了 ==
-        other.isFavorite == isFavorite &&
         other.isSold == isSold;
   }
 
@@ -195,7 +189,6 @@ class Product {
     tagsCombinedHash ^ // 使用組合後的哈希
     shippingInfoHash ^
     sellerHash ^
-    isFavorite.hashCode ^
     isSold.hashCode;
   }
 

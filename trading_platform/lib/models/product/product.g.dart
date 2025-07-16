@@ -34,7 +34,6 @@ Product _$ProductFromJson(Map<String, dynamic> json) => Product(
       json['seller'] == null
           ? null
           : User.fromJson(json['seller'] as Map<String, dynamic>),
-  isFavorite: json['isFavorite'] as bool? ?? false,
   isSold: json['isSold'] as bool? ?? false,
 );
 
@@ -57,6 +56,5 @@ Map<String, dynamic> _$ProductToJson(Product instance) => <String, dynamic>{
   'tags': instance.tags,
   'shippingInfo': instance.shippingInfo?.toJson(),
   'seller': instance.seller?.toJson(),
-  'isFavorite': instance.isFavorite,
   'isSold': instance.isSold,
 };
