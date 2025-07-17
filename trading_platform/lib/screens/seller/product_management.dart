@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'upload.dart';
+import 'order_page.dart'; // 導入我們剛剛創建的訂單管理頁面
+
 // --- 色彩定義 (可以根據您的主題調整) ---
 const Color primaryBlue = Color(0xFF004E98);
 const Color lightBackground = Color(0xFFF0F4F8);
@@ -7,7 +9,6 @@ const Color darkTextColor = Color(0xFF333333);
 const Color lightTextColor = Colors.white;
 const Color cardBackgroundColor = Colors.white;
 const Color iconColor = primaryBlue;
-
 
 class SellerDashboardScreen extends StatelessWidget {
   const SellerDashboardScreen({Key? key}) : super(key: key);
@@ -115,11 +116,11 @@ class SellerDashboardScreen extends StatelessWidget {
                   icon: Icons.receipt_long_outlined,
                   label: '訂單管理\n(商品訂單)',
                   onPressed: () {
-                    // TODO: 導航到訂單管理頁面
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('導航到 訂單管理 頁面 (待實現)')),
+                    // 導航到訂單管理頁面
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const SellerOrderPage())
                     );
-                    // Navigator.push(context, MaterialPageRoute(builder: (context) => YourOrderManagementScreen()));
                   },
                 ),
                 _buildDashboardButton(
