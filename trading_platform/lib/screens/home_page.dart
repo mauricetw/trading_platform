@@ -5,9 +5,7 @@ import 'package:intl/intl.dart'; // 用於價格格式化
 // 假設您的 model 檔案路徑如下，請根據您的專案結構修改
 import '../models/product/product.dart'; // Ensure this is the renewed Product model
 import '../models/user/user.dart';    // Ensure this is your detailed User model and contains favoriteProductIds
-// import '../models/shipping_info.dart'; // 如果 Product model 需要
-
-// 假設您的 ProductScreen 路徑如下
+import '../providers/auth_provider.dart';
 import 'product.dart'; // Assuming this is your Product Detail Screen
 
 class HomePage extends StatefulWidget {
