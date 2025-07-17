@@ -2,36 +2,32 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'providers/auth_provider.dart';
-import 'providers/wishlist_item.dart';
-import 'providers/category_provider.dart';
-import 'screens/auth/login_main.dart';
-import 'screens/main_market.dart';
-import 'screens/splash_screen.dart'; // 1. 引入新的啟動畫面
+// 假設的 Provider，路徑需確認
+// import 'providers/wishlist_provider.dart';
+// import 'providers/category_provider.dart';
 
+// 引入頁面
+import 'screens/auth/login_main.dart'; // 修正：確保引入的是 login_main.dart
+import 'screens/main_market.dart';
+import 'screens/splash_screen.dart';
 
 void main() {
   runApp(
-    // 使用 MultiProvider 替換單個 ChangeNotifierProvider
     MultiProvider(
-      // providers 列表包含所有你想要在應用程式中提供的 Providers
       providers: [
-        // AuthProvider
+        // AuthProvider 現在會管理 App 的認證狀態
         ChangeNotifierProvider(create: (context) => AuthProvider()),
-        // CategoryProvider
-        ChangeNotifierProvider(create: (context) => CategoryProvider()),
-        // WishlistProvider (如果需要依賴 AuthProvider，可以使用 ChangeNotifierProxyProvider)
-        ChangeNotifierProxyProvider<AuthProvider, WishlistProvider>(
-          create: (context) => WishlistProvider(), // 初始創建一個 WishlistProvider 實例
-          update: (context, auth, previousWishlist) => WishlistProvider(
-            auth.token, // 傳入 token
-            previousWishlist == null ? [] : previousWishlist.items,
-          ),
-        ),
-        // 添加其他你需要註冊的 Providers
-        // 例如：ChangeNotifierProvider(create: (context) => CartProvider()),
-        // 例如：ChangeNotifierProvider(create: (context) => OrderProvider()),
+
+        // ChangeNotifierProvider(create: (context) => CategoryProvider()),
+
+        // ChangeNotifierProxyProvider<AuthProvider, WishlistProvider>(
+        //   create: (context) => WishlistProvider(null, []),
+        //   update: (context, auth, previousWishlist) => WishlistProvider(
+        //     auth.token,
+        //     previousWishlist == null ? [] : previousWishlist.items,
+        //   ),
+        // ),
       ],
-      // child 屬性仍然是你的應用程式的根 Widget
       child: const MyApp(),
     ),
   );
@@ -165,18 +161,17 @@ class MyApp extends StatelessWidget {
       title: '交易平台',
       theme: ThemeData(
         primarySwatch: Colors.blue,
-        fontFamily: 'NotoSansTC', // 建議設定一個統一的字體
+        fontFamily: 'NotoSansTC',
         appBarTheme: const AppBarTheme(
           backgroundColor: Colors.white,
           foregroundColor: Colors.black,
           elevation: 1,
         ),
       ),
-      // 2. 將 home 改為 SplashScreen，作為 App 的入口
       home: const SplashScreen(),
-      // 3. 定義路由，方便導航
+      // 路由名稱與 Class 名稱保持一致
       routes: {
-        '/login': (context) => const LoginMain(),
+        '/login': (context) => const LoginScreen(),
         '/home': (context) => const MainMarket(),
       },
     );

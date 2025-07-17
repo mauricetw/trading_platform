@@ -353,7 +353,7 @@ class _HomePageState extends State<HomePage> {
 
     // These are now directly from the Product model
     bool isProductSold = product.isSold;
-    bool isProductFavorite = product.isFavorite;
+    bool isProductFavorite = false;
 
     return GestureDetector(
       onTap: () => _viewProduct(product),
@@ -529,7 +529,8 @@ class _HomePageState extends State<HomePage> {
         // Create a new Product instance with the toggled favorite state
         // This assumes your Product model has a copyWith method
         final updatedProduct = _products[productIndex].copyWith(
-          isFavorite: !_products[productIndex].isFavorite,
+          //isFavorite: !_products[productIndex].isFavorite,
+          isFavorite: false,
         );
         // Replace the old product with the updated one in the _products list
         _products[productIndex] = updatedProduct;
@@ -549,7 +550,8 @@ class _HomePageState extends State<HomePage> {
     });
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(productToToggle.isFavorite ? '已取消收藏' : '已加入收藏 ❤️'), // Logic inverted due to reading state before update
+        //content: Text(productToToggle.isFavorite ? '已取消收藏' : '已加入收藏 ❤️'), // Logic inverted due to reading state before update
+        content: Text(false ? '已取消收藏' : '已加入收藏 ❤️'),
         duration: const Duration(seconds: 1),
       ),
     );

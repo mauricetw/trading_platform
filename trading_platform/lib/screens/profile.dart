@@ -4,9 +4,10 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../models/user/user.dart';
 import 'settings/setting.dart';
-import 'cart.dart';
-import 'review.dart';
-import 'auth/login_main.dart';
+import 'cart.dart'; // 確保此檔案存在
+import 'review.dart'; // 確保此檔案存在
+import 'auth/login_main.dart'; // 確保此檔案存在
+
 // TODO: 如果存在「訂單資訊」和「銷售商品管理」頁面，請取消註解並匯入
 // import 'order_info_page.dart';
 // import 'sell_product_management_page.dart';
@@ -77,39 +78,66 @@ class Profile extends StatelessWidget {
     );
   }
 
+  // 輔助函式：建立評價統計 Widget
+  Widget _buildReviewStat(String title, double rating) {
+    return Column(
+      children: [
+        _buildInfoText(title, fontSize: 14, color: Colors.black54),
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            const Icon(Icons.star, color: Colors.amber, size: 20),
+            const SizedBox(width: 4),
+            _buildInfoText(rating.toStringAsFixed(1), fontSize: 18, fontWeight: FontWeight.bold),
+          ],
+        )
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    // --- 重構：直接從 AuthProvider 消費者 (Consumer) 獲取狀態 ---
-    // Consumer 會在 AuthProvider 狀態改變時自動重建 UI
+    // --- 使用 Consumer Widget 來監聽 AuthProvider 的變化 ---
+    // 當 authProvider.isLoggedIn 狀態改變時，這個 builder 會自動重新執行。
     return Consumer<AuthProvider>(
       builder: (context, authProvider, child) {
-        // 如果未登入，顯示一個提示和登入按鈕
+        // --- 情況 1：使用者未登入 ---
         if (!authProvider.isLoggedIn) {
           return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text('您尚未登入', style: TextStyle(fontSize: 24)),
-                const SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: () {
-                    // 導航到登入頁
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (context) => const LoginMain()),
-                    );
-                  },
-                  child: const Text('前往登入'),
-                ),
-              ],
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text('您尚未登入', style: TextStyle(fontSize: 24, color: Colors.grey)),
+                  const SizedBox(height: 8),
+                  const Text('登入後即可查看您的個人資料', style: TextStyle(fontSize: 16, color: Colors.grey)),
+                  const SizedBox(height: 30),
+                  ElevatedButton(
+                    onPressed: () {
+                      // 導航到登入選擇頁
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (context) => const LoginScreen()),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
+                      textStyle: const TextStyle(fontSize: 18),
+                    ),
+                    child: const Text('前往登入'),
+                  ),
+                ],
+              ),
             ),
           );
         }
 
-        // 如果已登入，獲取使用者資料
+        // --- 情況 2：使用者已登入 ---
+        // 從 authProvider 獲取最新的使用者資料
         final User user = authProvider.currentUser!;
 
         return Scaffold(
-          backgroundColor: const Color(0xFFF5F5F5), // 使用稍淺的灰色背景
+          backgroundColor: const Color(0xFFF5F5F5),
           body: SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(20.0),
@@ -138,6 +166,7 @@ class Profile extends StatelessWidget {
                           children: [
                             _buildInfoText(user.username, fontSize: 24, fontWeight: FontWeight.bold),
                             const SizedBox(height: 5),
+                            // 確保 user.id (int) 能被正確顯示
                             _buildInfoText('ID: ${user.id}', fontSize: 16, color: Colors.black54),
                           ],
                         ),
@@ -196,7 +225,6 @@ class Profile extends StatelessWidget {
                       }),
                       const SizedBox(width: 15),
                       _buildSecondaryButton(label: '設定', icon: Icons.settings_outlined, onPressed: () {
-                        // 導航到新的設定頁面
                         Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsPage()));
                       }),
                     ],
@@ -205,7 +233,8 @@ class Profile extends StatelessWidget {
 
                   _buildPrimaryButton(label: '訂單狀態', onPressed: () {}),
                   const SizedBox(height: 15),
-                  if(user.isSeller) // 只有賣家才顯示此按鈕
+                  // 只有賣家才顯示此按鈕
+                  if (user.isSeller == true)
                     _buildPrimaryButton(label: '管理上架商品', onPressed: () {}),
 
                   const SizedBox(height: 30),
@@ -216,6 +245,7 @@ class Profile extends StatelessWidget {
                     onPressed: () {
                       // 呼叫 AuthProvider 的登出方法
                       Provider.of<AuthProvider>(context, listen: false).logout();
+                      // 登出後，Consumer 會自動重建 UI，顯示未登入畫面
                     },
                     style: TextButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 12),
@@ -227,23 +257,6 @@ class Profile extends StatelessWidget {
           ),
         );
       },
-    );
-  }
-
-  // 輔助函式：建立評價統計 Widget
-  Widget _buildReviewStat(String title, double rating) {
-    return Column(
-      children: [
-        _buildInfoText(title, fontSize: 14, color: Colors.black54),
-        const SizedBox(height: 4),
-        Row(
-          children: [
-            Icon(Icons.star, color: Colors.amber, size: 20),
-            const SizedBox(width: 4),
-            _buildInfoText(rating.toStringAsFixed(1), fontSize: 18, fontWeight: FontWeight.bold),
-          ],
-        )
-      ],
     );
   }
 }

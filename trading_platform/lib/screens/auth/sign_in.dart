@@ -1,32 +1,7 @@
-import 'package:first_flutter_project/screens/auth/forget_password.dart';
 import 'package:flutter/material.dart';
-import '../auth/login_main.dart';
-import 'package:first_flutter_project/screens/main_market.dart';
-import 'package:first_flutter_project/api_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:first_flutter_project/models/user/user.dart';
 import 'package:provider/provider.dart';
-import 'package:first_flutter_project/providers/auth_provider.dart';
-
-void main() {
-  runApp(const MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: '登入系統',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      home: const SignInPage(),
-      debugShowCheckedModeBanner: true,
-    );
-  }
-}
+import '../../providers/auth_provider.dart';
+import 'forget_password.dart';
 
 class SignInPage extends StatefulWidget {
   const SignInPage({Key? key}) : super(key: key);
@@ -36,262 +11,137 @@ class SignInPage extends StatefulWidget {
 }
 
 class _SignInPageState extends State<SignInPage> {
-  final TextEditingController _usernameController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
-  String _usernameError = '';
-  String _passwordError = '';
-  bool _isLoading = false; // 新增一個變數來追蹤登入狀態
+  final _formKey = GlobalKey<FormState>();
+  final _identifierController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _isLoading = false;
 
   @override
   void dispose() {
-    _usernameController.dispose();
+    _identifierController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
-  // 修改驗證方法，增加成功登入後的頁面跳轉
-  void _validateInputs() {
-    setState(() {
-      _usernameError = _usernameController.text.isEmpty ? '使用者帳號不存在' : '';
-      _passwordError = _passwordController.text.isEmpty ? '密碼錯誤' : '';
-    });
-
-    // 檢查兩個欄位是否都已填寫(無錯誤)
-    if (_usernameError.isEmpty && _passwordError.isEmpty) {
-      _login();
+  Future<void> _handleLogin() async {
+    FocusScope.of(context).unfocus();
+    if (!_formKey.currentState!.validate()) {
+      return;
     }
-  }
 
-  // 新增一個登入方法來處理登入流程
-  void _login() async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    String identifier = _usernameController.text.trim();
-    String password = _passwordController.text.trim();
+    setState(() { _isLoading = true; });
 
     try {
-      final apiService = ApiService();
-      final response = await apiService.login(identifier, password);
+      // 呼叫 AuthProvider 的 login 方法
+      await Provider.of<AuthProvider>(context, listen: false).login(
+        _identifierController.text.trim(),
+        _passwordController.text.trim(),
+      );
 
-      if (response["success"]) {
-        final data = response["data"];
-
-        // 儲存 token
-        SharedPreferences prefs = await SharedPreferences.getInstance();
-        await prefs.setString('token', data['token']);
-
-        final user = User.fromJson(data);
-
-        // 通知 provider 更新登入狀態
-        final authProvider = Provider.of<AuthProvider>(context, listen: false);
-        authProvider.login(user);
-
-        // 跳轉頁面
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const MainMarket()),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(response["error"] ?? "登入失敗")),
-        );
+      if (mounted) {
+        Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("登入過程發生錯誤: $e")),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('登入失敗: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() { _isLoading = false; });
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
-      body: Container(
-        color: Colors.grey[300],
-        child: Center(
-          child: Container(
-            width: 540,
-            height: 960,
-            decoration: BoxDecoration(
-              color: Color.fromRGBO(0, 78, 150, 1),
-            ),
+      backgroundColor: const Color(0xFF004E98),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(32.0),
+          child: Form(
+            key: _formKey,
             child: Column(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Container(
-                  padding: const EdgeInsets.fromLTRB(50, 45, 50, 45),
-                  alignment: Alignment.centerLeft,
+                const Icon(Icons.school, size: 80, color: Colors.white),
+                const SizedBox(height: 20),
+                const Text(
+                  '歡迎回來',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white),
                 ),
-                Container(
-                  padding: const EdgeInsets.fromLTRB(45, 20, 45, 20),
-                  color: Color.fromRGBO(0, 78, 150, 1),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // 返回按鈕
-                      Container(
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            Navigator.pop(context);
-                          },
-                          icon: const Icon(Icons.arrow_back, color: Color.fromRGBO(0, 78, 150, 1)), // 返回图标
-                          label: const Text('返回', style: TextStyle(color: Color.fromRGBO(0, 78, 150, 1))), // 按钮文本
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color.fromRGBO(61, 255, 258, 1), // 背景
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 60),
-
-                      // 使用者帳號
-                      const Text(
-                        '使用者帳號',
-                        style: TextStyle(color: Colors.white, fontSize: 16),
-                      ),
-                      const SizedBox(height: 8.0),
-                      TextField(
-                        controller: _usernameController,
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Colors.white,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(4.0),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            vertical: 12.0,
-                            horizontal: 12.0,
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 20.0),
-
-                      // 使用者密碼
-                      const Text(
-                        '使用者密碼',
-                        style: TextStyle(color: Colors.white, fontSize: 16),
-                      ),
-                      const SizedBox(height: 8.0),
-                      TextField(
-                        controller: _passwordController,
-                        obscureText: true,
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Colors.white,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(4.0),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            vertical: 12.0,
-                            horizontal: 12.0,
-                          ),
-                        ),
-                      ),
-
-                      TextButton(
-                        onPressed: (){
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => AccountVerificationPage()),);
-                        },
-                        child:Text(
-                          '忘記密碼了嗎?',
-                          style: TextStyle(
-                            color: Colors.black,
-                            fontSize: 12,
-                            decoration: TextDecoration.underline,
-                          ),
-                        ),
-                      ),
-
-                      // 錯誤訊息
-                      if (_usernameError.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8.0),
-                          child: Text(
-                            '*$_usernameError',
-                            style: const TextStyle(color: Colors.greenAccent, fontSize: 12),
-                          ),
-                        ),
-                      if (_passwordError.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 4.0),
-                          child: Text(
-                            '*$_passwordError',
-                            style: const TextStyle(color: Colors.greenAccent, fontSize: 12),
-                          ),
-                        ),
-
-                      const SizedBox(height: 20),
-
-                      const Text(
-                        '*使用者帳號不存在',
-                        style: TextStyle(color: Color.fromRGBO(61, 255, 258, 1), fontSize: 12),
-                      ),
-
-                      const Text(
-                        '*密碼錯誤',
-                        style: TextStyle(color: Color.fromRGBO(61, 255, 258, 1), fontSize: 12),
-                      ),
-
-                      const SizedBox(height: 260),
-
-                      // 登入按鈕，增加了載入狀態
-                      Center(
-                        child: ElevatedButton(
-                          onPressed: _isLoading ? null : _validateInputs, // 如果正在載入，按鈕不可用
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFFF9238),
-                            minimumSize: const Size(90, 45),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(22.0),
-                            ),
-                          ),
-                          child: _isLoading
-                              ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2.0,
-                            ),
-                          )
-                              : const Text(
-                            '登入',
-                            style: TextStyle(fontSize: 18, color: Colors.white),
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // 忘記密碼
-                      const Center(
-                        child: Text(
-                          '發生問題請點此處',
-                          style: TextStyle(color: Colors.white, fontSize: 12),
-                        ),
-                      ),
-                    ],
+                const SizedBox(height: 40),
+                TextFormField(
+                  controller: _identifierController,
+                  decoration: _buildInputDecoration('使用者帳號或電子信箱', Icons.person),
+                  style: const TextStyle(color: Colors.white),
+                  validator: (value) => (value == null || value.isEmpty) ? '欄位不能為空' : null,
+                ),
+                const SizedBox(height: 20),
+                TextFormField(
+                  controller: _passwordController,
+                  obscureText: true,
+                  decoration: _buildInputDecoration('密碼', Icons.lock),
+                  style: const TextStyle(color: Colors.white),
+                  validator: (value) => (value == null || value.isEmpty) ? '欄位不能為空' : null,
+                ),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => const AccountVerificationPage()));
+                    },
+                    child: const Text('忘記密碼?', style: TextStyle(color: Colors.white70)),
                   ),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: _isLoading ? null : _handleLogin,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    backgroundColor: const Color(0xFFFF8C35),
+                    foregroundColor: Colors.white,
+                    textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  child: _isLoading
+                      ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
+                      : const Text('登入'),
                 ),
               ],
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  InputDecoration _buildInputDecoration(String labelText, IconData icon) {
+    return InputDecoration(
+      labelText: labelText,
+      labelStyle: const TextStyle(color: Colors.white70),
+      prefixIcon: Icon(icon, color: Colors.white70),
+      enabledBorder: OutlineInputBorder(
+        borderSide: BorderSide(color: Colors.white.withOpacity(0.5)),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderSide: const BorderSide(color: Colors.white),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderSide: const BorderSide(color: Colors.redAccent),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderSide: const BorderSide(color: Colors.redAccent, width: 2),
+        borderRadius: BorderRadius.circular(12),
       ),
     );
   }

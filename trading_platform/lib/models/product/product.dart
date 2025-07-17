@@ -3,68 +3,102 @@ import '../order/shipping_info.dart';
 
 
 class Product {
-  final String id; // 唯一識別碼
+  // --- 欄位對齊與修正 ---
+  final int id; // 修正：id 與後端一致，為 int
   final String name;
   final String description;
-  // Renamed from originalprice to originalPrice for consistency with HomePage
-  final double? originalPrice; // Made nullable as it might not always exist
-  final double price;         // Added 'price' as this is what HomePage's _formatPrice expects
-  // Renamed from catehoryId to categoryId for consistency and common practice
+  final double price;
+  final double? originalPrice;
   final int categoryId;
+  final String category;
   final int stockQuantity;
+  final String status;
   final List<String> imageUrls;
-  final String category; // This can be derived from categoryId or stored directly
-  final String status; // 例如："available", "unavailable", "sold"
   final DateTime createdAt;
   final DateTime updatedAt;
-
   final int salesCount;
   final double? averageRating;
-  final int? reviewCount;
+  final int reviewCount;
   final List<String>? tags;
   final ShippingInformation? shippingInfo;
   final User? seller;
 
-  // Fields required/used by HomePage logic (ensure these are present)
-  final bool isFavorite; // Used by _toggleFavorite and _buildProductCard
-  final bool isSold;     // Used by _buildProductCard to show "SOLD" tag
+  // --- 邏輯修正：isFavorite 已移除 ---
+  // 這個狀態應該由一個獨立的 WishlistProvider 或 FavoriteProvider 來管理。
+
+  // --- 邏輯優化：isSold 是一個 getter，而不是儲存的屬性 ---
+  // 它的值根據其他屬性計算得出，永遠保持正確。
+  bool get isSold => stockQuantity == 0 || status == 'sold';
+
+  // 這是前端 UI 狀態，不屬於核心模型，但為了方便 UI 操作可以保留
+  // 建議在 Provider 或頁面的 State 中管理這個狀態
+  final bool isFavorite;
 
   Product({
     required this.id,
     required this.name,
     required this.description,
-    required this.price, // Added required price
-    this.originalPrice, // Changed from originalprice
-    required this.categoryId, // Changed from catehoryId
+    required this.price,
+    this.originalPrice,
+    required this.categoryId,
+    required this.category,
     required this.stockQuantity,
     required this.imageUrls,
-    required this.category,
     required this.status,
     required this.createdAt,
     required this.updatedAt,
-    this.salesCount = 0,
+    required this.salesCount,
     this.averageRating,
-    this.reviewCount,
+    required this.reviewCount,
     this.tags,
     this.shippingInfo,
     this.seller,
-    // Default values for HomePage specific fields
-    this.isFavorite = false,
-    this.isSold = false, // Determine this based on stockQuantity or status if needed
+    this.isFavorite = false, // UI 狀態的預設值
   });
 
-  // Optional: A copyWith method is useful for updating immutable objects
+  // fromJson 工廠方法，用於從後端 API 的 JSON 資料建立 Product 物件
+  factory Product.fromJson(Map<String, dynamic> json) {
+    return Product(
+      // --- 修正：確保所有欄位名稱與後端 snake_case 一致 ---
+      id: json['id'] as int,
+      name: json['name'] as String,
+      description: json['description'] as String,
+      price: (json['price'] as num).toDouble(),
+      originalPrice: (json['original_price'] as num?)?.toDouble(),
+      categoryId: json['category_id'] as int,
+      category: json['category'] as String,
+      stockQuantity: json['stock_quantity'] as int,
+      // 如果 image_urls 可能為 null，提供一個空列表作為預設值
+      imageUrls: (json['image_urls'] as List<dynamic>?)?.map((e) => e as String).toList() ?? [],
+      status: json['status'] as String,
+      createdAt: DateTime.parse(json['created_at'] as String),
+      updatedAt: DateTime.parse(json['updated_at'] as String),
+      salesCount: json['sales_count'] as int? ?? 0,
+      averageRating: (json['average_rating'] as num?)?.toDouble(),
+      reviewCount: json['review_count'] as int? ?? 0,
+      tags: (json['tags'] as List<dynamic>?)?.map((e) => e as String).toList(),
+      shippingInfo: json['shipping_info'] != null
+          ? ShippingInformation.fromJson(json['shipping_info'] as Map<String, dynamic>)
+          : null,
+      seller: json['seller'] != null
+          ? User.fromJson(json['seller'] as Map<String, dynamic>)
+          : null,
+      // isFavorite 不從後端獲取，由前端的 Provider 管理
+    );
+  }
+
+  // copyWith 方法，方便在不改變原物件的情況下更新狀態
   Product copyWith({
-    String? id,
+    int? id,
     String? name,
     String? description,
     double? price,
     double? originalPrice,
     int? categoryId,
-    int? stockQuantity,
-    List<String>? imageUrls,
     String? category,
+    int? stockQuantity,
     String? status,
+    List<String>? imageUrls,
     DateTime? createdAt,
     DateTime? updatedAt,
     int? salesCount,
@@ -73,8 +107,7 @@ class Product {
     List<String>? tags,
     ShippingInformation? shippingInfo,
     User? seller,
-    bool? isFavorite,
-    bool? isSold,
+    bool? isFavorite, // 允許更新 UI 的收藏狀態
   }) {
     return Product(
       id: id ?? this.id,
@@ -83,10 +116,10 @@ class Product {
       price: price ?? this.price,
       originalPrice: originalPrice ?? this.originalPrice,
       categoryId: categoryId ?? this.categoryId,
-      stockQuantity: stockQuantity ?? this.stockQuantity,
-      imageUrls: imageUrls ?? this.imageUrls,
       category: category ?? this.category,
+      stockQuantity: stockQuantity ?? this.stockQuantity,
       status: status ?? this.status,
+      imageUrls: imageUrls ?? this.imageUrls,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       salesCount: salesCount ?? this.salesCount,
@@ -96,66 +129,10 @@ class Product {
       shippingInfo: shippingInfo ?? this.shippingInfo,
       seller: seller ?? this.seller,
       isFavorite: isFavorite ?? this.isFavorite,
-      isSold: isSold ?? this.isSold,
     );
-  }
-
-  // Optional: fromJson and toJson methods if you plan to serialize/deserialize
-  // This is a basic example, adjust according to your User and ShippingInformation models
-  factory Product.fromJson(Map<String, dynamic> json) {
-    return Product(
-      id: json['id'] as String,
-      name: json['name'] as String,
-      description: json['description'] as String,
-      price: (json['price'] as num).toDouble(),
-      originalPrice: (json['originalPrice'] as num?)?.toDouble(),
-      categoryId: json['categoryId'] as int,
-      stockQuantity: json['stockQuantity'] as int,
-      imageUrls: List<String>.from(json['imageUrls'] as List),
-      category: json['category'] as String,
-      status: json['status'] as String,
-      createdAt: DateTime.parse(json['createdAt'] as String),
-      updatedAt: DateTime.parse(json['updatedAt'] as String),
-      salesCount: json['salesCount'] as int? ?? 0,
-      averageRating: (json['averageRating'] as num?)?.toDouble(),
-      reviewCount: json['reviewCount'] as int?,
-      tags: (json['tags'] as List<dynamic>?)?.map((e) => e as String).toList(),
-      shippingInfo: json['shippingInfo'] != null
-          ? ShippingInformation.fromJson(json['shippingInfo'] as Map<String, dynamic>) // Assuming ShippingInformation has fromJson
-          : null,
-      seller: json['seller'] != null
-          ? User.fromJson(json['seller'] as Map<String, dynamic>) // Assuming User has fromJson
-          : null,
-      isFavorite: json['isFavorite'] as bool? ?? false,
-      isSold: json['isSold'] as bool? ?? false,
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'name': name,
-      'description': description,
-      'price': price,
-      'originalPrice': originalPrice,
-      'categoryId': categoryId,
-      'stockQuantity': stockQuantity,
-      'imageUrls': imageUrls,
-      'category': category,
-      'status': status,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
-      'salesCount': salesCount,
-      'averageRating': averageRating,
-      'reviewCount': reviewCount,
-      'tags': tags,
-      // 'shippingInfo': shippingInfo?.toJson(), // Assuming ShippingInformation has toJson
-      // 'seller': seller?.toJson(),             // Assuming User has toJson
-      'isFavorite': isFavorite,
-      'isSold': isSold,
-    };
   }
 }
+
 
 // Ensure ShippingInformation has a fromJson factory if you use it in Product.fromJson
 // Example:

@@ -1,7 +1,6 @@
-import 'package:first_flutter_project/screens/auth/reset_password_confirm.dart';
 import 'package:flutter/material.dart';
-import 'reset_password.dart';
-import 'package:first_flutter_project/api_service.dart';
+import '../../api_service.dart';
+import 'reset_password_confirm.dart';
 
 class AccountVerificationPage extends StatefulWidget {
   const AccountVerificationPage({Key? key}) : super(key: key);
@@ -11,192 +10,79 @@ class AccountVerificationPage extends StatefulWidget {
 }
 
 class _AccountVerificationPageState extends State<AccountVerificationPage> {
-  final TextEditingController _accountController = TextEditingController();
-  bool _showError = false;
+  final _formKey = GlobalKey<FormState>();
+  final _accountController = TextEditingController();
+  bool _isLoading = false;
 
-  // 模擬驗證帳號
-  void _verifyAccountAndProceed() async {
+  @override
+  void dispose() {
+    _accountController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleVerification() async {
+    FocusScope.of(context).unfocus();
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() { _isLoading = true; });
+
     final account = _accountController.text.trim();
-
-    if (account.isEmpty) {
-      setState(() {
-        _showError = true;
-      });
-      return;
-    }
-
-    // 實際的API調用來驗證帳號
     try {
       await ApiService().forgotPassword(account);
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => PasswordResetConfirmPage(userId: account),
-        ),
-      );
+      if (mounted) {
+        // --- 修正點：將 identifier 傳遞到下一頁 ---
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PasswordResetConfirmPage(loginIdentifier: account),
+          ),
+        );
+      }
     } catch (e) {
-      print("Error: $e");
-      setState(() {
-        _showError = true;
-      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() { _isLoading = false; });
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color.fromRGBO(255, 255, 255, 1), // 淺灰色背景
-      body: SafeArea(
-        child: Center(
-          child: Container(
-            width: 540,
-            height: 960,
-            decoration: const BoxDecoration(
-                color: Color.fromRGBO(255, 255, 255, 1)
-            ),
-            padding: const EdgeInsets.fromLTRB(45, 20, 45, 20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // 返回按鈕
-                Align(
-                  alignment: Alignment.topLeft,
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 16, left: 16),
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        // 返回上一頁
-                        Navigator.pop(context);
-                      },
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      label: const Text('返回', style: TextStyle(color: Colors.white)),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0D47A1), // 深藍色按鈕
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      ),
-                    ),
-                  ),
+      appBar: AppBar(title: const Text('驗證帳號')),
+      body: Form(
+        key: _formKey,
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text('請輸入您的使用者帳號或電子信箱，我們將會寄送驗證碼給您。', textAlign: TextAlign.center),
+              const SizedBox(height: 24),
+              TextFormField(
+                controller: _accountController,
+                decoration: const InputDecoration(
+                  labelText: '使用者帳號或電子信箱',
+                  border: OutlineInputBorder(),
                 ),
-
-                // 標題
-                const SizedBox(height: 100),
-                const Text(
-                  '輸入使用者帳號/電子信箱',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Color.fromRGBO(0, 78, 152, 1),
-                  ),
-                ),
-
-                // 輸入框
-                const SizedBox(height: 16),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: TextField(
-                    controller: _accountController,
-                    decoration: InputDecoration(
-                      hintText: '輸入使用者帳號或電子信箱',
-                      hintStyle: const TextStyle(
-                          color: Color.fromRGBO(209, 241, 266, 0.5)
-                      ),
-                      filled: true,
-                      fillColor: const Color.fromRGBO(0, 78, 152, 1),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(4),
-                        borderSide: BorderSide.none,
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(4),
-                        borderSide: BorderSide.none,
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(4),
-                        borderSide: const BorderSide(color: Colors.blue, width: 2),
-                      ),
-                    ),
-                    style: const TextStyle(color: Colors.white),
-                    onChanged: (value) {
-                      // 當輸入改變時，重設錯誤訊息
-                      if (_showError) {
-                        setState(() {
-                          _showError = false;
-                        });
-                      }
-                    },
-                  ),
-                ),
-
-                // 錯誤訊息
-                if (_showError)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8, left: 24),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
-                          Text(
-                            '*帳號不存在',
-                            style: TextStyle(color: Colors.red, fontSize: 12),
-                          ),
-                          Text(
-                            '*電子信箱未註冊',
-                            style: TextStyle(color: Colors.red, fontSize: 12),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                // 確認按鈕
-                const Spacer(),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 40),
-                  child: ElevatedButton(
-                    onPressed: _verifyAccountAndProceed,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFF9800), // 橙色按鈕
-                      minimumSize: const Size(120, 40),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                    ),
-                    child: const Text(
-                      '確認',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-
-                // 底部文字
-                const Text(
-                  '沒有收到？重新發送',
-                  style: TextStyle(
-                    color: Colors.black54,
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(height: 20),
-              ],
-            ),
+                validator: (value) => (value == null || value.isEmpty) ? '欄位不能為空' : null,
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: _isLoading ? null : _handleVerification,
+                style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
+                child: _isLoading ? const CircularProgressIndicator() : const Text('發送驗證碼'),
+              ),
+            ],
           ),
         ),
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _accountController.dispose();
-    super.dispose();
   }
 }
