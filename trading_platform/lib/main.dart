@@ -4,9 +4,7 @@ import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/wishlist_item.dart';
 import 'providers/category_provider.dart';
-import 'models/user/user.dart';
-import 'screens/seller/store_management.dart';
-import 'theme/app_theme.dart';
+
 
 void main() {
   runApp(
@@ -165,50 +163,10 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Trading Platform',
-      theme: appLightTheme,
-      darkTheme: appDarkTheme,
-      themeMode: ThemeMode.system,
-
-      // 不再直接設置 home，而是通過 Consumer 決定
-      home: Consumer<AuthProvider>(
-        builder: (context, authProvider, child) {
-          // 檢查用戶是否已登錄
-          if (authProvider.isLoggedIn && authProvider.currentUser != null) {
-            final User currentUser = authProvider.currentUser!;
-
-            // 檢查用戶是否為賣家
-            // 您可以根據 User 模型中的 isSeller 屬性或 roles 列表來判斷
-            bool isSeller = currentUser.isSeller ?? false;
-            // 或者更嚴謹的判斷，如果 roles 列表存在且包含 'seller'
-            // if (currentUser.roles != null && currentUser.roles!.contains('seller')) {
-            //   isSeller = true;
-            // }
-
-            if (isSeller) {
-              // 如果是賣家，導向賣家儀表板
-              // 確保 SellerDashboardScreen 的構造函數是 const SellerDashboardScreen()
-              // 它會從內部通過 Provider 獲取 currentUser
-              return const MainMarket();
-            } else {
-              // 如果已登錄但不是賣家，可以導向市場主頁或其他普通用戶頁面
-              // 這裡我們假設 MainMarket 也可以作為普通登錄用戶的主頁
-              print("User '${currentUser.username}' is logged in but not a seller. Showing MainMarket.");
-              return const MainMarket(); // 或者一個 BuyerDashboardScreen()
-            }
-          } else {
-            // 如果用戶未登錄，顯示 MainMarket (假設它是登錄頁面或公共市場頁)
-            print("User not logged in. Showing MainMarket.");
-            return const MainMarket();
-          }
-        },
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
       ),
-      // 您可能還會有路由表，用於處理命名路由
-      // routes: {
-      //   '/login': (context) => LoginScreen(), // 假設您有 LoginScreen
-      //   '/main_market': (context) => const MainMarket(),
-      //   '/seller_dashboard': (context) => const SellerDashboardScreen(),
-      //   // ... 其他路由
-      // },
+      home: const MainMarket(), // 使用您的登入畫面作為首頁
     );
   }
 }

@@ -4,7 +4,7 @@ import '../models/user/user.dart';
 import 'cart.dart';
 import 'review.dart';
 import 'orderlist.dart';
-import 'seller/store_management.dart';
+import 'seller/product_management.dart';
 // TODO: 如果存在「訂單資訊」和「銷售商品管理」頁面，請取消註解並匯入
 // import 'order_info_page.dart';
 // import 'sell_product_management_page.dart';
