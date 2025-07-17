@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'edit_profile.dart';
-import 'notification_settings.dart'; // 導入通知設定頁面檔案
-// 假設您有處理登出邏輯的服務或提供者
-// import 'auth_service.dart';
+import 'package:provider/provider.dart';
+import '../../providers/auth_provider.dart';
+import 'edit_profile.dart'; // 引入我們整合後的編輯頁面
+import 'notification_settings.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -11,90 +11,77 @@ class SettingsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Color(0xFFFF8D36),
         title: const Text('設定'),
-        centerTitle: true,
+        backgroundColor: const Color(0xFF004E98),
       ),
-      backgroundColor: const Color(0XFF004E98),
+      backgroundColor: Colors.grey[200],
       body: ListView(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.symmetric(vertical: 20.0, horizontal: 16.0),
         children: [
-          // 通知設定入口
-          const SizedBox(height: 8),
-          Card(
-            elevation: 4.0,
-            child: ListTile( // 使用 ListTile 作為導航項目
-              leading: const Icon(Icons.notifications_none),
-              title: const Text('管理通知設定'),
-              trailing: const Icon(Icons.arrow_forward_ios),
-              onTap: () {
-                // 導航到通知設定頁面
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => const NotificationSettingsPage()),
-                );
-              },
-            ),
+          _buildSettingsCard(
+            context,
+            icon: Icons.person_outline,
+            title: '編輯個人資訊',
+            onTap: () {
+              // --- 整合點：導航到我們新的 EditProfilePage ---
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const EditProfilePage()),
+              );
+            },
+          ),
+          const SizedBox(height: 16),
+          _buildSettingsCard(
+            context,
+            icon: Icons.notifications_none,
+            title: '管理通知設定',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const NotificationSettingsPage()),
+              );
+            },
           ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 40),
 
-          // 帳戶設定區塊
-          const SizedBox(height: 8),
-          Card(
-            elevation: 4.0,
-            child: Column(
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.person_outline),
-                  title: const Text('更改個人資訊'),
-                  trailing: const Icon(Icons.arrow_forward_ios),
-                  onTap: () {
-                    // 導航到個人資訊更改頁面
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => const EditProfilePage()),
-                    );
-                  },
-                ),
-                // 可以根據需要添加其他帳戶相關的 ListTile
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 70),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: Center( // 將按鈕置中
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 16.0), // 底部內邊距
-                child: ElevatedButton(
-                  onPressed: () {
-                    // TODO: 處理登出邏輯
-                    print('點擊登出');
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.redAccent,
-                    padding: const EdgeInsets.symmetric(vertical: 15.0, horizontal: 80.0), // 調整水平填充以控制按鈕寬度
-                    textStyle: const TextStyle(fontSize: 16.0),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8.0),
-                    ),
-                  ),
-                  child: const Text('登出', style: TextStyle(color: Colors.white)),
-                ),
+          // 登出按鈕
+          ElevatedButton.icon(
+            icon: const Icon(Icons.logout),
+            label: const Text('登出'),
+            onPressed: () {
+              // --- 整合點：呼叫 AuthProvider 的登出方法 ---
+              Provider.of<AuthProvider>(context, listen: false).logout();
+              // 登出後，我們的 SplashScreen 會自動偵測到狀態改變並導向登入頁
+              // 為了更好的體驗，可以手動將使用者導航回 App 的最外層
+              Navigator.of(context).popUntil((route) => route.isFirst);
+            },
+            style: ElevatedButton.styleFrom(
+              foregroundColor: Colors.white,
+              backgroundColor: Colors.redAccent,
+              padding: const EdgeInsets.symmetric(vertical: 15.0),
+              textStyle: const TextStyle(fontSize: 16.0, fontWeight: FontWeight.bold),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12.0),
               ),
             ),
           ),
-
         ],
-
       ),
+    );
+  }
 
+  // 輔助函式，建立統一風格的卡片
+  Widget _buildSettingsCard(BuildContext context, {required IconData icon, required String title, required VoidCallback onTap}) {
+    return Card(
+      elevation: 2.0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: ListTile(
+        leading: Icon(icon, color: Theme.of(context).primaryColor),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w500)),
+        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+        onTap: onTap,
+      ),
     );
   }
 }

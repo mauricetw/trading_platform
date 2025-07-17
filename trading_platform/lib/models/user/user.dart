@@ -1,5 +1,6 @@
 class User {
-  final String id;
+  // --- 修正：後端 ID 是整數 (int) ---
+  final int id;
   final String username;
   final String email;
   final String? phoneNumber;
@@ -16,6 +17,7 @@ class User {
   final String? sellerName; // 賣家名稱 (nullable)
   final String? sellerDescription; // 賣家簡介 (nullable)
   final double? sellerRating; // 賣家評分 (nullable)
+  final double? buyerRating; // 新增：買家評價
   final int? productCount; // 賣家上架的商品數量 (nullable)
   // 可以添加其他賣家相關屬性，例如：賣家店鋪圖片、營業時間等
 
@@ -29,35 +31,88 @@ class User {
     this.lastLoginAt,
     this.bio,
     this.schoolName,
-    this.isVerified,
-    this.roles,
+    required this.isVerified,
+    required this.roles,
+
     // 初始化賣家相關屬性
-    this.isSeller = false, // 預設不是賣家
+    required this.isSeller,
     this.sellerName,
     this.sellerDescription,
     this.sellerRating,
-    this.productCount,
+    this.buyerRating,
+    required this.productCount,
   });
 
-  // 為了方便測試，添加一個 fromJson 方法
+  // --- 修正：工廠方法，使其更健壯 ---
   factory User.fromJson(Map<String, dynamic> json) {
+    // 輔助函式，安全地解析 double
+    double? parseDouble(dynamic value) {
+      if (value is double) return value;
+      if (value is int) return value.toDouble();
+      if (value is String) return double.tryParse(value);
+      return null;
+    }
+
     return User(
-      id: json['id'] as String,
+      // 確保 id 是 int
+      id: json['id'] as int,
       username: json['username'] as String,
       email: json['email'] as String,
-      avatarUrl: json['avatarUrl'] as String?,
-      registeredAt: DateTime.parse(json['registeredAt'] as String),
-      lastLoginAt: json['lastLoginAt'] != null ? DateTime.parse(json['lastLoginAt'] as String) : null,
+      phoneNumber: json['phone_number'] as String?,
+      avatarUrl: json['avatar_url'] as String?,
+      registeredAt: DateTime.parse(json['registered_at'] as String),
+      lastLoginAt: json['last_login_at'] != null ? DateTime.parse(json['last_login_at'] as String) : null,
       bio: json['bio'] as String?,
-      schoolName: json['schoolName'] as String?,
-      isVerified: json['isVerified'] as bool?,
-      roles: (json['roles'] as List<dynamic>?)?.map((e) => e as String).toList(),
-      // 解析賣家相關屬性
-      isSeller: json['isSeller'] as bool? ?? false, // 如果 isSeller 為 null，預設為 false
-      sellerName: json['sellerName'] as String?,
-      sellerDescription: json['sellerDescription'] as String?,
-      sellerRating: json['sellerRating'] as double?,
-      productCount: json['productCount'] as int?,
+      schoolName: json['school_name'] as String?,
+      isVerified: json['is_verified'] as bool? ?? false,
+      roles: (json['roles'] as List<dynamic>?)?.map((e) => e as String).toList() ?? [],
+      isSeller: json['is_seller'] as bool? ?? false,
+      sellerName: json['seller_name'] as String?,
+      sellerDescription: json['seller_description'] as String?,
+      sellerRating: parseDouble(json['seller_rating']),
+      buyerRating: parseDouble(json['buyer_rating']),
+      productCount: json['product_count'] as int? ?? 0,
+    );
+  }
+
+  // --- 新增：copyWith 方法，方便更新狀態 ---
+  User copyWith({
+    int? id,
+    String? username,
+    String? email,
+    String? phoneNumber,
+    String? avatarUrl,
+    DateTime? registeredAt,
+    DateTime? lastLoginAt,
+    String? bio,
+    String? schoolName,
+    bool? isVerified,
+    List<String>? roles,
+    bool? isSeller,
+    String? sellerName,
+    String? sellerDescription,
+    double? sellerRating,
+    double? buyerRating,
+    int? productCount,
+  }) {
+    return User(
+      id: id ?? this.id,
+      username: username ?? this.username,
+      email: email ?? this.email,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      registeredAt: registeredAt ?? this.registeredAt,
+      lastLoginAt: lastLoginAt ?? this.lastLoginAt,
+      bio: bio ?? this.bio,
+      schoolName: schoolName ?? this.schoolName,
+      isVerified: isVerified ?? this.isVerified,
+      roles: roles ?? this.roles,
+      isSeller: isSeller ?? this.isSeller,
+      sellerName: sellerName ?? this.sellerName,
+      sellerDescription: sellerDescription ?? this.sellerDescription,
+      sellerRating: sellerRating ?? this.sellerRating,
+      buyerRating: buyerRating ?? this.buyerRating,
+      productCount: productCount ?? this.productCount,
     );
   }
 }

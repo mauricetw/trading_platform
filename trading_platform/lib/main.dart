@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
-import '../screens/main_market.dart';
 import 'package:provider/provider.dart';
+
 import 'providers/auth_provider.dart';
 import 'providers/wishlist_item.dart';
 import 'providers/category_provider.dart';
 import 'screens/auth/login_main.dart';
-import 'screens/auth/reset_password.dart';
+import 'screens/main_market.dart';
+import 'screens/splash_screen.dart'; // 1. 引入新的啟動畫面
 
 
 void main() {
@@ -21,13 +22,10 @@ void main() {
         // WishlistProvider (如果需要依賴 AuthProvider，可以使用 ChangeNotifierProxyProvider)
         ChangeNotifierProxyProvider<AuthProvider, WishlistProvider>(
           create: (context) => WishlistProvider(), // 初始創建一個 WishlistProvider 實例
-          update: (context, authProvider, wishlistProvider) {
-            // 這個方法會在 AuthProvider 改變時被呼叫
-            // 更新 WishlistProvider 的狀態，例如傳入當前使用者 ID
-            wishlistProvider ??= WishlistProvider(); // 如果 wishlistProvider 還沒有被創建，就創建一個
-            wishlistProvider.updateCurrentUser(authProvider.currentUser?.id); // 假設 AuthProvider 有 currentUser
-            return wishlistProvider;
-          },
+          update: (context, auth, previousWishlist) => WishlistProvider(
+            auth.token, // 傳入 token
+            previousWishlist == null ? [] : previousWishlist.items,
+          ),
         ),
         // 添加其他你需要註冊的 Providers
         // 例如：ChangeNotifierProvider(create: (context) => CartProvider()),
@@ -164,11 +162,23 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Trading Platform',
+      title: '交易平台',
       theme: ThemeData(
         primarySwatch: Colors.blue,
+        fontFamily: 'NotoSansTC', // 建議設定一個統一的字體
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black,
+          elevation: 1,
+        ),
       ),
-      home: const MainMarket(), // 使用您的登入畫面作為首頁
+      // 2. 將 home 改為 SplashScreen，作為 App 的入口
+      home: const SplashScreen(),
+      // 3. 定義路由，方便導航
+      routes: {
+        '/login': (context) => const LoginMain(),
+        '/home': (context) => const MainMarket(),
+      },
     );
   }
 }

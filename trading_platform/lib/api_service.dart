@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:first_flutter_project/models/announcement/announcement.dart'; // 確保這個路徑正確，並且模型已定義
 // 如果有 SearchResultItem 或 Product 等模型，也需要導入
@@ -6,18 +7,53 @@ import 'package:first_flutter_project/models/announcement/announcement.dart'; //
 import 'package:first_flutter_project/models/product/product.dart';
 import 'package:first_flutter_project/models/user/user.dart';
 
+import 'models/auth/auth_response.dart';
+
+// --- 最佳實踐：定義一個自訂的 API 異常類別 ---
+class ApiException implements Exception {
+  final String message;
+  final int? statusCode;
+
+  ApiException(this.message, [this.statusCode]);
+
+  @override
+  String toString() {
+    return "API 錯誤: $message (狀態碼: ${statusCode ?? 'N/A'})";
+  }
+}
 
 class ApiService {
-  final String baseUrl = "http://10.0.2.2:8000"; // 您現有的基礎 URL
+  // --- 修正：基礎 URL 應包含 API 前綴 ---
+  // 為了方便管理，我們只定義主機部分
+  static const String _authority = "10.0.2.2:8000";
+  // API 的 Token，登入後會被設定
+  String? _token;
+
+  // 提供一個方法來更新 token
+  void setAuthToken(String? token) {
+    _token = token;
+  }
+
+  // 私有的輔助函式，用於建立帶有認證標頭的 Headers
+  Map<String, String> _getHeaders() {
+    final headers = {
+      'Content-Type': 'application/json; charset=UTF-8',
+    };
+    if (_token != null) {
+      headers['Authorization'] = 'Bearer $_token';
+    }
+    return headers;
+  }
 
   // --- 現有的認證相關方法 ---
-  //註冊API
-  Future<Map<String, dynamic>> registerUser(String username, String email, String password) async {
-    final url = Uri.parse('$baseUrl/register');
+  // --- 註冊 API (已更新) ---
+  Future<AuthResponse> registerUser(String username, String email, String password) async {
+    // 修正：加上 /auth 前綴
+    final url = Uri.http(_authority, '/auth/register');
     try {
       final response = await http.post(
         url,
-        headers: {"Content-Type": "application/json"},
+        headers: _getHeaders(),
         body: jsonEncode({
           "username": username,
           "email": email,
@@ -25,155 +61,180 @@ class ApiService {
         }),
       );
 
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
+      final responseBody = jsonDecode(utf8.decode(response.bodyBytes));
+
+      if (response.statusCode == 201) { // 後端註冊成功是 201 Created
+        // 修正：解析新的 AuthResponse 結構
+        return AuthResponse.fromJson(responseBody);
       } else {
-        final responseData = jsonDecode(response.body);
-        String errorMessage;
-        if (responseData["detail"] is List) {
-          errorMessage = responseData["detail"].join(", ");
-        } else {
-          errorMessage = responseData["detail"] ?? "註冊時發生未知錯誤";
-        }
-        return {"success": false, "message": errorMessage};
+        throw ApiException(responseBody['detail'] ?? '註冊失敗', response.statusCode);
       }
+    } on SocketException {
+      throw ApiException('無法連線到伺服器，請檢查您的網路。');
     } catch (e) {
-      print("Register user error: $e");
-      return {"success": false, "message": "無法連線到伺服器，請檢查您的網路連線。"};
+      // 重新拋出，讓呼叫者處理
+      rethrow;
     }
   }
 
-  //登入API
-  Future<Map<String, dynamic>> login(String identifier, String password) async {
-    final url = Uri.parse('$baseUrl/login');
+  // --- 登入 API (已更新) ---
+  Future<AuthResponse> login(String identifier, String password) async {
+    // 修正：加上 /auth 前綴
+    final url = Uri.http(_authority, '/auth/login');
     try {
       final response = await http.post(
         url,
-        headers: {"Content-Type": "application/json"},
+        headers: _getHeaders(),
         body: jsonEncode({
           "login": identifier,
           "password": password,
         }),
       );
 
+      final responseBody = jsonDecode(utf8.decode(response.bodyBytes));
+
       if (response.statusCode == 200) {
-        Map<String, dynamic> responseData = jsonDecode(response.body);
-        return {
-          "success": true,
-          "data": responseData,
-        };
+        // 修正：解析新的 AuthResponse 結構
+        return AuthResponse.fromJson(responseBody);
       } else {
-        Map<String, dynamic> errorData;
-        try {
-          errorData = jsonDecode(response.body);
-        } catch (e) {
-          errorData = {
-            "message": "無法解析伺服器錯誤訊息 (狀態碼: ${response.statusCode})",
-            "details": response.body,
-          };
-        }
-        return {
-          "success": false,
-          "error": errorData["detail"] ?? errorData["message"] ?? "登入失敗，請檢查您的帳號或密碼。",
-          "statusCode": response.statusCode,
-        };
+        throw ApiException(responseBody['detail'] ?? '登入失敗', response.statusCode);
       }
+    } on SocketException {
+      throw ApiException('無法連線到伺服器，請檢查您的網路。');
     } catch (e) {
-      print("Login error: $e");
-      return {
-        "success": false,
-        "error": "無法連接伺服器。請檢查網路連線。",
-        "exception": e.toString(),
-      };
+      rethrow;
     }
   }
 
-  //忘記密碼API
-  Future<void> forgotPassword(String identifier) async {
-    final url = Uri.parse('$baseUrl/forgot-password');
-    try {
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'login': identifier}),
-      );
-
-      if (response.statusCode == 200) {
-        print('驗證信發送成功');
-      } else {
-        final errorData = jsonDecode(response.body);
-        throw Exception(errorData['detail'] ?? '發送驗證信失敗 (狀態碼: ${response.statusCode})');
-      }
-    } catch (e) {
-      print("Forgot password error: $e");
-      throw Exception('伺服器連線失敗或請求處理出錯：$e');
-    }
-  }
-
-  //驗證碼API
-  Future<Map<String, dynamic>> verifyCode(int userId, String code) async {
-    final url = Uri.parse('$baseUrl/verify-code');
+  // --- 忘記密碼 API (已更新) ---
+  Future<String> forgotPassword(String identifier) async {
+    // 修正：加上 /auth 前綴
+    final url = Uri.http(_authority, '/auth/forgot-password');
     final response = await http.post(
       url,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'user_id': userId, 'code': code}),
+      headers: _getHeaders(),
+      body: jsonEncode({'login': identifier}),
     );
 
+    final responseBody = jsonDecode(utf8.decode(response.bodyBytes));
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      return {
-        'success': true,
-        'token': data['token'], // 後端應該回傳 token
-      };
+      return responseBody['message'];
     } else {
-      final error = jsonDecode(response.body);
-      return {
-        'success': false,
-        'message': error['detail'] ?? '驗證失敗',
-      };
+      throw ApiException(responseBody['detail'] ?? '請求失敗', response.statusCode);
     }
   }
 
-  //重設密碼API
-  Future<void> resetPassword(String token, String newPassword) async {
-    final url = Uri.parse('$baseUrl/reset-password');
+  // --- 驗證碼 API (已更新) ---
+  Future<String> verifyCode(String login, String code) async {
+    // 修正：加上 /auth 前綴
+    final url = Uri.http(_authority, '/auth/verify-code');
+    final response = await http.post(
+      url,
+      headers: _getHeaders(),
+      // 修正：請求內容從 user_id 改為 login
+      body: jsonEncode({'login': login, 'code': code}),
+    );
+
+    final responseBody = jsonDecode(utf8.decode(response.bodyBytes));
+    if (response.statusCode == 200) {
+      // 修正：回傳 reset_token
+      return responseBody['reset_token'];
+    } else {
+      throw ApiException(responseBody['detail'] ?? '驗證失敗', response.statusCode);
+    }
+  }
+
+  // --- 重設密碼 API (已更新) ---
+  Future<String> resetPassword(String token, String newPassword) async {
+    // 修正：加上 /auth 前綴
+    final url = Uri.http(_authority, '/auth/reset-password');
+    final response = await http.post(
+      url,
+      headers: _getHeaders(),
+      body: jsonEncode({
+        "token": token,
+        "new_password": newPassword,
+      }),
+    );
+
+    final responseBody = jsonDecode(utf8.decode(response.bodyBytes));
+    if (response.statusCode == 200) {
+      return responseBody['message'];
+    } else {
+      throw ApiException(responseBody['detail'] ?? '重設密碼失敗', response.statusCode);
+    }
+  }
+
+  // --- 獲取使用者公開資料 (無變化，但路徑更正) ---
+  Future<User> getUserProfile(int userId) async {
+    // 修正：使用 /users 前綴
+    final url = Uri.http(_authority, '/users/$userId');
+    final response = await http.get(url, headers: _getHeaders());
+    final responseBody = jsonDecode(utf8.decode(response.bodyBytes));
+
+    if (response.statusCode == 200) {
+      // 後端回傳的是 {"user": {...}}，所以要從 'user' key 取出資料
+      return User.fromJson(responseBody['user']);
+    } else {
+      throw ApiException(responseBody['detail'] ?? '無法載入使用者資料', response.statusCode);
+    }
+  }
+
+  // --- 新增：獲取當前登入者資料的 API ---
+  Future<User> getMyProfile() async {
+    // 這個 API 需要授權
+    if (_token == null) throw ApiException('未登入，無法取得個人資料');
+
+    final url = Uri.http(_authority, '/users/me');
+    final response = await http.get(url, headers: _getHeaders());
+    final responseBody = jsonDecode(utf8.decode(response.bodyBytes));
+
+    if (response.statusCode == 200) {
+      // /users/me 直接回傳使用者物件，沒有 'user' key
+      return User.fromJson(responseBody);
+    } else {
+      throw ApiException(responseBody['detail'] ?? '無法載入個人資料', response.statusCode);
+    }
+  }
+
+  // --- 新增：更新當前登入者資料的 API ---
+  Future<User> updateUserProfile({
+    required String username,
+    required String bio,
+    required String schoolName,
+    required String avatarUrl,
+  }) async {
+    if (_token == null) throw ApiException('未登入，無法更新個人資料');
+
+    final url = Uri.http(_authority, '/users/me'); // 後端 API 路徑
     try {
-      final response = await http.post(
+      final response = await http.put( // 使用 PUT 方法
         url,
-        headers: {"Content-Type": "application/json"},
+        headers: _getHeaders(),
         body: jsonEncode({
-          "token": token,
-          "new_password": newPassword,
+          'username': username,
+          'bio': bio,
+          'school_name': schoolName, // 注意：後端接收 snake_case
+          'avatar_url': avatarUrl,
         }),
       );
-      if (response.statusCode != 200 && response.statusCode != 204) { // 204 No Content 也可能表示成功
-        final errorData = jsonDecode(response.body);
-        throw Exception(errorData['detail'] ?? '重設密碼失敗 (狀態碼: ${response.statusCode})');
+
+      final responseBody = jsonDecode(utf8.decode(response.bodyBytes));
+
+      if (response.statusCode == 200) {
+        return User.fromJson(responseBody);
+      } else {
+        throw ApiException(responseBody['detail'] ?? '更新失敗', response.statusCode);
       }
-      if (response.statusCode == 200 || response.statusCode == 204) {
-        print('密碼重設成功');
-        return;
-      }
+    } on SocketException {
+      throw ApiException('無法連線到伺服器，請檢查您的網路。');
     } catch (e) {
-      print("Reset password error: $e");
-      throw Exception('伺服器連線失敗或請求處理出錯：$e');
+      rethrow;
     }
   }
 
-  //讀取使用者資料
-  Future<User?> getUserProfile(String userId) async {
-    final url = Uri.parse('$baseUrl/users/$userId');
-    final response = await http.get(url);
-  
-    if (response.statusCode == 200) {
-      final json = jsonDecode(response.body);
-      return User.fromJson(json['user']);
-    } else {
-      throw Exception('無法載入使用者資料');
-    }
-  }
 
-  // --- 商品頁面相關方法 ---
+// --- 商品頁面相關方法 ---
   Future<List<Product>> getProducts() async {
     final response = await http.get(Uri.parse('$baseUrl/products'));
 
