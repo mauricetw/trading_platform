@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'upload.dart';
 import 'product_management.dart';
+import 'order_page.dart'; // 新增：導入訂單頁面
 import '../../providers/auth_provider.dart';
 import '../../models/user/user.dart';
+
 // --- 色彩定義 (可以根據您的主題調整) ---
 const Color primaryBlue = Color(0xFF004E98);
 const Color lightBackground = Color(0xFFF0F4F8);
@@ -11,7 +13,6 @@ const Color darkTextColor = Color(0xFF333333);
 const Color lightTextColor = Colors.white;
 const Color cardBackgroundColor = Colors.white;
 const Color iconColor = primaryBlue;
-
 
 class SellerDashboardScreen extends StatelessWidget {
   const SellerDashboardScreen({Key? key}) : super(key: key);
@@ -83,7 +84,7 @@ class SellerDashboardScreen extends StatelessWidget {
         ),
         backgroundColor: primaryBlue,
         elevation: 2,
-        iconTheme: IconThemeData(color: lightTextColor), // 確保返回按鈕也是淺色
+        iconTheme: IconThemeData(color: lightTextColor),
       ),
       backgroundColor: lightBackground,
       body: SingleChildScrollView(
@@ -95,7 +96,7 @@ class SellerDashboardScreen extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(bottom: 24.0),
               child: Text(
-                '歡迎回來，賣家！', // 或者顯示賣家名稱
+                '歡迎回來，賣家！',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   color: darkTextColor,
                   fontWeight: FontWeight.bold,
@@ -105,24 +106,26 @@ class SellerDashboardScreen extends StatelessWidget {
 
             // --- 主要導航按鈕 ---
             GridView.count(
-              shrinkWrap: true, // 讓 GridView 適應內容高度
-              physics: NeverScrollableScrollPhysics(), // 禁用 GridView 自身的滾動
-              crossAxisCount: 2, // 每行顯示2個按鈕
+              shrinkWrap: true,
+              physics: NeverScrollableScrollPhysics(),
+              crossAxisCount: 2,
               crossAxisSpacing: 16.0,
               mainAxisSpacing: 16.0,
-              childAspectRatio: 1.1, // 調整按鈕的寬高比，可以根據內容調整
+              childAspectRatio: 1.1,
               children: <Widget>[
                 _buildDashboardButton(
                   context: context,
                   icon: Icons.storefront_outlined,
                   label: '商品管理\n(我的商品)',
                   onPressed: () {
-                    // TODO: 導航到商品管理頁面
-                    Navigator.push(context, MaterialPageRoute(builder: (context)=> ProductManagementScreen(currentUser: currentUser)));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('導航到 商品管理 頁面 (待實現)')),
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ProductManagementScreen(
+                          currentUser: currentUser,
+                        ),
+                      ),
                     );
-                    // Navigator.push(context, MaterialPageRoute(builder: (context) => YourProductManagementScreen()));
                   },
                 ),
                 _buildDashboardButton(
@@ -130,11 +133,13 @@ class SellerDashboardScreen extends StatelessWidget {
                   icon: Icons.receipt_long_outlined,
                   label: '訂單管理\n(商品訂單)',
                   onPressed: () {
-                    // TODO: 導航到訂單管理頁面
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('導航到 訂單管理 頁面 (待實現)')),
+                    // 修改：導航到訂單管理頁面
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => SellerOrderPage(),
+                      ),
                     );
-                    // Navigator.push(context, MaterialPageRoute(builder: (context) => YourOrderManagementScreen()));
                   },
                 ),
                 _buildDashboardButton(
@@ -142,11 +147,9 @@ class SellerDashboardScreen extends StatelessWidget {
                   icon: Icons.comment,
                   label: '查看評價',
                   onPressed: () {
-                    // TODO: 導航到上架商品頁面
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('導航到 上架新商品 頁面 (待實現)')),
+                      SnackBar(content: Text('導航到 查看評價 頁面 (待實現)')),
                     );
-                    // Navigator.push(context, MaterialPageRoute(builder: (context) => YourAddProductScreen()));
                   },
                 ),
                 _buildDashboardButton(
@@ -154,14 +157,11 @@ class SellerDashboardScreen extends StatelessWidget {
                   icon: Icons.settings_outlined,
                   label: '店鋪設置',
                   onPressed: () {
-                    // TODO: 導航到店鋪設置頁面
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text('導航到 店鋪設置 頁面 (待實現)')),
                     );
-                    // Navigator.push(context, MaterialPageRoute(builder: (context) => YourShopSettingsScreen()));
                   },
                 ),
-                // 您可以根據需要添加更多按鈕
               ],
             ),
           ],
