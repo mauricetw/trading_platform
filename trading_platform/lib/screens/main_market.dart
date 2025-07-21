@@ -1,24 +1,21 @@
 import 'package:flutter/material.dart';
 import 'search.dart';
-import 'annoucement.dart';
+// 確保這些檔案存在
+import 'announcement.dart';
 import 'profile.dart';
 import 'chatlist/chat_list.dart';
 import 'home_page.dart';
-import '../models/user/user.dart';
-import '../widgets/market_search_bar.dart'; // <--- Import the new search bar widget
+import '../widgets/market_search_bar.dart';
 
 class MainMarket extends StatefulWidget {
   const MainMarket({super.key});
-
-  static String routeName = 'MainMarket';
-  static String routePath = '/main_market';
 
   @override
   State<MainMarket> createState() => _MainMarketState();
 }
 
 class _MainMarketState extends State<MainMarket> {
-  final TextEditingController _marketSearchController = TextEditingController(); // Renamed for clarity
+  final TextEditingController _marketSearchController = TextEditingController();
   int _currentIndex = 0;
   final PageController _pageController = PageController(initialPage: 0);
 
@@ -29,18 +26,14 @@ class _MainMarketState extends State<MainMarket> {
     super.dispose();
   }
 
-  void _navigateToMarketSearchPage() { // Renamed for clarity
-    String searchText = _marketSearchController.text;
+  void _navigateToMarketSearchPage() {
+    String searchText = _marketSearchController.text.trim();
     if (searchText.isNotEmpty) {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => SearchPage(searchText: searchText), // Assuming SearchPage is for market search
+          builder: (context) => SearchPage(searchText: searchText),
         ),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter something to search')),
       );
     }
   }
@@ -61,45 +54,34 @@ class _MainMarketState extends State<MainMarket> {
 
   @override
   Widget build(BuildContext context) {
-    final User dummyUser = User(
-      id: 'test_user_id',
-      username: '測試用戶',
-      email: 'test@example.com',
-      registeredAt: DateTime.now(),
-      isSeller: true,
-      bio: '這是一個測試帳號的簡介',
-      schoolName: '測試大學',
-    );
-
-    // Determine if the market search bar should be visible
-    bool showMarketSearchBar = _currentIndex == 0; // Show only for the first tab (HomePage)
+    // --- 清理：移除不再需要的 dummyUser ---
+    bool showMarketSearchBar = _currentIndex == 0;
 
     return Scaffold(
-      body: Column(
-        children: [
-          // Conditionally display the MarketSearchBar
-          if (showMarketSearchBar)
-            MarketSearchBar(
-              controller: _marketSearchController,
-              onSubmitted: (_) => _navigateToMarketSearchPage(),
-            ),
-          Expanded(
-            child: PageView(
-              controller: _pageController,
-              onPageChanged: _onPageChanged,
-              physics: const NeverScrollableScrollPhysics(), // Optional: Disable swipe if you only want bottom nav control
-              children: [
-                const HomePage(),
-                const ChatListScreen(),
-                const AnnouncementListScreen(),
-                const Profile(),
-              ],
-            ),
-          ),
+      // 使用 AppBar 來放置搜尋框，更符合 Material Design
+      appBar: showMarketSearchBar
+          ? AppBar(
+        title: MarketSearchBar(
+          controller: _marketSearchController,
+          onSubmitted: (_) => _navigateToMarketSearchPage(),
+        ),
+        backgroundColor: Colors.white,
+        elevation: 1,
+      )
+          : null, // 其他頁面不顯示 AppBar
+      body: PageView(
+        controller: _pageController,
+        onPageChanged: _onPageChanged,
+        physics: const NeverScrollableScrollPhysics(),
+        // --- 修正：確保所有頁面都已建立 ---
+        children: const [
+          HomePage(),
+          ChatListScreen(), // 確保 ChatListScreen widget 存在
+          AnnouncementListScreen(), // 確保 AnnouncementListScreen widget 存在
+          Profile(),
         ],
       ),
       bottomNavigationBar: Container(
-        // ... (your existing BottomNavigationBar Container decoration)
         decoration: BoxDecoration(
           gradient: const LinearGradient(
             colors: [Color(0xFF004E98), Color(0xFF004198)],
@@ -125,22 +107,10 @@ class _MainMarketState extends State<MainMarket> {
           unselectedFontSize: 12,
           elevation: 0,
           items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.home),
-              label: '首頁',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.message),
-              label: '訊息',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.notifications),
-              label: '通知',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person),
-              label: '個人檔案',
-            ),
+            BottomNavigationBarItem(icon: Icon(Icons.home), label: '首頁'),
+            BottomNavigationBarItem(icon: Icon(Icons.message), label: '訊息'),
+            BottomNavigationBarItem(icon: Icon(Icons.notifications), label: '通知'),
+            BottomNavigationBarItem(icon: Icon(Icons.person), label: '個人檔案'),
           ],
         ),
       ),

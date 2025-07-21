@@ -66,7 +66,7 @@ class CartProvider with ChangeNotifier {
     }
 
     // 使用商品 ID 作為 Map 的 key
-    final String key = product.id;
+    final String key = product.id.toString();
 
     if (_items.containsKey(key)) {
       // 如果購物車中已經有這個商品，則增加數量
@@ -82,7 +82,7 @@ class CartProvider with ChangeNotifier {
       final newItem = CartItem(
         // id: '', // 如果後端生成 ID，這裡可能為空或暫時賦一個本地 ID
         userId: _currentUserId!,
-        productId: product.id,
+        productId: key,
         quantity: quantityToAdd,
         productName: product.name,
         productPrice: product.price,

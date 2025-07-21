@@ -235,17 +235,61 @@ class ApiService {
 
 
 // --- 商品頁面相關方法 ---
-  Future<List<Product>> getProducts() async {
-    final response = await http.get(Uri.parse('$baseUrl/products'));
 
-    if (response.statusCode == 200) {
-      final List<dynamic> jsonList = json.decode(response.body);
-      return jsonList.map((json) => Product.fromJson(json)).toList();
-    } else {
-      throw Exception('取得商品資訊失敗：${response.statusCode}');
+  // --- 新增：獲取商品列表 API ---
+  Future<List<Product>> getProducts({int? categoryId, String? search, int limit = 20, int skip = 0}) async {
+    // 建立查詢參數
+    final Map<String, String> queryParameters = {
+      'limit': limit.toString(),
+      'skip': skip.toString(),
+    };
+    if (categoryId != null) {
+      queryParameters['category_id'] = categoryId.toString();
+    }
+    if (search != null && search.isNotEmpty) {
+      queryParameters['search'] = search;
+    }
+
+    final url = Uri.http(_authority, '/products', queryParameters);
+    try {
+      final response = await http.get(url, headers: _getHeaders());
+      final responseBody = jsonDecode(utf8.decode(response.bodyBytes));
+
+      if (response.statusCode == 200) {
+        // 後端回傳的是一個 JSON 陣列
+        final List<dynamic> productListJson = responseBody;
+        // 將陣列中的每個 JSON 物件轉換成 Product 物件
+        return productListJson.map((json) => Product.fromJson(json)).toList();
+      } else {
+        throw ApiException(responseBody['detail'] ?? '獲取商品失敗', response.statusCode);
+      }
+    } on SocketException {
+      throw ApiException('無法連線到伺服器，請檢查您的網路。');
+    } catch (e) {
+      rethrow;
     }
   }
 
+  // --- 新增：根據 ID 獲取單一商品詳情 ---
+  Future<Product> getProductById(int productId) async {
+    final url = Uri.http(_authority, '/products/$productId');
+    try {
+      final response = await http.get(url, headers: _getHeaders());
+      final responseBody = jsonDecode(utf8.decode(response.bodyBytes));
+
+      if (response.statusCode == 200) {
+        // 後端直接回傳單一商品物件的 JSON
+        return Product.fromJson(responseBody);
+      } else {
+        throw ApiException(responseBody['detail'] ?? '獲取商品詳情失敗', response.statusCode);
+      }
+    } on SocketException {
+      throw ApiException('無法連線到伺服器，請檢查您的網路。');
+    } catch (e) {
+      rethrow;
+    }
+  }
+/*
   Future<Product> createProduct(Product product) async {
     final response = await http.post(
       Uri.parse('$baseUrl/products'),
@@ -259,8 +303,8 @@ class ApiService {
       throw Exception('上架商品失敗：${response.statusCode}');
     }
   }
-
-
+*/
+/*
   // --- 新增的公告相關方法 ---
 
   /// 獲取所有公告列表
@@ -403,4 +447,6 @@ class ApiService {
       throw Exception('搜索時發生錯誤：$e');
     }
   }
+
+ */
 }

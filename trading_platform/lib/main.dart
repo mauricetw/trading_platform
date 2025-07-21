@@ -10,6 +10,7 @@ import 'providers/auth_provider.dart';
 import 'screens/auth/login_main.dart'; // 修正：確保引入的是 login_main.dart
 import 'screens/main_market.dart';
 import 'screens/splash_screen.dart';
+import 'providers/product_provider.dart'; // 1. 引入新的 ProductProvider
 
 void main() {
   runApp(
@@ -17,7 +18,8 @@ void main() {
       providers: [
         // AuthProvider 現在會管理 App 的認證狀態
         ChangeNotifierProvider(create: (context) => AuthProvider()),
-
+        // 2. 註冊 ProductProvider
+        ChangeNotifierProvider(create: (context) => ProductProvider()),
         // ChangeNotifierProvider(create: (context) => CategoryProvider()),
 
         // ChangeNotifierProxyProvider<AuthProvider, WishlistProvider>(
