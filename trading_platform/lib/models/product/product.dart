@@ -1,29 +1,58 @@
 import '../user/user.dart'; // Assuming User model is in 'user/user.dart' relative to this
 import '../order/shipping_info.dart';
 
+// --- SellerInfo 模型 ---
+// 這個模型精確對應後端 API 在商品列表中回傳的賣家資訊
+// (來自 schemas/product_schema.py 中的 UserInProductResponse)
+class SellerInfo {
+  final int id;
+  final String username;
+  final String? avatarUrl;
 
+  SellerInfo({
+    required this.id,
+    required this.username,
+    this.avatarUrl,
+  });
+
+  factory SellerInfo.fromJson(Map<String, dynamic> json) {
+    return SellerInfo(
+      id: json['id'] as int? ?? 0,
+      username: json['username'] as String? ?? '未知賣家',
+      avatarUrl: json['avatar_url'] as String?,
+    );
+  }
+}
+
+
+// --- Product 模型 (嚴格根據 models/product.py 進行校準) ---
 class Product {
+  // --- 與 Python 模型完全對應的欄位 ---
   final int id;
   final String name;
   final String description;
   final double price;
-  final double? originalPrice;
+  final double? originalPrice; // nullable in python
   final int categoryId;
   final String category;
   final int stockQuantity;
   final String status;
-  final List<String> imageUrls;
-  final DateTime? createdAt; // 修正：允許為 null
-  final DateTime? updatedAt; // 修正：允許為 null
+  final List<String> imageUrls; // nullable in python, so we handle null in fromJson
   final int salesCount;
-  final double? averageRating;
+  final double? averageRating; // nullable in python
   final int reviewCount;
-  final List<String>? tags;
-  final ShippingInformation? shippingInfo;
-  final User? seller;
+  final List<String>? tags; // nullable in python
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final int sellerId;
+  final SellerInfo? seller; // The nested seller object from the API response
+  final ShippingInformation? shippingInfo; // nullable in python
 
+  // --- 前端邏輯欄位 ---
+  // isSold 是一個 getter，它的值根據其他屬性計算得出，永遠保持正確。
   bool get isSold => stockQuantity == 0 || status == 'sold';
 
+  // isFavorite 是純粹的前端 UI 狀態，由 Provider 管理
   final bool isFavorite;
 
   Product({
@@ -37,50 +66,62 @@ class Product {
     required this.stockQuantity,
     required this.imageUrls,
     required this.status,
-    this.createdAt,
-    this.updatedAt,
+    required this.createdAt,
+    required this.updatedAt,
     required this.salesCount,
     this.averageRating,
     required this.reviewCount,
     this.tags,
-    this.shippingInfo,
+    required this.sellerId,
     this.seller,
+    this.shippingInfo,
     this.isFavorite = false,
   });
 
-  // --- 錯誤修正：全面增強 fromJson 方法的健壯性 ---
+  // --- fromJson 工廠方法 (最終健壯版) ---
+  // 這個方法現在可以處理後端回傳的 JSON，即使某些欄位意外為 null
   factory Product.fromJson(Map<String, dynamic> json) {
     // 輔助函式，安全地解析日期時間
-    DateTime? parseDateTime(String? dateString) {
-      return dateString != null ? DateTime.tryParse(dateString) : null;
+    DateTime parseDateTime(dynamic dateValue) {
+      if (dateValue is String) {
+        return DateTime.tryParse(dateValue) ?? DateTime.now();
+      }
+      // 提供一個預設值以避免崩潰
+      return DateTime.now();
     }
 
     return Product(
-      id: json['id'] as int? ?? 0, // 如果 id 是 null，預設為 0
-      name: json['name'] as String? ?? '無標題', // 如果 name 是 null，提供預設值
-      description: json['description'] as String? ?? '', // 如果 description 是 null，提供空字串
+      // --- 非 Nullable 欄位：提供安全的預設值以防止崩潰 ---
+      id: json['id'] as int? ?? 0,
+      name: json['name'] as String? ?? '無商品名稱',
+      description: json['description'] as String? ?? '',
       price: (json['price'] as num?)?.toDouble() ?? 0.0,
-      originalPrice: (json['original_price'] as num?)?.toDouble(),
       categoryId: json['category_id'] as int? ?? 0,
-      category: json['category'] as String? ?? '未分類', // 如果 category 是 null，提供預設值
+      category: json['category'] as String? ?? '未分類',
       stockQuantity: json['stock_quantity'] as int? ?? 0,
-      imageUrls: (json['image_urls'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [], // 如果 image_urls 是 null，提供空列表
-      status: json['status'] as String? ?? 'unavailable', // 如果 status 是 null，提供預設值
+      status: json['status'] as String? ?? 'unavailable',
+      salesCount: json['sales_count'] as int? ?? 0,
+      reviewCount: json['review_count'] as int? ?? 0,
       createdAt: parseDateTime(json['created_at']),
       updatedAt: parseDateTime(json['updated_at']),
-      salesCount: json['sales_count'] as int? ?? 0,
+      sellerId: json['seller_id'] as int? ?? 0,
+
+      // --- Nullable 欄位：直接解析 ---
+      originalPrice: (json['original_price'] as num?)?.toDouble(),
       averageRating: (json['average_rating'] as num?)?.toDouble(),
-      reviewCount: json['review_count'] as int? ?? 0,
+      imageUrls: (json['image_urls'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
       tags: (json['tags'] as List<dynamic>?)?.map((e) => e.toString()).toList(),
+
       shippingInfo: json['shipping_info'] != null
           ? ShippingInformation.fromJson(json['shipping_info'] as Map<String, dynamic>)
           : null,
       seller: json['seller'] != null
-          ? User.fromJson(json['seller'] as Map<String, dynamic>)
+          ? SellerInfo.fromJson(json['seller'] as Map<String, dynamic>)
           : null,
     );
   }
 
+  // copyWith 方法，方便在不改變原物件的情況下更新狀態
   Product copyWith({
     int? id,
     String? name,
@@ -98,8 +139,9 @@ class Product {
     double? averageRating,
     int? reviewCount,
     List<String>? tags,
+    int? sellerId,
+    SellerInfo? seller,
     ShippingInformation? shippingInfo,
-    User? seller,
     bool? isFavorite,
   }) {
     return Product(
@@ -119,13 +161,13 @@ class Product {
       averageRating: averageRating ?? this.averageRating,
       reviewCount: reviewCount ?? this.reviewCount,
       tags: tags ?? this.tags,
-      shippingInfo: shippingInfo ?? this.shippingInfo,
+      sellerId: sellerId ?? this.sellerId,
       seller: seller ?? this.seller,
+      shippingInfo: shippingInfo ?? this.shippingInfo,
       isFavorite: isFavorite ?? this.isFavorite,
     );
   }
 }
-
 
 // Ensure ShippingInformation has a fromJson factory if you use it in Product.fromJson
 // Example:

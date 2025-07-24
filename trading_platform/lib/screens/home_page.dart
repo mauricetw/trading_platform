@@ -161,10 +161,17 @@ class _ProductCard extends StatelessWidget {
     }
 
     return GestureDetector(
-      // --- 修正：傳遞 productId 而不是整個物件 ---
-      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ProductScreen(productId: product.id))),
+      // --- 關鍵修正 ---
+      // 舊的寫法: Navigator.push(context, MaterialPageRoute(builder: (context) => ProductScreen(product: product))),
+      // 新的寫法: 我們只傳遞 product.id，讓 ProductScreen 自己去獲取最新的、完整的商品資料。
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ProductScreen(productId: product.id),
+        ),
+      ),
       child: Container(
-        // ... Card UI 保持不變 ...
+        // ... 你的商品卡片 UI 佈局 (完全保持不變) ...
         decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 8, offset: const Offset(0, 2))]),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -180,8 +187,8 @@ class _ProductCard extends StatelessWidget {
             Expanded(flex: 2, child: Padding(padding: const EdgeInsets.all(10.0), child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
               Text(product.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, height: 1.2), maxLines: 2, overflow: TextOverflow.ellipsis),
               Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-                Text(_formatPrice(product.price), style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Theme.of(context).primaryColor)),
-                if (product.originalPrice != null && product.originalPrice! > product.price) Text(_formatPrice(product.originalPrice!), style: TextStyle(fontSize: 11, color: Colors.grey[600], decoration: TextDecoration.lineThrough)),
+                Text(NumberFormat.currency(locale: "zh_TW", symbol: "NT\$", decimalDigits: 0).format(product.price), style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Theme.of(context).primaryColor)),
+                if (product.originalPrice != null && product.originalPrice! > product.price) Text(NumberFormat.currency(locale: "zh_TW", symbol: "NT\$", decimalDigits: 0).format(product.originalPrice!), style: TextStyle(fontSize: 11, color: Colors.grey[600], decoration: TextDecoration.lineThrough)),
               ]),
             ]))),
           ],
