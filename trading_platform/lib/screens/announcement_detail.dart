@@ -1,4 +1,3 @@
-// screens/announcement_detail_screen.dart
 import 'package:flutter/material.dart';
 import 'package:first_flutter_project/models/announcement/announcement.dart'; // 導入您的公告模型
 // import 'package:flutter_markdown/flutter_markdown.dart'; // 如果內容是Markdown格式，可以使用此包

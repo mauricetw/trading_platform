@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:first_flutter_project/models/announcement/announcement.dart'; // 導入模型
 import 'announcement_detail.dart';
+import '../widgets/FullBottomConcaveAppBarShape.dart';
 
 class AnnouncementListScreen extends StatefulWidget {
   const AnnouncementListScreen({super.key});
@@ -105,10 +106,16 @@ class _AnnouncementListScreenState extends State<AnnouncementListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final double appBarHeight = 80.0; // AppBar 的總高度
+    final double bottomCurveHeight = 25.0; // 底部曲線向上凹陷的高度
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('公告列表'),
-        backgroundColor: const Color(0xFF004E98), // 與您聊天列表 AppBar 顏色一致
+        title: const Text(''),
+        backgroundColor: const Color(0xFF004E98),
+        shape: FullBottomConcaveAppBarShape(curveHeight: bottomCurveHeight),
+        elevation: 6.0,
+        shadowColor: Colors.black,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),

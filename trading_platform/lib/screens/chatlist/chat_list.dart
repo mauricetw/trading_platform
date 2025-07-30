@@ -1,7 +1,12 @@
+import 'package:first_flutter_project/widgets/FullBottomConcaveAppBarShape.dart';
 import 'package:flutter/material.dart';
-import 'chatroom.dart'; // 假設 chatroom.dart 存在且 ChatRoomScreen 已定義
+// import 'dart:math' as math; // 不再需要
+import 'chatroom.dart'; // 確保 ChatRoomScreen 已定義
+import '../../theme/app_theme.dart';
 
-// ChatRoomSummary class (假設和之前一樣)
+// 定義 SegmentedButton 的選項
+enum ChatType { buyer, seller }
+
 class ChatRoomSummary {
   final String id;
   final String otherPartyName;
@@ -29,22 +34,12 @@ class ChatListScreen extends StatefulWidget {
   State<ChatListScreen> createState() => _ChatListScreenState();
 }
 
-class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProviderStateMixin {
-  late TabController _tabController; // 用於同步 TabBarView
+class _ChatListScreenState extends State<ChatListScreen> { // 不再需要 SingleTickerProviderStateMixin
+  // 使用 PageController 來控制 PageView
+  final PageController _pageController = PageController();
+  // 當前選中的 SegmentedButton 的值
+  Set<ChatType> _selectedSegment = {ChatType.buyer}; // 默認選中買家
 
-  // --- 顏色定義 ---
-  static const Color appBarColor = Color(0xFF004E98); // AppBar 固定深藍色
-  static const Color activeTabBackgroundColor = Color(0xFFFF8D36); // 選中 Tab 的背景色 (橘色)
-  static const Color inactiveTabBackgroundColor = Color(0xFF004E98); // 未選中 Tab 的背景色 (灰色)
-
-  static const Color appBarTextColor = Colors.white; // AppBar 文字顏色
-  static const Color activeTabTextColor = Colors.white;    // 選中 Tab 的文字顏色 (在橘色背景上建議用白色)
-  static const Color inactiveTabTextColor = Colors.black54;  // 未選中 Tab 的文字顏色 (在灰色背景上建議用深灰色或黑色)
-  // ---           ---
-
-  int _selectedTabIndex = 0; // 用於追蹤自訂 Tab 的選中狀態
-
-  // 模擬數據和狀態 (和之前一樣)
   List<ChatRoomSummary> _buyerChats = [];
   List<ChatRoomSummary> _sellerChats = [];
   bool _isLoadingBuyerChats = true;
@@ -54,34 +49,23 @@ class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProvid
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-    _tabController.addListener(() {
-      if (_tabController.index != _selectedTabIndex) {
-        if (mounted) {
-          setState(() {
-            _selectedTabIndex = _tabController.index;
-          });
-        }
-      }
-    });
     _initializeScreenData();
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
+    _pageController.dispose();
     super.dispose();
   }
 
   Future<void> _initializeScreenData() async {
-    await Future.delayed(const Duration(milliseconds: 100)); // 模擬獲取用戶ID
+    // 模擬獲取用戶ID
+    await Future.delayed(const Duration(milliseconds: 50));
     if (mounted) {
       setState(() {
-        _currentUserId = "user_self_id_chatlist_example"; // 模擬用戶ID
+        _currentUserId = "user_self_id_chatlist_example";
       });
       if (_currentUserId == null) {
-        // 實際應用中可能需要錯誤處理或重試
-        print("錯誤：無法獲取 currentUserId");
         setState(() {
           _isLoadingBuyerChats = false;
           _isLoadingSellerChats = false;
@@ -96,7 +80,7 @@ class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProvid
   Future<void> _loadBuyerChats() async {
     if (!mounted) return;
     setState(() => _isLoadingBuyerChats = true);
-    await Future.delayed(const Duration(seconds: 1)); // 模擬網絡延遲
+    await Future.delayed(const Duration(seconds: 1)); // 模擬網絡請求
     if (!mounted) return;
     setState(() {
       _buyerChats = [
@@ -110,7 +94,7 @@ class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProvid
   Future<void> _loadSellerChats() async {
     if (!mounted) return;
     setState(() => _isLoadingSellerChats = true);
-    await Future.delayed(const Duration(seconds: 1));
+    await Future.delayed(const Duration(seconds: 1)); // 模擬網絡請求
     if (!mounted) return;
     setState(() {
       _sellerChats = [
@@ -155,9 +139,16 @@ class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProvid
       return const Center(child: CircularProgressIndicator());
     }
     if (chats.isEmpty) {
-      return const Center(child: Text('目前沒有相關聊天', style: TextStyle(fontSize: 16, color: Colors.grey)));
+      return Center(
+        child: Text(
+          _selectedSegment.first == ChatType.buyer ? '目前沒有與賣家的聊天' : '目前沒有與買家的聊天',
+          style: const TextStyle(fontSize: 16, color: Colors.grey),
+          textAlign: TextAlign.center,
+        ),
+      );
     }
     return ListView.builder(
+      padding: const EdgeInsets.symmetric(vertical: 8.0), // 簡化 padding
       itemCount: chats.length,
       itemBuilder: (context, index) {
         final chat = chats[index];
@@ -185,7 +176,7 @@ class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProvid
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
-                    color: Colors.red,
+                    color: lightColorScheme.secondary,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
@@ -194,7 +185,8 @@ class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProvid
                   ),
                 ),
               ] else ...[
-                const SizedBox(height: 4 + 2 + 10 + 2), // 保持佔位高度
+                // 保持高度一致性，如果不需要未讀計數器的佔位符，可以移除這個SizedBox
+                const SizedBox(height: 4 + 2 + 10 + 2), // 確保高度一致 (大致計算)
               ]
             ],
           ),
@@ -204,104 +196,128 @@ class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProvid
     );
   }
 
-  // 自訂的 Tab 按鈕 Widget
-  Widget _buildCustomTab({
-    required String text,
-    required int index,
-  }) {
-    bool isSelected = _selectedTabIndex == index;
-    Color backgroundColor = isSelected ? activeTabBackgroundColor : inactiveTabBackgroundColor;
-    Color textColor = isSelected ? activeTabTextColor : inactiveTabTextColor;
-
-    return Expanded(
-      child: GestureDetector(
-        onTap: () {
-          if (mounted) {
-            setState(() {
-              _selectedTabIndex = index;
-              _tabController.animateTo(index); // 同步 TabBarView
-            });
-          }
-        },
-        child: Container(
-          height: kToolbarHeight, // 和 AppBar bottom 的預期高度一致
-          color: backgroundColor,
-          alignment: Alignment.center,
-          child: Text(
-            text,
-            style: TextStyle(
-              color: textColor,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
+    final ColorScheme colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          '我的聊天',
-          style: TextStyle(color: appBarTextColor),
-        ),
-        backgroundColor: appBarColor, // AppBar 固定深藍色
-        elevation: 0,
-        iconTheme: const IconThemeData(color: appBarTextColor), // AppBar 圖標顏色
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(kToolbarHeight), // Tab 區域的高度
-          child: Row(
-            children: <Widget>[
-              _buildCustomTab(
-                text: '與賣家溝通', // 買家視角
-                index: 0,
-              ),
-              _buildCustomTab(
-                text: '與買家溝通', // 賣家視角
-                index: 1,
-              ),
-            ],
-          ),
-        ),
+        title: const Text(''),
+        shape: FullBottomConcaveAppBarShape(curveHeight: 20.0),
+        backgroundColor: colorScheme.secondary,
+        elevation: 8.0,
+        shadowColor: Colors.black,
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildChatList(context, _buyerChats, _isLoadingBuyerChats),
-          _buildChatList(context, _sellerChats, _isLoadingSellerChats),
+      body: Column(
+        children: <Widget>[
+          Expanded(
+            child: PageView(
+              controller: _pageController,
+              onPageChanged: (index) {
+                setState(() {
+                  _selectedSegment = {ChatType.values[index]};
+                });
+              },
+              children: [
+                _buildChatList(context, _buyerChats, _isLoadingBuyerChats), // 對應 ChatType.buyer
+                _buildChatList(context, _sellerChats, _isLoadingSellerChats), // 對應 ChatType.seller
+              ],
+            ),
+          ),
+          // SegmentedButton 放在 Column 的底部
+          Padding(
+            padding: const EdgeInsets.all(16.0), // 給 SegmentedButton 一些邊距
+            child: SegmentedButton<ChatType>(
+              segments: const <ButtonSegment<ChatType>>[
+                ButtonSegment<ChatType>(
+                  value: ChatType.buyer,
+                  label: Text('與賣家'), // 或 "買家視角"
+                  icon: Icon(Icons.storefront_outlined),
+                ),
+                ButtonSegment<ChatType>(
+                  value: ChatType.seller,
+                  label: Text('與買家'), // 或 "賣家視角"
+                  icon: Icon(Icons.person_outline),
+                ),
+              ],
+              selected: _selectedSegment,
+              onSelectionChanged: (Set<ChatType> newSelection) {
+                if (newSelection.isNotEmpty) { // SegmentedButton 至少要有一個選中
+                  setState(() {
+                    _selectedSegment = newSelection;
+                    // 根據選中的 segment 切換 PageView
+                    if (newSelection.first == ChatType.buyer) {
+                      _pageController.jumpToPage(0); // 或 animateToPage
+                    } else {
+                      _pageController.jumpToPage(1); // 或 animateToPage
+                    }
+                  });
+                }
+              },
+              // 您可以進一步自定義 SegmentedButton 的樣式
+              style: SegmentedButton.styleFrom(
+                backgroundColor: colorScheme.surfaceVariant.withOpacity(0.3),
+                foregroundColor: colorScheme.primary, // 未選中時的文字和圖標顏色
+                selectedForegroundColor: colorScheme.onPrimary, // 選中時的文字和圖標顏色
+                selectedBackgroundColor: colorScheme.secondary, // 選中時的背景顏色
+                // minimumSize: Size(double.infinity, 48), // 可以讓按鈕橫向填滿
+              ),
+              showSelectedIcon: false, // 通常在 SegmentedButton 中不顯示選中圖標的額外標記
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-// 再次提醒: 您需要有一個 ChatRoomScreen 的實現
-// class ChatRoomScreen extends StatelessWidget {
-//   final String chatRoomId;
-//   final String otherUserName;
-//   final String? otherUserAvatarUrl;
-//   final String otherUserId;
-//   final String currentUserId;
+// --- Placeholder for ChatRoomScreen (ensure it's defined elsewhere) ---
+class ChatRoomScreen extends StatelessWidget {
+  final String chatRoomId;
+  final String otherUserName;
+  final String? otherUserAvatarUrl;
+  final String otherUserId;
+  final String currentUserId;
 
-//   const ChatRoomScreen({
-//     Key? key,
-//     required this.chatRoomId,
-//     required this.otherUserName,
-//     this.otherUserAvatarUrl,
-//     required this.otherUserId,
-//     required this.currentUserId,
-//   }) : super(key: key);
+  const ChatRoomScreen({
+    super.key,
+    required this.chatRoomId,
+    required this.otherUserName,
+    this.otherUserAvatarUrl,
+    required this.otherUserId,
+    required this.currentUserId,
+  });
 
-//   @override
-//   Widget build(BuildContext context) {
-//     return Scaffold(
-//       appBar: AppBar(title: Text("與 ${otherUserName} 的聊天")),
-//       body: Center(
-//         child: Text(
-//             '聊天室 ID: $chatRoomId\n與: $otherUserName (ID: $otherUserId)\n您的ID: $currentUserId'),
-//       ),
-//     );
-//   }
-// }
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme colorScheme = Theme.of(context).colorScheme;
+    return Scaffold(
+      appBar: AppBar(
+        title: Text("與 $otherUserName 的聊天"),
+        backgroundColor: colorScheme.primary,
+        foregroundColor: colorScheme.onPrimary,
+      ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('聊天室 ID: $chatRoomId', style: const TextStyle(fontSize: 16)),
+              const SizedBox(height: 8),
+              Text('與: $otherUserName (ID: $otherUserId)', style: const TextStyle(fontSize: 16)),
+              const SizedBox(height: 8),
+              Text('您的ID: $currentUserId', style: const TextStyle(fontSize: 16)),
+              if (otherUserAvatarUrl != null && otherUserAvatarUrl!.isNotEmpty) ...[
+                const SizedBox(height: 20),
+                Center(child: CircleAvatar(radius: 50, backgroundImage: NetworkImage(otherUserAvatarUrl!))),
+              ]
+            ],
+          ),
+        ),
+      ),
+      backgroundColor: colorScheme.background,
+    );
+  }
+}

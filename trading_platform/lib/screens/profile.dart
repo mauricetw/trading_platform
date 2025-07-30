@@ -5,83 +5,95 @@ import 'cart.dart';
 import 'review.dart';
 import 'orderlist.dart';
 import 'seller/store_management.dart';
-// TODO: 如果存在「訂單資訊」和「銷售商品管理」頁面，請取消註解並匯入
-// import 'order_info_page.dart';
-// import 'sell_product_management_page.dart';
+import '../widgets/FullBottomConcaveAppBarShape.dart';
+import 'package:first_flutter_project/theme/app_theme.dart'; // 確保正確導入
 
 class Profile extends StatelessWidget {
   final User currentUser;
-
-  // 從 UserProfileFrame 設計稿中提取的靜態或預設文字，理想情況下應來自 currentUser 或其他來源
-  final String userLocation = "台北市大安區"; // 範例地點
-  final String userSchool = "台灣科技大學"; // 範例學校
-
-  // 評價相關的模擬數據
+  final String userLocation = "台北市大安區";
+  final String userSchool = "台灣科技大學";
   final double averageBuyReviewRate = 4.5;
-  final String totalBuyReviews = "120";
   final double averageSellReviewRate = 4.8;
-  final String totalSellReviews = "85";
 
   const Profile({super.key, required this.currentUser});
 
-  // 輔助函式：建立資訊文字樣式
-  Widget _buildInfoText(String text, {double fontSize = 16, Color color = Colors.black, FontWeight fontWeight = FontWeight.normal, TextAlign textAlign = TextAlign.start}) {
+  // 使用系統預設文本樣式，並允許微調
+  Widget _buildInfoText(
+      BuildContext context,
+      String text, {
+        double? fontSize,
+        Color? color,
+        FontWeight? fontWeight,
+        TextAlign textAlign = TextAlign.start,
+        TextStyle? baseStyle, // 允許傳入一個基礎的 TextTheme 樣式
+      }) {
+    final TextTheme textTheme = Theme.of(context).textTheme;
+    final TextStyle effectiveBaseStyle = baseStyle ?? textTheme.bodyLarge ?? const TextStyle(fontSize: 16);
+
     return Text(
       text,
       textAlign: textAlign,
-      style: TextStyle(
-        color: color,
+      style: effectiveBaseStyle.copyWith(
+        color: color ?? effectiveBaseStyle.color, // 如果 color 為 null，使用 baseStyle 的顏色
         fontSize: fontSize,
-        // fontFamily: 'Inter', // 根據要求忽略特定字體
         fontWeight: fontWeight,
       ),
       overflow: TextOverflow.ellipsis,
     );
   }
 
-  // 輔助函式：建立主要按鈕 (橘色背景)
   Widget _buildPrimaryButton({
+    required BuildContext context,
     required String label,
     required VoidCallback onPressed,
     IconData? icon,
-    Color iconColor = Colors.white,
   }) {
+    final ColorScheme colorScheme = Theme.of(context).colorScheme;
+    final TextTheme textTheme = Theme.of(context).textTheme;
+
     return ElevatedButton.icon(
-      icon: icon != null ? Icon(icon, color: iconColor) : const SizedBox.shrink(),
+      icon: icon != null
+          ? Icon(icon, color: colorScheme.onSecondary, size: 24)
+          : const SizedBox.shrink(),
       label: Text(label),
       onPressed: onPressed,
       style: ElevatedButton.styleFrom(
-        foregroundColor: const Color(0xFF004E98), // UserProfileFrame 中的文字顏色
-        backgroundColor: const Color(0xFFFF8C35), // UserProfileFrame 中的橘色背景
-        padding: const EdgeInsets.symmetric(vertical: 18.0), // 調整垂直內邊距
-        textStyle: const TextStyle(fontSize: 20.0, fontWeight: FontWeight.w500), // 調整字型大小和粗細
-        minimumSize: const Size(double.infinity, 60), // 按鈕最小尺寸，使其填滿可用寬度
+        foregroundColor: colorScheme.onSecondary, // 文字顏色 (on accentOrange)
+        backgroundColor: colorScheme.secondary,    // 主要行動呼籲色 (accentOrange)
+        padding: const EdgeInsets.symmetric(vertical: 18.0, horizontal: 24.0),
+        textStyle: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w500, fontSize: 20), // 基於系統樣式調整
+        minimumSize: const Size(double.infinity, 60),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(100.0), // 圓角
+          borderRadius: BorderRadius.circular(100.0),
         ),
+        elevation: 2,
       ),
     );
   }
 
-  // 輔助函式：建立次要按鈕 (藍色背景)
   Widget _buildSecondaryButton({
+    required BuildContext context,
     required String label,
     required VoidCallback onPressed,
     IconData? icon,
   }) {
-    return Expanded( // 使按鈕在 Row 中等寬分配
+    final ColorScheme colorScheme = Theme.of(context).colorScheme;
+    final TextTheme textTheme = Theme.of(context).textTheme;
+
+    return Expanded(
       child: ElevatedButton.icon(
-        icon: Icon(icon, color: Colors.white, size: 20), // 圖示顏色和大小
-        label: Text(label, style: const TextStyle(fontStyle: FontStyle.italic)), // 斜體文字
+        icon: Icon(icon, color: colorScheme.onPrimary, size: 20),
+        label: Text(label),
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
-          foregroundColor: Colors.white, // 文字顏色
-          backgroundColor: const Color(0xFF004E98), // UserProfileFrame 中的藍色背景
-          padding: const EdgeInsets.symmetric(vertical: 18.0), // 調整垂直內邊距
-          textStyle: const TextStyle(fontSize: 16.0, fontWeight: FontWeight.w900), // 調整字型大小和粗細
+          foregroundColor: colorScheme.onPrimary, // 文字顏色 (on primaryBlue)
+          backgroundColor: colorScheme.primary,   // 主藍色 (primaryBlue)
+          padding: const EdgeInsets.symmetric(vertical: 18.0),
+          textStyle: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w900, fontSize: 16), // 基於系統樣式調整
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(100.0), // 圓角
+            borderRadius: BorderRadius.circular(100.0),
           ),
+          elevation: 2,
         ),
       ),
     );
@@ -90,155 +102,231 @@ class Profile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final user = currentUser;
+    final ColorScheme colorScheme = Theme.of(context).colorScheme;
+    final TextTheme textTheme = Theme.of(context).textTheme;
 
-    return Scaffold( // 使用 Scaffold 作為頁面根佈局
-      backgroundColor: const Color(0xFFEBEBEB), // UserProfileFrame 的背景顏色
-      body: SafeArea( // 避免內容被系統狀態列或瀏海遮擋
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20.0), // 整體內邊距
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch, // 使 Column 子元件填滿水平空間
-            children: [
-              // --- 使用者資訊區塊 (大頭貼, 名稱, ID, 評價統計) ---
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center, // 垂直居中對齊 Row 內的元件
-                children: [
-                  // 大頭貼
-                  CircleAvatar(
-                    radius: 54, // UserProfileFrame 中的大頭貼半徑 (108 / 2)
-                    backgroundColor: const Color(0xFFD9D9D9), // 預設背景色
-                    backgroundImage: user.avatarUrl != null ? NetworkImage(user.avatarUrl!) : null,
-                    child: user.avatarUrl == null ? const Icon(Icons.person, size: 54, color: Colors.grey) : null,
-                  ),
-                  const SizedBox(width: 20), // 大頭貼和文字資訊之間的間距
-                  // 名稱和 ID
-                  Expanded(
+    final double profileInfoTopPadding = MediaQuery.of(context).padding.top + 10.0;
+    final double profileInfoContentHeightEstimate = 120.0;
+    final double profileCurveHeight = 50.0;
+    final double profileInfoBottomPaddingForContent = 20.0;
+
+    final double schoolInfoAreaTopOffset = profileInfoTopPadding + profileInfoContentHeightEstimate;
+    final double schoolCardOverlapAdjustment = 10.0;
+    final double schoolCardContentTopPadding = profileCurveHeight - schoolCardOverlapAdjustment;
+
+    return Scaffold(
+      backgroundColor: colorScheme.surface,
+      body: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                // --- 1. 學校資訊的灰色背景條帶 (在最底層) ---
+                Padding(
+                  padding: EdgeInsets.only(top: schoolInfoAreaTopOffset),
+                  child: Container(
+                    width: double.infinity,
+                    color: neutralGray, // 來自您的 app_theme.dart (surfaceContainerHighest)
+                    padding: EdgeInsets.only(
+                      top: schoolCardContentTopPadding,
+                      left: 20.0,
+                      right: 20.0,
+                      bottom: 20.0,
+                    ),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        _buildInfoText(user.username, fontSize: 24, fontWeight: FontWeight.w500), // 使用者名稱
-                        const SizedBox(height: 5),
-                        _buildInfoText(user.id ?? 'N/A', fontSize: 20, color: Colors.black54), // 使用者 ID
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 20.0,
+                            horizontal: 16.0,
+                          ),
+                          decoration: ShapeDecoration(
+                            color: neutralGray, // 與父級背景一致
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _buildInfoText(
+                                context,
+                                userSchool,
+                                baseStyle: textTheme.titleMedium, // 使用系統標題樣式
+                                color: colorScheme.onSurface,     // 顏色來自 ColorScheme
+                                fontWeight: FontWeight.w500,    // 保持或調整
+                                textAlign: TextAlign.center,
+                              ),
+                              if (user.schoolName != null &&
+                                  user.schoolName!.isNotEmpty &&
+                                  userLocation.isNotEmpty)
+                                const SizedBox(height: 5),
+                              _buildInfoText(
+                                context,
+                                userLocation,
+                                baseStyle: textTheme.bodyMedium, // 使用系統正文樣式
+                                color: colorScheme.onSurfaceVariant, // 顏色來自 ColorScheme (例如 Colors.black54)
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
                   ),
-                  const SizedBox(width: 10), // 文字資訊和評價統計之間的間距
-                  // 評價統計
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      _buildInfoText('平均買家評價', fontSize: 14, color: Colors.black87),
-                      _buildInfoText('$averageBuyReviewRate ★', fontSize: 16, fontWeight: FontWeight.bold),
-                      const SizedBox(height: 8),
-                      _buildInfoText('平均賣家評價', fontSize: 14, color: Colors.black87),
-                      _buildInfoText('$averageSellReviewRate ★', fontSize: 16, fontWeight: FontWeight.bold),
-                    ],
-                  )
-                ],
-              ),
-              const SizedBox(height: 25), // 使用者資訊區塊和學校資訊區塊之間的間距
+                ),
 
-              // --- 學校資訊區塊 ---
-              Container(
-                padding: const EdgeInsets.symmetric(vertical: 20.0, horizontal: 16.0), // 內邊距
-                decoration: ShapeDecoration(
-                  color: const Color(0xFFD9D9D9), // UserProfileFrame 中的背景顏色
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)), // 圓角
-                  shadows: [ // 輕微陰影效果
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      spreadRadius: 1,
-                      blurRadius: 3,
-                      offset: const Offset(0, 2),
+                // --- 2. 個人資訊區塊 (在上方，帶形狀，底色改為 tertiary) ---
+                Container(
+                  decoration: ShapeDecoration(
+                    color: colorScheme.tertiary, // 使用 ColorScheme 的 tertiary (accentGreenSlightlyMuted)
+                    shape: FullBottomConcaveAppBarShape(
+                      curveHeight: profileCurveHeight,
+                      topCornerRadius: 15.0,
                     ),
-                  ],
+                    shadows: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.25), // 可以考慮使用 colorScheme.shadow
+                        blurRadius: 10,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                  padding: EdgeInsets.fromLTRB(
+                    20.0,
+                    profileInfoTopPadding,
+                    20.0,
+                    profileInfoBottomPaddingForContent + profileCurveHeight,
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      CircleAvatar(
+                        radius: 54,
+                        // 使用 surfaceContainerHighest 或 neutralGray 作為背景
+                        backgroundColor: colorScheme.surfaceContainerHighest,
+                        backgroundImage: user.avatarUrl != null ? NetworkImage(user.avatarUrl!) : null,
+                        child: user.avatarUrl == null
+                            ? Icon(
+                          Icons.person,
+                          size: 54,
+                          color: colorScheme.onSurface.withOpacity(0.6), // 基於 onSurface 調整
+                        )
+                            : null,
+                      ),
+                      const SizedBox(width: 20),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _buildInfoText(
+                              context,
+                              user.username,
+                              baseStyle: textTheme.headlineSmall, // 例如：系統的大標題樣式
+                              color: colorScheme.onTertiary,     // 文字顏色 on tertiary
+                              fontWeight: FontWeight.w500,
+                            ),
+                            const SizedBox(height: 5),
+                            _buildInfoText(
+                              context,
+                              user.id ?? 'N/A',
+                              baseStyle: textTheme.titleMedium, // 例如：系統的中等標題樣式
+                              color: colorScheme.onTertiary.withOpacity(0.85), // 文字顏色 on tertiary (稍暗)
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildInfoText(context, '平均買家評價', baseStyle: textTheme.bodySmall, color: colorScheme.onTertiary, textAlign: TextAlign.end),
+                          _buildInfoText(context, '$averageBuyReviewRate ★', baseStyle: textTheme.titleSmall, color: colorScheme.onTertiary, fontWeight: FontWeight.bold, textAlign: TextAlign.end),
+                          const SizedBox(height: 8),
+                          _buildInfoText(context, '平均賣家評價', baseStyle: textTheme.bodySmall, color: colorScheme.onTertiary, textAlign: TextAlign.end),
+                          _buildInfoText(context, '$averageSellReviewRate ★', baseStyle: textTheme.titleSmall, color: colorScheme.onTertiary, fontWeight: FontWeight.bold, textAlign: TextAlign.end),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-                child: Column(
-                  children: [
-                    _buildInfoText(userSchool, fontSize: 18, fontWeight: FontWeight.w500, textAlign: TextAlign.center),
-                    if (user.schoolName != null && user.schoolName!.isNotEmpty && userLocation.isNotEmpty) const SizedBox(height: 5),
-                    _buildInfoText(userLocation, fontSize: 16, color: Colors.black54, textAlign: TextAlign.center),
-                    // 如果您想顯示 User model 中的 bio 或 schoolName，可以取消註解以下內容
-                    // if (user.bio != null && user.bio!.isNotEmpty) ...
-                    // if (user.schoolName != null && user.schoolName!.isNotEmpty) ...
-                  ],
-                ),
-              ),
-              const SizedBox(height: 30), // 學校資訊區塊和按鈕區塊之間的間距
+              ],
+            ), // Stack 結束
 
-              // --- 按鈕區塊 (2x2 佈局的藍色按鈕) ---
-              Row(
+            Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _buildSecondaryButton(
-                    label: '收藏',
-                    icon: Icons.favorite_border,
+                  Row(
+                    children: [
+                      _buildSecondaryButton(
+                        context: context,
+                        label: '收藏',
+                        icon: Icons.favorite_border,
+                        onPressed: () {
+                          print('收藏');
+                        },
+                      ),
+                      const SizedBox(width: 15),
+                      _buildSecondaryButton(
+                        context: context,
+                        label: '購物車',
+                        icon: Icons.shopping_cart_outlined,
+                        onPressed: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (context) => const CartPage()));
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 15),
+                  Row(
+                    children: [
+                      _buildSecondaryButton(
+                        context: context,
+                        label: '評價',
+                        icon: Icons.star_border,
+                        onPressed: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (context) => const ReviewPage()));
+                        },
+                      ),
+                      const SizedBox(width: 15),
+                      _buildSecondaryButton(
+                        context: context,
+                        label: '設定',
+                        icon: Icons.settings_outlined,
+                        onPressed: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsPage()));
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 30),
+                  _buildPrimaryButton(
+                    context: context,
+                    label: '訂單資訊',
                     onPressed: () {
-                      print('點擊收藏');
-                      // TODO: 導航到收藏頁面
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => OrderListScreen()));
                     },
                   ),
-                  const SizedBox(width: 15), // 按鈕之間的間距
-                  _buildSecondaryButton(
-                    label: '購物車',
-                    icon: Icons.shopping_cart_outlined,
+                  const SizedBox(height: 15),
+                  _buildPrimaryButton(
+                    context: context,
+                    label: '銷售商品管理',
                     onPressed: () {
-                      Navigator.push(context, MaterialPageRoute(builder: (context) => const CartPage()));
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => SellerDashboardScreen()));
                     },
                   ),
+                  const SizedBox(height: 20),
                 ],
               ),
-              const SizedBox(height: 15), // 兩行按鈕之間的間距
-              Row(
-                children: [
-                  _buildSecondaryButton(
-                    label: '評價',
-                    icon: Icons.star_border,
-                    onPressed: () {
-                      Navigator.push(context, MaterialPageRoute(builder: (context) => const ReviewPage()));
-                    },
-                  ),
-                  const SizedBox(width: 15), // 按鈕之間的間距
-                  _buildSecondaryButton(
-                    label: '設定',
-                    icon: Icons.settings_outlined,
-                    onPressed: () {
-                      Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsPage()));
-                    },
-                  ),
-                ],
-              ),
-              const SizedBox(height: 30), // 藍色按鈕區塊和橘色按鈕區塊之間的間距
-
-              // --- 主要功能按鈕 (橘色) ---
-              _buildPrimaryButton(
-                label: '訂單資訊', // 在 UserProfileFrame 中是「訂單狀態」
-                // icon: Icons.receipt_long_outlined, // 您可以選擇是否添加圖示
-                onPressed: () {
-                  print('點擊訂單資訊');
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => OrderListScreen()));
-                },
-              ),
-              const SizedBox(height: 15), // 按鈕之間的間距
-              _buildPrimaryButton(
-                label: '銷售商品管理', // 在 UserProfileFrame 中是「管理上架商品」
-                // icon: Icons.storefront_outlined, // 您可以選擇是否添加圖示
-                onPressed: () {
-                  print('點擊銷售商品管理');
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => SellerDashboardScreen()));
-                  // TODO: 導航到銷售商品管理頁面
-                },
-              ),
-              const SizedBox(height: 20), // 頁面底部額外間距
-
-              // --- UserProfileFrame 中的底部藍色列 (可選) ---
-              // Container(
-              //   height: 74, // UserProfileFrame 中的高度
-              //   color: const Color(0xFF004E98),
-              //   child: Center(child: _buildInfoText("底部導覽列", color: Colors.white)),
-              // ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

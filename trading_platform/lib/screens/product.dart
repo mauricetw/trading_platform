@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 // 假設你可能還會用到日期或價格格式化
 import '../models/product/product.dart'; // 您的 Product model 路徑
 import '../models/user/user.dart';      // 您的 User model 路徑
+import 'cart.dart';
 
 // 假設的跳轉函式，你需要實現它
 void navigateToSellerProfile(BuildContext context, User seller) {
@@ -52,6 +53,7 @@ class _ProductScreenState extends State<ProductScreen> {
             icon: const Icon(Icons.shopping_cart_outlined),
             tooltip: '購物車',
             onPressed: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context)=>CartPage()));
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('購物車按鈕點擊')),
               );

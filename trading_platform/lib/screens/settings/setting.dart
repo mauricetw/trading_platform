@@ -1,19 +1,25 @@
 import 'package:flutter/material.dart';
 import 'edit_profile.dart';
 import 'notification_settings.dart'; // 導入通知設定頁面檔案
-// 假設您有處理登出邏輯的服務或提供者
-// import 'auth_service.dart';
+import '../../widgets/FullBottomConcaveAppBarShape.dart';
+import '../../providers/auth_provider.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final double appBarHeight = 80.0; // AppBar 的總高度
+    final double bottomCurveHeight = 25.0; // 底部曲線向上凹陷的高度
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Color(0xFFFF8D36),
+        elevation: 4.0,
+        toolbarHeight: appBarHeight,
         title: const Text('設定'),
         centerTitle: true,
+        shape: FullBottomConcaveAppBarShape(curveHeight: bottomCurveHeight),
       ),
       backgroundColor: const Color(0XFF004E98),
       body: ListView(
@@ -23,7 +29,8 @@ class SettingsPage extends StatelessWidget {
           const SizedBox(height: 8),
           Card(
             elevation: 4.0,
-            child: ListTile( // 使用 ListTile 作為導航項目
+            child: ListTile(
+              // 使用 ListTile 作為導航項目
               leading: const Icon(Icons.notifications_none),
               title: const Text('管理通知設定'),
               trailing: const Icon(Icons.arrow_forward_ios),
@@ -32,7 +39,8 @@ class SettingsPage extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                      builder: (context) => const NotificationSettingsPage()),
+                    builder: (context) => const NotificationSettingsPage(),
+                  ),
                 );
               },
             ),
@@ -55,7 +63,8 @@ class SettingsPage extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                          builder: (context) => const EditProfilePage()),
+                        builder: (context) => const EditProfilePage(),
+                      ),
                     );
                   },
                 ),
@@ -69,7 +78,8 @@ class SettingsPage extends StatelessWidget {
             left: 0,
             right: 0,
             bottom: 0,
-            child: Center( // 將按鈕置中
+            child: Center(
+              // 將按鈕置中
               child: Padding(
                 padding: const EdgeInsets.only(bottom: 16.0), // 底部內邊距
                 child: ElevatedButton(
@@ -79,22 +89,25 @@ class SettingsPage extends StatelessWidget {
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.redAccent,
-                    padding: const EdgeInsets.symmetric(vertical: 15.0, horizontal: 80.0), // 調整水平填充以控制按鈕寬度
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 15.0,
+                      horizontal: 80.0,
+                    ), // 調整水平填充以控制按鈕寬度
                     textStyle: const TextStyle(fontSize: 16.0),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8.0),
                     ),
                   ),
-                  child: const Text('登出', style: TextStyle(color: Colors.white)),
+                  child: const Text(
+                    '登出',
+                    style: TextStyle(color: Colors.white),
+                  ),
                 ),
               ),
             ),
           ),
-
         ],
-
       ),
-
     );
   }
 }

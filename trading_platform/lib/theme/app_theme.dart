@@ -9,6 +9,7 @@ const Color neutralGray = Color(0xFFD1D6E2);
 const Color lightBackground = Color(0xFFEBEBEB);
 
 final ColorScheme lightColorScheme = ColorScheme(
+
   brightness: Brightness.light,
   primary: primaryBlue,
   onPrimary: Colors.white,
@@ -40,7 +41,7 @@ final ColorScheme lightColorScheme = ColorScheme(
   shadow: Colors.black.withOpacity(0.1),
   scrim: Colors.black.withOpacity(0.2),
   inverseSurface: const Color(0xFF303030),
-  onInverseSurface: Colors.white,
+  onInverseSurface: Color(0xFFEBEBEB),
   inversePrimary: Colors.white.withOpacity(0.9),
   surfaceTint: primaryBlue,
 );
