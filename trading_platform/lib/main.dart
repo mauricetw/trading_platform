@@ -1,39 +1,44 @@
+// --- FILE: lib/main.dart ---
 import 'package:flutter/material.dart';
-import '../screens/main_market.dart';
 import 'package:provider/provider.dart';
+
+// --- 引入所有需要的 Providers ---
 import 'providers/auth_provider.dart';
-import 'providers/wishlist_item.dart';
-import 'providers/category_provider.dart';
-import 'models/user/user.dart';
-import 'screens/seller/store_management.dart';
-import 'theme/app_theme.dart';
+import 'providers/product_provider.dart';
+import 'providers/category_provider.dart'; // 來自組員版本
+import 'providers/wishlist_item.dart';   // 來自組員版本
+
+// --- 引入所有需要的頁面 ---
+import 'screens/auth/login_main.dart';
+import 'screens/main_market.dart';
+import 'screens/splash_screen.dart';
+
+// --- 引入主題設定 ---
+import 'theme/app_theme.dart'; // 來自組員版本
 
 void main() {
   runApp(
-    // 使用 MultiProvider 替換單個 ChangeNotifierProvider
+    // 使用 MultiProvider 註冊 App 所需的所有狀態管理器
     MultiProvider(
-      // providers 列表包含所有你想要在應用程式中提供的 Providers
       providers: [
-        // AuthProvider
+        // 1. 身份驗證狀態
         ChangeNotifierProvider(create: (context) => AuthProvider()),
-        // CategoryProvider
+        // 2. 商品資料狀態
+        ChangeNotifierProvider(create: (context) => ProductProvider()),
+        // 3. 商品分類狀態 (來自組員版本)
         ChangeNotifierProvider(create: (context) => CategoryProvider()),
-        // WishlistProvider (如果需要依賴 AuthProvider，可以使用 ChangeNotifierProxyProvider)
+        // 4. 收藏清單狀態 (來自組員版本)
+        // ChangeNotifierProxyProvider 會在 AuthProvider 改變時，更新 WishlistProvider
         ChangeNotifierProxyProvider<AuthProvider, WishlistProvider>(
-          create: (context) => WishlistProvider(), // 初始創建一個 WishlistProvider 實例
-          update: (context, authProvider, wishlistProvider) {
-            // 這個方法會在 AuthProvider 改變時被呼叫
-            // 更新 WishlistProvider 的狀態，例如傳入當前使用者 ID
-            wishlistProvider ??= WishlistProvider(); // 如果 wishlistProvider 還沒有被創建，就創建一個
-            wishlistProvider.updateCurrentUser(authProvider.currentUser?.id); // 假設 AuthProvider 有 currentUser
-            return wishlistProvider;
+          create: (context) => WishlistProvider(),
+          update: (context, auth, previousWishlist) {
+            // 當使用者登入或登出時，更新收藏清單的狀態
+            previousWishlist?.updateAuth(auth.token, auth.currentUser);
+            return previousWishlist ?? WishlistProvider();
           },
         ),
-        // 添加其他你需要註冊的 Providers
-        // 例如：ChangeNotifierProvider(create: (context) => CartProvider()),
-        // 例如：ChangeNotifierProvider(create: (context) => OrderProvider()),
+        // TODO: 未來可以在此處加入 CartProvider, OrderProvider 等
       ],
-      // child 屬性仍然是你的應用程式的根 Widget
       child: const MyApp(),
     ),
   );
@@ -158,57 +163,29 @@ void main() {
 // }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Trading Platform',
+      title: '交易平台',
+
+      // --- 整合點 1：使用組員版本的主題設定 ---
       theme: appLightTheme,
       darkTheme: appDarkTheme,
-      themeMode: ThemeMode.system,
+      themeMode: ThemeMode.system, // 根據系統設定自動切換亮暗模式
 
-      // 不再直接設置 home，而是通過 Consumer 決定
-      home: Consumer<AuthProvider>(
-        builder: (context, authProvider, child) {
-          // 檢查用戶是否已登錄
-          if (authProvider.isLoggedIn && authProvider.currentUser != null) {
-            final User currentUser = authProvider.currentUser!;
+      // --- 整合點 2：使用你的 SplashScreen 作為 App 入口 ---
+      // 這樣可以優雅地處理啟動時的認證檢查
+      home: const SplashScreen(),
 
-            // 檢查用戶是否為賣家
-            // 您可以根據 User 模型中的 isSeller 屬性或 roles 列表來判斷
-            bool isSeller = currentUser.isSeller ?? false;
-            // 或者更嚴謹的判斷，如果 roles 列表存在且包含 'seller'
-            // if (currentUser.roles != null && currentUser.roles!.contains('seller')) {
-            //   isSeller = true;
-            // }
-
-            if (isSeller) {
-              // 如果是賣家，導向賣家儀表板
-              // 確保 SellerDashboardScreen 的構造函數是 const SellerDashboardScreen()
-              // 它會從內部通過 Provider 獲取 currentUser
-              return const MainMarket();
-            } else {
-              // 如果已登錄但不是賣家，可以導向市場主頁或其他普通用戶頁面
-              // 這裡我們假設 MainMarket 也可以作為普通登錄用戶的主頁
-              print("User '${currentUser.username}' is logged in but not a seller. Showing MainMarket.");
-              return const MainMarket(); // 或者一個 BuyerDashboardScreen()
-            }
-          } else {
-            // 如果用戶未登錄，顯示 MainMarket (假設它是登錄頁面或公共市場頁)
-            print("User not logged in. Showing MainMarket.");
-            return const MainMarket();
-          }
-        },
-      ),
-      // 您可能還會有路由表，用於處理命名路由
-      // routes: {
-      //   '/login': (context) => LoginScreen(), // 假設您有 LoginScreen
-      //   '/main_market': (context) => const MainMarket(),
-      //   '/seller_dashboard': (context) => const SellerDashboardScreen(),
-      //   // ... 其他路由
-      // },
+      // --- 整合點 3：使用你的命名路由，方便全域導航 ---
+      // 確保 SplashScreen 和其他頁面可以使用這些路由
+      routes: {
+        '/login': (context) => const LoginScreen(),
+        '/home': (context) => const MainMarket(),
+      },
     );
   }
 }

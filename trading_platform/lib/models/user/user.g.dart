@@ -7,27 +7,28 @@ part of 'user.dart';
 // **************************************************************************
 
 User _$UserFromJson(Map<String, dynamic> json) => User(
-  id: json['id'] as String,
+  id: (json['id'] as num).toInt(),
   username: json['username'] as String,
   email: json['email'] as String,
-  registeredAt: DateTime.parse(json['registeredAt'] as String),
-  phoneNumber: json['phoneNumber'] as String?,
-  avatarUrl: json['avatarUrl'] as String?,
+  registeredAt: DateTime.parse(json['registered_at'] as String),
+  phoneNumber: json['phone_number'] as String?,
+  avatarUrl: json['avatar_url'] as String?,
   lastLoginAt:
-      json['lastLoginAt'] == null
+      json['last_login_at'] == null
           ? null
-          : DateTime.parse(json['lastLoginAt'] as String),
+          : DateTime.parse(json['last_login_at'] as String),
   bio: json['bio'] as String?,
-  schoolName: json['schoolName'] as String?,
-  isVerified: json['isVerified'] as bool?,
-  roles: (json['roles'] as List<dynamic>?)?.map((e) => e as String).toList(),
-  isSeller: json['isSeller'] as bool? ?? false,
-  sellerName: json['sellerName'] as String?,
-  sellerDescription: json['sellerDescription'] as String?,
-  sellerRating: (json['sellerRating'] as num?)?.toDouble(),
-  productCount: (json['productCount'] as num?)?.toInt(),
+  schoolName: json['school_name'] as String?,
+  isVerified: json['is_verified'] as bool,
+  roles: (json['roles'] as List<dynamic>).map((e) => e as String).toList(),
+  isSeller: json['is_seller'] as bool,
+  sellerName: json['seller_name'] as String?,
+  sellerDescription: json['seller_description'] as String?,
+  sellerRating: (json['seller_rating'] as num?)?.toDouble(),
+  buyerRating: (json['buyer_rating'] as num?)?.toDouble(),
+  productCount: (json['product_count'] as num).toInt(),
   favoriteProductIds:
-      (json['favoriteProductIds'] as List<dynamic>?)
+      (json['favorite_product_ids'] as List<dynamic>?)
           ?.map((e) => e as String)
           .toList() ??
       [],
@@ -37,18 +38,19 @@ Map<String, dynamic> _$UserToJson(User instance) => <String, dynamic>{
   'id': instance.id,
   'username': instance.username,
   'email': instance.email,
-  'phoneNumber': instance.phoneNumber,
-  'avatarUrl': instance.avatarUrl,
-  'registeredAt': instance.registeredAt.toIso8601String(),
-  'lastLoginAt': instance.lastLoginAt?.toIso8601String(),
+  'phone_number': instance.phoneNumber,
+  'avatar_url': instance.avatarUrl,
+  'registered_at': instance.registeredAt.toIso8601String(),
+  'last_login_at': instance.lastLoginAt?.toIso8601String(),
   'bio': instance.bio,
-  'schoolName': instance.schoolName,
-  'isVerified': instance.isVerified,
+  'school_name': instance.schoolName,
+  'is_verified': instance.isVerified,
   'roles': instance.roles,
-  'isSeller': instance.isSeller,
-  'sellerName': instance.sellerName,
-  'sellerDescription': instance.sellerDescription,
-  'sellerRating': instance.sellerRating,
-  'productCount': instance.productCount,
-  'favoriteProductIds': instance.favoriteProductIds,
+  'is_seller': instance.isSeller,
+  'seller_name': instance.sellerName,
+  'seller_description': instance.sellerDescription,
+  'seller_rating': instance.sellerRating,
+  'buyer_rating': instance.buyerRating,
+  'product_count': instance.productCount,
+  'favorite_product_ids': instance.favoriteProductIds,
 };

@@ -1,35 +1,66 @@
-// lib/models/product/product.dart
+// --- FILE: lib/models/product/product.dart ---
+
 import 'package:json_annotation/json_annotation.dart';
-import '../user/user.dart'; // 確保 User 類也已更新並使用了 json_serializable (如果它有 toJson/fromJson)
-import '../order/shipping_info.dart'; // 確保 ShippingInformation 也類似
+import '../order/shipping_info.dart';
 
-part 'product.g.dart'; // 需要這一行來鏈接生成的代碼
+// 這行會將此檔案與下面第三步將自動產生的檔案連結起來。
+part 'product.g.dart';
 
-@JsonSerializable(explicitToJson: true) // explicitToJson: true 以便嵌套對象調用 toJson
+// --- SellerInfo 模型 ---
+// 我們保留這個獨立、輕量的 SellerInfo 模型，用於商品列表中的賣家資訊。
+// 它也使用 json_serializable 以保持一致性。
+@JsonSerializable(fieldRename: FieldRename.snake)
+class SellerInfo {
+  final int id;
+  final String username;
+  final String? avatarUrl;
+
+  SellerInfo({
+    required this.id,
+    required this.username,
+    this.avatarUrl,
+  });
+
+  // fromJson 和 toJson 將由程式碼產生器自動建立。
+  factory SellerInfo.fromJson(Map<String, dynamic> json) => _$SellerInfoFromJson(json);
+  Map<String, dynamic> toJson() => _$SellerInfoToJson(this);
+}
+
+
+// --- Product 模型 ---
+// @JsonSerializable 告訴產生器要為這個類別建立程式碼。
+// fieldRename: FieldRename.snake 會自動將 Dart 的駝峰式命名 (例如 originalPrice)
+// 轉換為 JSON 的蛇形命名 (例如 original_price)，與我們的後端完全匹配。
+@JsonSerializable(fieldRename: FieldRename.snake, explicitToJson: true)
 class Product {
-  final String id; // 唯一識別碼
+  // --- 欄位與你的版本 (以及後端) 完全對齊 ---
+  final int id;
   final String name;
   final String description;
-  final double? originalPrice; // Made nullable as it might not always exist
-  final double price;         // Added 'price' as this is what HomePage's _formatPrice expects
+  final double price;
+  final double? originalPrice;
   final int categoryId;
+  final String category;
   final int stockQuantity;
-  final List<String> imageUrls; // 非空列表
-  final String category; // This can be derived from categoryId or stored directly
-  final String status; // 例如："available", "unavailable", "sold"
-  final DateTime createdAt;
-  final DateTime updatedAt;
-
-  @JsonKey(defaultValue: 0)
+  final String status;
+  final List<String> imageUrls;
   final int salesCount;
   final double? averageRating;
-  final int? reviewCount;
-  final List<String>? tags; // 可空列表
-  final ShippingInformation? shippingInfo; // 可空嵌套對象
-  final User? seller; // 可空嵌套對象
+  final int reviewCount;
+  final List<String>? tags;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final int sellerId;
+  final SellerInfo? seller;
+  final ShippingInformation? shippingInfo;
 
-  @JsonKey(defaultValue: false)
-  final bool isSold;     // Used by _buildProductCard to show "SOLD" tag
+  // --- 前端邏輯欄位 ---
+  // 這些欄位不是來自 JSON，所以我們告訴產生器在序列化時忽略它們。
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  final bool isFavorite;
+
+  // isSold 是一個 getter，產生器會自動忽略它。
+  bool get isSold => stockQuantity == 0 || status == 'sold';
 
   Product({
     required this.id,
@@ -38,43 +69,49 @@ class Product {
     required this.price,
     this.originalPrice,
     required this.categoryId,
+    required this.category,
     required this.stockQuantity,
     required this.imageUrls,
-    required this.category,
     required this.status,
     required this.createdAt,
     required this.updatedAt,
-    this.salesCount = 0, // 構造函數中的默認值
+    required this.salesCount,
     this.averageRating,
-    this.reviewCount,
+    required this.reviewCount,
     this.tags,
-    this.shippingInfo,
+    required this.sellerId,
     this.seller,
-    this.isSold = false,     // 構造函數中的默認值
+    this.shippingInfo,
+    this.isFavorite = false,
   });
 
-  // --- 手動實現部分 (可以保留你已有的 copyWith) ---
+  // --- 由程式碼產生器實現的方法 ---
+  // fromJson 和 toJson 方法現在會在 product.g.dart 中自動產生
+  factory Product.fromJson(Map<String, dynamic> json) => _$ProductFromJson(json);
+  Map<String, dynamic> toJson() => _$ProductToJson(this);
+
+  // 你的 copyWith 方法對於狀態管理仍然非常有用，所以我們保留它。
   Product copyWith({
-    String? id,
+    int? id,
     String? name,
     String? description,
     double? price,
     double? originalPrice,
     int? categoryId,
-    int? stockQuantity,
-    List<String>? imageUrls,
     String? category,
+    int? stockQuantity,
     String? status,
+    List<String>? imageUrls,
     DateTime? createdAt,
     DateTime? updatedAt,
     int? salesCount,
     double? averageRating,
     int? reviewCount,
     List<String>? tags,
+    int? sellerId,
+    SellerInfo? seller,
     ShippingInformation? shippingInfo,
-    User? seller,
     bool? isFavorite,
-    bool? isSold,
   }) {
     return Product(
       id: id ?? this.id,
@@ -83,122 +120,20 @@ class Product {
       price: price ?? this.price,
       originalPrice: originalPrice ?? this.originalPrice,
       categoryId: categoryId ?? this.categoryId,
-      stockQuantity: stockQuantity ?? this.stockQuantity,
-      imageUrls: imageUrls ?? this.imageUrls,
       category: category ?? this.category,
+      stockQuantity: stockQuantity ?? this.stockQuantity,
       status: status ?? this.status,
+      imageUrls: imageUrls ?? this.imageUrls,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       salesCount: salesCount ?? this.salesCount,
       averageRating: averageRating ?? this.averageRating,
       reviewCount: reviewCount ?? this.reviewCount,
       tags: tags ?? this.tags,
-      shippingInfo: shippingInfo ?? this.shippingInfo,
+      sellerId: sellerId ?? this.sellerId,
       seller: seller ?? this.seller,
-      isSold: isSold ?? this.isSold,
+      shippingInfo: shippingInfo ?? this.shippingInfo,
+      isFavorite: isFavorite ?? this.isFavorite,
     );
   }
-
-  // --- 手動實現 operator == 和 hashCode ---
-  @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    // final listEquals = const DeepCollectionEquality().equals; // 需要 collection 包
-
-    return other is Product &&
-        other.id == id &&
-        other.name == name &&
-        other.description == description &&
-        other.originalPrice == originalPrice &&
-        other.price == price &&
-        other.categoryId == categoryId &&
-        other.stockQuantity == stockQuantity &&
-        // listEquals(other.imageUrls, imageUrls) && // imageUrls 是非空的
-        _listEquals(other.imageUrls, imageUrls) && // imageUrls 是非空的
-        other.category == category &&
-        other.status == status &&
-        other.createdAt == createdAt &&
-        other.updatedAt == updatedAt &&
-        other.salesCount == salesCount &&
-        other.averageRating == averageRating &&
-        other.reviewCount == reviewCount &&
-        // listEquals(other.tags, tags) && // tags 是可空的
-        _listEquals(other.tags, tags) && // tags 是可空的
-        other.shippingInfo == shippingInfo && // 假設 ShippingInformation 也實現了 ==
-        other.seller == seller &&             // 假設 User 也實現了 ==
-        other.isSold == isSold;
-  }
-
-  // 輔助函數比較列表 (如果不想引入 collection 包)
-  bool _listEquals<T>(List<T>? a, List<T>? b) {
-    if (a == null) return b == null; // 如果 a 是 null，只有當 b 也是 null 時才相等
-    if (b == null || a.length != b.length) return false;
-    if (a.isEmpty && b.isEmpty) return true; // 兩個空列表相等
-    for (int i = 0; i < a.length; i++) {
-      if (a[i] != b[i]) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  @override
-  @override
-  int get hashCode {
-    final int originalPriceHash = originalPrice?.hashCode ?? 0;
-    final int averageRatingHash = averageRating?.hashCode ?? 0;
-    final int reviewCountHash = reviewCount?.hashCode ?? 0;
-
-    int imageUrlsCombinedHash = 17;
-    // imageUrls is List<String> (non-nullable list, but could be empty)
-    for (final imageUrl in imageUrls) {
-      imageUrlsCombinedHash = imageUrlsCombinedHash * 31 + imageUrl.hashCode;
-    }
-    // If imageUrls can be empty, imageUrlsCombinedHash will remain 17.
-    // If you want empty list to have hash 0, you can add:
-    // if (imageUrls.isEmpty) imageUrlsCombinedHash = 0;
-
-
-    int tagsCombinedHash = 17;
-    if (tags != null) {
-      for (final tag in tags!) { // tags! is safe here
-        tagsCombinedHash = tagsCombinedHash * 31 + tag.hashCode;
-      }
-    } else {
-      tagsCombinedHash = 0;
-    }
-
-    final int shippingInfoHash = shippingInfo?.hashCode ?? 0;
-    final int sellerHash = seller?.hashCode ?? 0;
-
-    return id.hashCode ^
-    name.hashCode ^
-    description.hashCode ^
-    originalPriceHash ^
-    price.hashCode ^
-    categoryId.hashCode ^
-    stockQuantity.hashCode ^
-    imageUrlsCombinedHash ^ // 使用組合後的哈希
-    category.hashCode ^
-    status.hashCode ^
-    createdAt.hashCode ^
-    updatedAt.hashCode ^
-    salesCount.hashCode ^
-    averageRatingHash ^
-    reviewCountHash ^
-    tagsCombinedHash ^ // 使用組合後的哈希
-    shippingInfoHash ^
-    sellerHash ^
-    isSold.hashCode;
-  }
-
-  @override
-  String toString() {
-    return 'Product(id: $id, name: $name, price: $price, category: $category, stockQuantity: $stockQuantity)';
-    // 自定義 toString 以便調試
-  }
-
-  // --- 由 json_serializable 生成 ---
-  factory Product.fromJson(Map<String, dynamic> json) => _$ProductFromJson(json);
-  Map<String, dynamic> toJson() => _$ProductToJson(this);
 }

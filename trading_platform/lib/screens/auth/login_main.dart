@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
-import '../auth/sign_up.dart';
-import '../auth/sign_in.dart';
+import 'sign_up.dart';
+import 'sign_in.dart';
 
+// 為了方便單獨測試此頁面，保留 main 函式
 void main() {
   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -17,19 +18,15 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         fontFamily: 'Roboto',
       ),
-      home: const LoginScreen(),
+      home: const LoginScreen(), // App 入口為 LoginScreen
     );
   }
 }
 
-class LoginScreen extends StatefulWidget {
+// --- 類別名稱已修改為 LoginScreen ---
+class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
 
-  @override
-  State<LoginScreen> createState() => _LoginScreenState();
-}
-
-class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -44,26 +41,10 @@ class _LoginScreenState extends State<LoginScreen> {
         child: Stack(
           children: [
             // 四個角落的白色小圓點
-            Positioned(
-              top: 0,
-              left: 0,
-              child: _buildCornerDot(),
-            ),
-            Positioned(
-              top: 0,
-              right: 0,
-              child: _buildCornerDot(),
-            ),
-            Positioned(
-              bottom: 0,
-              left: 0,
-              child: _buildCornerDot(),
-            ),
-            Positioned(
-              bottom: 0,
-              right: 0,
-              child: _buildCornerDot(),
-            ),
+            Positioned(top: 0, left: 0, child: _buildCornerDot()),
+            Positioned(top: 0, right: 0, child: _buildCornerDot()),
+            Positioned(bottom: 0, left: 0, child: _buildCornerDot()),
+            Positioned(bottom: 0, right: 0, child: _buildCornerDot()),
 
             Padding(
               padding: const EdgeInsets.all(20.0),
@@ -76,24 +57,24 @@ class _LoginScreenState extends State<LoginScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         // 人物圖片
-                        Container(
+                        SizedBox(
                           height: 250,
                           width: 250,
-                          decoration: const BoxDecoration(
-                            image: DecorationImage(
-                              image: AssetImage('assets/image/img.png'),
-                              fit: BoxFit.contain,
-                            ),
+                          // 使用 Image.asset 來載入本地圖片
+                          // 請確保你在專案根目錄下有 assets/image/img.png 這個檔案
+                          // 並且在 pubspec.yaml 中有設定 assets: - assets/image/
+                          child: Image.asset(
+                            'assets/image/img.png',
+                            fit: BoxFit.contain,
+                            // 當圖片載入失敗時，顯示一個替代圖示
+                            errorBuilder: (context, error, stackTrace) {
+                              return const Icon(
+                                Icons.people,
+                                size: 120,
+                                color: Colors.black54,
+                              );
+                            },
                           ),
-                          // 如果沒有實際圖片，可以使用以下替代方案
-                          child: Image.asset('assets/image/img.png',
-                              errorBuilder: (context, error, stackTrace) {
-                                return const Icon(
-                                  Icons.people,
-                                  size: 120,
-                                  color: Colors.black54,
-                                );
-                              }),
                         ),
 
                         const SizedBox(height: 30),
@@ -104,7 +85,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           height: 50,
                           child: ElevatedButton(
                             onPressed: () {
-                              Navigator.push(context, MaterialPageRoute(builder: (context) => SignInPage()));
+                              Navigator.push(context, MaterialPageRoute(builder: (context) => const SignInPage()));
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFFFF9248),
@@ -131,7 +112,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           height: 50,
                           child: ElevatedButton(
                             onPressed: () {
-                              Navigator.push(context, MaterialPageRoute(builder: (context) => SignUpPage()));
+                              Navigator.push(context, MaterialPageRoute(builder: (context) => const SignUpPage()));
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF5DFFA6),
@@ -157,7 +138,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   Center(
                     child: GestureDetector(
                       onTap: () {
-                        // 處理點擊事件
+                        // TODO: 處理「發生問題」的點擊事件
                       },
                       child: const Text(
                         '發生問題了嗎？',
@@ -177,6 +158,7 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  // 輔助函式，建立角落的白色圓點
   Widget _buildCornerDot() {
     return Container(
       width: 10,
