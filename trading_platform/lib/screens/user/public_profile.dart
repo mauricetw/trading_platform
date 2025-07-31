@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../models/user/user.dart';
-import '../../../services/auth_service.dart'; // 示例
+import 'package:provider/provider.dart';
+import '../../widgets/FullBottomConcaveAppBarShape.dart';
+import '../../providers/auth_provider.dart';
 
 class PublicUserProfilePage extends StatefulWidget {
   final String userId;
@@ -12,156 +13,290 @@ class PublicUserProfilePage extends StatefulWidget {
 }
 
 class _PublicUserProfilePageState extends State<PublicUserProfilePage> {
-  // --- 示例狀態和服務 ---
-  // User? _userProfile; // 用於存儲獲取到的用戶詳細信息
-  // bool _isLoading = true;
-  // String? _errorMessage;
-  // final UserService _userService = UserService(); // 假設你有一個用戶服務
+  String _username = '';
+  String _avatarUrl = '';
+  int _completedTransactions = 0;
+  String _bio = '這位用戶很神秘，什麼都沒留下...';
+  String _userSchool = '未知學校';
+  String _userLocation = '未知地點';
+
+  bool _isLoading = true;
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
-    // _fetchUserProfile(); // 在頁面初始化時獲取用戶數據
+    _loadProfileData();
     print("PublicUserProfilePage: Displaying profile for User ID: ${widget.userId}");
   }
 
-  // --- 示例：獲取用戶數據的方法 ---
-  // Future<void> _fetchUserProfile() async {
-  //   setState(() {
-  //     _isLoading = true;
-  //     _errorMessage = null;
-  //   });
-  //   try {
-  //     // final user = await _userService.getUserById(widget.userId);
-  //     // 模擬網絡延遲和數據獲取
-  //     await Future.delayed(const Duration(seconds: 1));
-  //     // 假設 User 模型有一個構造函數，或者你從某處獲取模擬數據
-  //     final user = User(
-  //       id: widget.userId,
-  //       username: '用戶 ${widget.userId}', // 示例用戶名
-  //       email: 'user${widget.userId}@example.com', // 示例郵箱
-  //       avatarUrl: '', // 示例頭像 URL
-  //       // 其他你可能需要的字段
-  //     );
-  //
-  //     setState(() {
-  //       _userProfile = user;
-  //       _isLoading = false;
-  //     });
-  //   } catch (e) {
-  //     setState(() {
-  //       _errorMessage = '無法加載用戶資料: $e';
-  //       _isLoading = false;
-  //     });
-  //     print('Error fetching user profile: $e');
-  //   }
-  // }
+  void _loadProfileData() {
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        setState(() {
+          _username = '用戶 ${widget.userId}';
+          _avatarUrl = '';
+          _completedTransactions = (widget.userId.hashCode % 100).abs(); // 模擬成交量
+          _bio = '這是用戶 ${widget.userId} 的公開介紹。熱愛編程和旅行！目前已完成 $_completedTransactions 筆交易。';
+          _userSchool = widget.userId.hashCode.isEven ? '台灣科技大學' : '範例大學';
+          _userLocation = widget.userId.hashCode.isOdd ? '台北市大安區' : '新北市板橋區';
+          _isLoading = false;
+        });
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    final ColorScheme colorScheme = Theme.of(context).colorScheme;
+    final TextTheme textTheme = Theme.of(context).textTheme;
+
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final String? currentLoggedInUserId = authProvider.currentUser?.id;
+    final bool isViewingOwnProfile = currentLoggedInUserId != null && currentLoggedInUserId == widget.userId;
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('用戶公開資料'),
-        // 可以根據你的 App 主題調整
-        // backgroundColor: Theme.of(context).colorScheme.primary,
-        // foregroundColor: Theme.of(context).colorScheme.onPrimary,
-      ),
-      body: _buildBody(),
-    );
-  }
-
-  Widget _buildBody() {
-    // --- 根據加載狀態顯示不同內容的示例 ---
-    // if (_isLoading) {
-    //   return const Center(child: CircularProgressIndicator());
-    // }
-    //
-    // if (_errorMessage != null) {
-    //   return Center(
-    //     child: Padding(
-    //       padding: const EdgeInsets.all(16.0),
-    //       child: Column(
-    //         mainAxisAlignment: MainAxisAlignment.center,
-    //         children: [
-    //           Text(_errorMessage!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-    //           const SizedBox(height: 16),
-    //           ElevatedButton(
-    //             onPressed: _fetchUserProfile,
-    //             child: const Text('重試'),
-    //           )
-    //         ],
-    //       ),
-    //     ),
-    //   );
-    // }
-    //
-    // if (_userProfile == null) {
-    //   return const Center(child: Text('未找到用戶資料。'));
-    // }
-
-    // --- 基礎的用戶信息顯示 ---
-    // 這裡只是簡單顯示傳入的 userId，你需要根據實際需求擴展
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Center(
-            child: Column(
-              children: [
-                CircleAvatar(
-                  radius: 50,
-                  // backgroundImage: _userProfile!.avatarUrl != null && _userProfile!.avatarUrl!.isNotEmpty
-                  //     ? NetworkImage(_userProfile!.avatarUrl!)
-                  //     : null,
-                  // child: _userProfile!.avatarUrl == null || _userProfile!.avatarUrl!.isEmpty
-                  //     ? Icon(Icons.person, size: 50, color: Theme.of(context).colorScheme.primary)
-                  //     : null,
-                  backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                  child: Icon(Icons.person, size: 60, color: Theme.of(context).colorScheme.onPrimaryContainer),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  // _userProfile!.username, // '用戶名: ${widget.userId}'
-                  '用戶名: 用戶 ${widget.userId}', // 示例
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'ID: ${widget.userId}',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ],
-            ),
+      backgroundColor: colorScheme.surfaceContainerHighest,
+      // extendBodyBehindAppBar: true, // 如果你想讓 body 內容延伸到 AppBar (即我們的 header) 之後
+      // appBar: PreferredSize( // 如果你想要一個透明的 AppBar 來觸發返回手勢，但內容在 body 裡
+      //   preferredSize: Size.fromHeight(0), // 高度為 0
+      //   child: AppBar(
+      //     backgroundColor: Colors.transparent,
+      //     elevation: 0,
+      //     leading: Navigator.canPop(context) ? BackButton(color: colorScheme.onPrimary) : null,
+      //   ),
+      // ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _errorMessage != null
+          ? Center( /* ... Error UI ... */ )
+          : CustomScrollView(
+        slivers: <Widget>[
+          SliverToBoxAdapter(
+            child: _buildProfileHeader(context, colorScheme, textTheme), // <--- 使用修改後的 header
           ),
-          const SizedBox(height: 24),
-          const Divider(),
-          const SizedBox(height: 16),
-          Text(
-            '關於我:', // 示例部分
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(12.0),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
-              borderRadius: BorderRadius.circular(8.0),
-            ),
-            child: Text(
-              '這裡可以顯示該用戶的公開介紹、評價、發布的商品等信息。\n當前用戶 ID 為: ${widget.userId}。',
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+          SliverToBoxAdapter(child: const SizedBox(height: 20)),
+          SliverToBoxAdapter(
+            child: _buildSection(
+              context,
+              title: '關於我',
+              content: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Text(_bio, style: textTheme.bodyLarge),
               ),
             ),
           ),
-          // --- 在這裡添加更多用戶信息展示 ---
-          // 例如：
-          // - 用戶評價列表
-          // - 用戶發布的商品列表
-          // - 關注/粉絲按鈕等交互元素
+          SliverToBoxAdapter(child: const SizedBox(height: 20)),
+          SliverToBoxAdapter(
+            child: _buildUserStats(context, colorScheme, textTheme),
+          ),
+          SliverToBoxAdapter(child: const SizedBox(height: 20)),
+          SliverToBoxAdapter(
+            child: _buildSection(
+              context,
+              title: '上架商品',
+              content: Container(
+                height: 150,
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: 5,
+                  itemBuilder: (context, index) {
+                    return Card(
+                      color: colorScheme.surfaceVariant,
+                      margin: const EdgeInsets.only(right: 10),
+                      child: SizedBox(
+                        width: 120,
+                        child: Center(child: Text('商品 ${index + 1}', style: TextStyle(color: colorScheme.onSurfaceVariant),)),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(child: const SizedBox(height: 80)),
         ],
       ),
+      floatingActionButton: _isLoading || isViewingOwnProfile
+          ? null
+          : FloatingActionButton.extended(
+        onPressed: () {
+          ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('與 $_username 開始聊天（功能待實現）'))
+          );
+        },
+        icon: const Icon(Icons.message_outlined),
+        label: const Text('傳送訊息'),
+        backgroundColor: colorScheme.primary,
+        foregroundColor: colorScheme.onPrimary,
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+    );
+  }
+
+  Widget _buildProfileHeader(BuildContext context, ColorScheme colorScheme, TextTheme textTheme) {
+    final double profileCurveHeight = 50.0;
+    final double avatarRadius = 40.0;
+    final double statusBarHeight = MediaQuery.of(context).padding.top;
+
+    return Stack( // <--- 使用 Stack
+      children: [
+        Container(
+          width: double.infinity,
+          decoration: ShapeDecoration(
+            color: colorScheme.primary,
+            shape: FullBottomConcaveAppBarShape(
+              curveHeight: profileCurveHeight,
+              topCornerRadius: 0,
+            ),
+            shadows: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.25),
+                blurRadius: 10,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          padding: EdgeInsets.fromLTRB(
+            // 根據返回按鈕調整左邊距，確保主要內容不會和按鈕重疊太多
+            Navigator.canPop(context) ? 56.0 : 16.0, // 56 可以根據按鈕寬度調整
+            statusBarHeight + 20.0,
+            16.0,
+            profileCurveHeight + 20.0,
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // 如果返回按鈕在 Stack 中絕對定位，這裡可能不需要額外處理 CircleAvatar 的位置
+              // 主要內容會自然地從 padding 開始
+              CircleAvatar(
+                radius: avatarRadius,
+                backgroundColor: colorScheme.surfaceContainerHighest.withOpacity(0.8),
+                backgroundImage: _avatarUrl.isNotEmpty ? NetworkImage(_avatarUrl) : null,
+                child: _avatarUrl.isEmpty
+                    ? Icon(
+                  Icons.person,
+                  size: avatarRadius * 1.1,
+                  color: colorScheme.primary,
+                )
+                    : null,
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _username,
+                      style: textTheme.headlineSmall?.copyWith(
+                        color: colorScheme.onPrimary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'ID: ${widget.userId}',
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onPrimary.withOpacity(0.85),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        // 添加返回按鈕
+        if (Navigator.canPop(context))
+          Positioned(
+            top: statusBarHeight + 8, // 調整以使其在視覺上居中於 Header 的交互區域
+            left: 8,
+            child: Material( // 添加 Material 以確保 IconButton 有水波紋效果且正確裁剪
+              type: MaterialType.transparency,
+              child: IconButton(
+                icon: Icon(Icons.arrow_back, color: colorScheme.onPrimary),
+                onPressed: () => Navigator.maybePop(context),
+                tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  // _buildUserStats, _buildStatItem, _buildSection 方法保持不變
+  // ... (複製貼上這些輔助方法到這裡)
+  Widget _buildUserStats(BuildContext context, ColorScheme colorScheme, TextTheme textTheme) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      child: Card(
+        elevation: 2,
+        color: colorScheme.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildStatItem(context, Icons.school_outlined, _userSchool, "學校", colorScheme, textTheme),
+              _buildStatItem(context, Icons.location_on_outlined, _userLocation, "地點", colorScheme, textTheme),
+              _buildStatItem(context, Icons.swap_horiz_outlined,
+                  '$_completedTransactions 筆', "成交量", colorScheme, textTheme),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatItem(BuildContext context, IconData icon, String value, String label, ColorScheme colorScheme, TextTheme textTheme) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 28, color: colorScheme.primary),
+        const SizedBox(height: 6),
+        Text(
+          value,
+          style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold, color: colorScheme.onSurface),
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSection(BuildContext context, {required String title, required Widget content, Widget? trailing}) {
+    final TextTheme textTheme = Theme.of(context).textTheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                title,
+                style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+              ),
+              if (trailing != null) trailing,
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        content,
+      ],
     );
   }
 }

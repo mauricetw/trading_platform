@@ -229,7 +229,7 @@ class Profile extends StatelessWidget {
                                     builder: (context) => PublicUserProfilePage(userId: user.id!), // 假設 PublicUserProfilePage 已創建
                                   ),
                                 );
-12                              } else {
+                              } else {
                                 print("User ID is null or empty, cannot navigate.");
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(content: Text('用戶ID無效，無法導航')),
@@ -307,7 +307,7 @@ class Profile extends StatelessWidget {
                         child: Container(
                           height: 4,
                           decoration: BoxDecoration(
-                            color: primaryCS.secondary,
+                            color: primaryCS.primary,
                             borderRadius: BorderRadius.circular(999),
                           ),
                         ),
@@ -352,7 +352,7 @@ class Profile extends StatelessWidget {
                         child: Container(
                           height: 4,
                           decoration: BoxDecoration(
-                            color: primaryCS.secondary,
+                            color: primaryCS.primary,
                             borderRadius: BorderRadius.circular(999),
                           ),
                         ),

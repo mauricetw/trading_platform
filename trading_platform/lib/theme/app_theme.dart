@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-
 const Color accentGreen = Color(0xFF3DFF9E);
 const Color primaryBlue = Color(0xFF004E98);
 const Color accentOrange = Color(0xFFFF8D36);

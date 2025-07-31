@@ -33,7 +33,7 @@ class AuthProvider with ChangeNotifier {
   AuthProvider() {
     _currentUser = User(
       id: 'defaultSellerXYZ789',
-      username: '校園百寶小店 (預設)',
+      username: '校園123 (預設)',
       email: 'default.seller.campus@example.com',
       registeredAt: DateTime.now().subtract(Duration(days: 120)), // 假設註冊於120天前
       phoneNumber: '0912-345-678',

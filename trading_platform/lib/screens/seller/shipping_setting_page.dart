@@ -3,7 +3,9 @@ import '../../models/user/user.dart'; // 假設你可能需要 User 模型，如
 import 'package:first_flutter_project/services/auth_service.dart'; // 如果 getCurrentUserId 來自這裡
 import '../../widgets/upsert_shipping_option_dialog.dart';
 import '../../models/user/shipping_option.dart';
-import '../../services/shipping_api_service.dart'; // 導入新的 API 服務
+import '../../services/shipping_api_service.dart';
+import '../../widgets/FullBottomConcaveAppBarShape.dart';
+import '../../widgets/BottomConvexArcWidget.dart';
 
 // 模擬獲取當前用戶ID (你需要用你實際的認證邏輯替換)
 String getCurrentUserId() {
@@ -254,9 +256,11 @@ class _ShippingSettingsPageState extends State<ShippingSettingsPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('運送設定'),
-        backgroundColor: colorScheme.surface,
+        title: const Text(''),
+        shape: FullBottomConcaveAppBarShape(curveHeight: 20.0),
+        backgroundColor: colorScheme.primary,
         foregroundColor: colorScheme.onSurface,
+        centerTitle: true,
         actions: [ // 添加刷新按鈕以便測試
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -270,8 +274,8 @@ class _ShippingSettingsPageState extends State<ShippingSettingsPage> {
         onPressed: () => _navigateToUpsertShippingOptionPage(),
         label: const Text('新增運送方式'),
         icon: const Icon(Icons.add_circle_outline),
-        backgroundColor: colorScheme.primaryContainer,
-        foregroundColor: colorScheme.onPrimaryContainer,
+        backgroundColor: colorScheme.secondary,
+        foregroundColor: colorScheme.onSecondary,
         elevation: 4,
       ) : null,
     );

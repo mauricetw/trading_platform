@@ -1,12 +1,8 @@
-// lib/screens/seller/product_management_screen.dart
 import 'package:flutter/material.dart';
-
-// 確保引入您的 Product 模型和 User 模型
 import '../../models/product/product.dart';
 import '../../models/user/user.dart'; // 假設您需要用戶信息來獲取其商品
-
-// 引入您的商品上傳/編輯頁面
 import './upload.dart'; // 確保路徑正確 (相對於此文件)
+import '../../widgets/FullBottomConcaveAppBarShape.dart';
 
 class ProductManagementScreen extends StatefulWidget {
   final User currentUser; // 假設需要當前用戶來獲取其商品
@@ -36,7 +32,6 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
     await Future.delayed(const Duration(seconds: 1)); // 模擬網絡延遲
 
     // --- 模擬數據 ---
-    // 為了演示，我們讓一些商品的初始狀態不同
     _sellerProducts = List.generate(
       5,
           (index) => Product(
@@ -52,7 +47,7 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
         category: index % 2 == 0 ? '電子產品' : '家居用品',
         categoryId: index + 1,
         stockQuantity: 10 + index * 5,
-        isSold: index == 3, // 假設第4個商品已售出
+        isSold: index == 3,
         // 初始狀態：偶數索引 'available', 奇數索引 'unavailable', 如果已售出則 'sold_out'
         status: index == 3
             ? 'sold_out'
@@ -204,11 +199,14 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
     final colorScheme = theme.colorScheme;
 
     return Scaffold(
+
       appBar: AppBar(
-        title: const Text('我的商品管理'),
+        shape: FullBottomConcaveAppBarShape(curveHeight: 20.0),
+        title: const Text(''),
         backgroundColor: colorScheme.primary, // 使用 ColorScheme
         foregroundColor: colorScheme.onPrimary, // 使用 ColorScheme
         elevation: 2.0,
+        centerTitle: true,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
