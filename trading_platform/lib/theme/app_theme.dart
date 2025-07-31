@@ -8,6 +8,26 @@ const Color accentGreenSlightlyMuted = Color(0xFF50E0A0); // 稍微柔和的綠�
 const Color neutralGray = Color(0xFFD1D6E2);
 const Color lightBackground = Color(0xFFEBEBEB);
 
+const Color darkBlue = Color(0xFF304F6D);
+const Color grayGreen = Color(0xFF899481);
+const Color slightOrange = Color(0xFFE07D54);
+const Color lightYellow = Color(0xFFFFFCF3);
+const Color lightBlue = Color(0xFFE2F3FD);
+const Color lightBrown = Color(0xFFE6E1DD);
+
+final ColorScheme primaryCS = ColorScheme(
+    brightness: Brightness.light,
+    primary: primaryBlue,
+    onPrimary: Colors.white,
+    secondary: accentOrange,
+    onSecondary: Colors.white,
+    error: Colors.redAccent,
+    onError: Colors.black38,
+    surface: neutralGray,
+    onSurface: darkBlue
+);
+
+
 final ColorScheme lightColorScheme = ColorScheme(
 
   brightness: Brightness.light,
@@ -30,12 +50,12 @@ final ColorScheme lightColorScheme = ColorScheme(
   onError: Colors.white,
   errorContainer: const Color(0xFFFCD8DF),
   onErrorContainer: const Color(0xFF141213),
-  surface: Colors.white, // 卡片等使用純白，更突出
+  surface: const Color(0xFFD1D6E2), // 卡片等使用純白，更突出
   onSurface: Colors.black87,
   surfaceContainerHighest: neutralGray,
   onSurfaceVariant: Colors.black54,
 
-  outline: neutralGray.withOpacity(0.7),
+  outline: accentOrange,
   outlineVariant: neutralGray.withOpacity(0.4),
 
   shadow: Colors.black.withOpacity(0.1),
@@ -47,7 +67,6 @@ final ColorScheme lightColorScheme = ColorScheme(
 );
 
 // --- 深色主題 ColorScheme ---
-// 在深色主題中，我們會反轉亮度和顏色的飽和度/明度
 final ColorScheme darkColorScheme = ColorScheme(
   brightness: Brightness.dark,
 

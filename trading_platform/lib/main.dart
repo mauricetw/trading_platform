@@ -5,10 +5,10 @@ import 'providers/auth_provider.dart';
 import 'providers/wishlist_item.dart';
 import 'providers/category_provider.dart';
 import 'models/user/user.dart';
-import 'screens/seller/store_management.dart';
 import 'theme/app_theme.dart';
 
 void main() {
+
   runApp(
     // 使用 MultiProvider 替換單個 ChangeNotifierProvider
     MultiProvider(
@@ -162,6 +162,7 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Trading Platform',

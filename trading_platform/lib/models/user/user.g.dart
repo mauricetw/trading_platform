@@ -31,6 +31,10 @@ User _$UserFromJson(Map<String, dynamic> json) => User(
           ?.map((e) => e as String)
           .toList() ??
       [],
+  publicDisplayName: json['public_display_name'] as String?,
+  publicBio: json['public_bio'] as String?,
+  publicCoverPhotoUrl: json['public_cover_photo_url'] as String?,
+  isSchoolPublic: json['is_school_public'] as bool? ?? false,
 );
 
 Map<String, dynamic> _$UserToJson(User instance) => <String, dynamic>{
@@ -51,4 +55,8 @@ Map<String, dynamic> _$UserToJson(User instance) => <String, dynamic>{
   'sellerRating': instance.sellerRating,
   'productCount': instance.productCount,
   'favoriteProductIds': instance.favoriteProductIds,
+  'public_display_name': instance.publicDisplayName,
+  'public_bio': instance.publicBio,
+  'public_cover_photo_url': instance.publicCoverPhotoUrl,
+  'is_school_public': instance.isSchoolPublic,
 };

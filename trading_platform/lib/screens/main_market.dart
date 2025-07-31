@@ -1,11 +1,14 @@
+// main_market.dart
 import 'package:flutter/material.dart';
 import 'search.dart';
 import 'annoucement.dart';
-import 'profile.dart';
+import 'user/profile.dart';
 import 'chatlist/chat_list.dart';
 import 'home_page.dart';
 import '../models/user/user.dart';
-import '../widgets/market_search_bar.dart'; // <--- Import the new search bar widget
+import '../widgets/market_search_bar.dart';
+import 'package:first_flutter_project/theme/app_theme.dart'; // 導入包含 MyThemesExtension 的文件
+
 
 class MainMarket extends StatefulWidget {
   const MainMarket({super.key});
@@ -18,7 +21,7 @@ class MainMarket extends StatefulWidget {
 }
 
 class _MainMarketState extends State<MainMarket> {
-  final TextEditingController _marketSearchController = TextEditingController(); // Renamed for clarity
+  final TextEditingController _marketSearchController = TextEditingController();
   int _currentIndex = 0;
   final PageController _pageController = PageController(initialPage: 0);
 
@@ -29,13 +32,13 @@ class _MainMarketState extends State<MainMarket> {
     super.dispose();
   }
 
-  void _navigateToMarketSearchPage() { // Renamed for clarity
+  void _navigateToMarketSearchPage() {
     String searchText = _marketSearchController.text;
     if (searchText.isNotEmpty) {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => SearchPage(searchText: searchText), // Assuming SearchPage is for market search
+          builder: (context) => SearchPage(searchText: searchText),
         ),
       );
     } else {
@@ -61,6 +64,7 @@ class _MainMarketState extends State<MainMarket> {
 
   @override
   Widget build(BuildContext context) {
+
     final User dummyUser = User(
       id: 'test_user_id',
       username: '測試用戶',
@@ -71,44 +75,53 @@ class _MainMarketState extends State<MainMarket> {
       schoolName: '測試大學',
     );
 
-    // Determine if the market search bar should be visible
-    bool showMarketSearchBar = _currentIndex == 0; // Show only for the first tab (HomePage)
+    bool showMarketSearchBar = _currentIndex == 0;
 
     return Scaffold(
+      // 現在你可以使用 primaryCS 中的顏色了
+      // 例如，如果你想讓 Scaffold 的背景色來自你的 primaryCS:
+      // backgroundColor: primaryCS.background,
+
       body: Column(
         children: [
-          // Conditionally display the MarketSearchBar
           if (showMarketSearchBar)
             MarketSearchBar(
               controller: _marketSearchController,
               onSubmitted: (_) => _navigateToMarketSearchPage(),
+              // 你可以將 primaryCS 或其顏色傳遞給 MarketSearchBar (如果它接受的話)
+              // 例如： searchBarBackgroundColor: primaryCS.surface,
             ),
           Expanded(
             child: PageView(
               controller: _pageController,
               onPageChanged: _onPageChanged,
-              physics: const NeverScrollableScrollPhysics(), // Optional: Disable swipe if you only want bottom nav control
+              physics: const NeverScrollableScrollPhysics(),
               children: [
-                const HomePage(),
+                // 假設 HomePage 也想使用 primaryCS，它內部也需要類似的獲取邏輯
+                // 或者你將 primaryCS 作為參數傳遞下去
+                const HomePage(/* customScheme: primaryCS */),
                 const ChatListScreen(),
                 const AnnouncementListScreen(),
-                Profile(currentUser: dummyUser),
+                Profile(currentUser: dummyUser /*, customScheme: primaryCS */),
               ],
             ),
           ),
         ],
       ),
       bottomNavigationBar: Container(
-        // ... (your existing BottomNavigationBar Container decoration)
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF004E98), Color(0xFF004198)],
+          // 使用 primaryCS 中的顏色來定義漸變
+          gradient: LinearGradient(
+            colors: [
+              primaryCS.primary, // 例如使用 primaryCS.primary
+              primaryCS.primary
+            ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: primaryCS.shadow?.withOpacity(0.1) ?? Colors.black.withOpacity(0.1), // 使用 primaryCS 中的陰影色
               blurRadius: 10,
               offset: const Offset(0, -2),
             ),
@@ -118,9 +131,13 @@ class _MainMarketState extends State<MainMarket> {
           currentIndex: _currentIndex,
           onTap: _onItemTapped,
           type: BottomNavigationBarType.fixed,
-          backgroundColor: Colors.transparent,
-          selectedItemColor: Colors.white,
-          unselectedItemColor: Colors.white.withOpacity(0.7),
+          backgroundColor: Colors.transparent, // 因為背景由 Container 的 gradient 提供
+          // selectedItemColor: primaryCS.onPrimary, // 選中項的顏色，來自 primaryCS
+          // unselectedItemColor: primaryCS.onPrimary.withOpacity(0.7), // 未選中項的顏色
+          selectedItemColor: primaryCS.secondary, // 或者使用 primaryCS.secondary
+          unselectedItemColor: primaryCS.onSecondary,
+
+
           selectedFontSize: 12,
           unselectedFontSize: 12,
           elevation: 0,
