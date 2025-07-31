@@ -1,6 +1,6 @@
-import 'package:first_flutter_project/screens/auth/reset_password.dart';
+import 'package:first_flutter_project/screens/auth/forget_password.dart';
 import 'package:flutter/material.dart';
-import 'package:first_flutter_project/services/api_service.dart';
+import 'package:first_flutter_project/services/api_service.dart';  // 確保這個路徑正確
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:first_flutter_project/screens/main_market.dart';
 
@@ -36,11 +36,11 @@ class _SignInPageState extends State<SignInPage> {
   final TextEditingController _passwordController = TextEditingController();
   String _usernameError = '';
   String _passwordError = '';
-  String _serverError = ''; // 新增服務器錯誤信息
-  final ApiService apiService = ApiService();
+  String _serverError = '';
+  final ApiService apiService = ApiService();  // 使用新的 ApiService
 
   bool _isLoading = false;
-  bool _hasAttemptedLogin = false; // 追蹤是否已嘗試登入
+  bool _hasAttemptedLogin = false;
 
   @override
   void dispose() {
@@ -51,10 +51,10 @@ class _SignInPageState extends State<SignInPage> {
 
   void _validateInputs() {
     setState(() {
-      _hasAttemptedLogin = true; // 標記已嘗試登入
+      _hasAttemptedLogin = true;
       _usernameError = _usernameController.text.isEmpty ? '使用者帳號不能為空' : '';
       _passwordError = _passwordController.text.isEmpty ? '密碼不能為空' : '';
-      _serverError = ''; // 清除服務器錯誤信息
+      _serverError = '';
     });
 
     if (_usernameError.isEmpty && _passwordError.isEmpty) {
@@ -75,13 +75,12 @@ class _SignInPageState extends State<SignInPage> {
 
       if (response["success"]) {
         Map<String, dynamic> data = response["data"];
-        String token = data["token"] ?? "No token";
 
-        // 移除生產環境的 print 語句
-        // print("Login Successful! Token: $token");
+        // 根據後端的實際回應結構調整這裡
+        String token = data["access_token"] ?? data["token"] ?? "No token";
 
-        final String id = data["id"];
-        // print(id);
+        print("Login Successful! Token: $token");
+        print("Response data: $data");
 
         // 儲存 Token
         SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -92,14 +91,14 @@ class _SignInPageState extends State<SignInPage> {
             const SnackBar(content: Text("Login Successful!")),
           );
 
-          // 跳轉到主頁面，使用pushReplacement避免用戶按返回鍵回到登入頁面
+          // 跳轉到主頁面
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (context) => const MainMarket()),
           );
         }
       } else {
-        // 設置服務器錯誤信息
+        // 處理登入失敗
         if (mounted) {
           setState(() {
             String errorMessage = response["error"] ?? "Login failed.";
@@ -114,7 +113,7 @@ class _SignInPageState extends State<SignInPage> {
         }
       }
     } catch (e) {
-      // print("Login failed: $e");
+      print("Login failed: $e");
       if (mounted) {
         setState(() {
           _serverError = "登入失敗，請稍後再試";
@@ -239,7 +238,7 @@ class _SignInPageState extends State<SignInPage> {
                                   ),
                                 ),
 
-                                // 錯誤訊息 - 只有在嘗試登入後才顯示
+                                // 錯誤訊息
                                 if (_hasAttemptedLogin && _usernameError.isNotEmpty)
                                   Padding(
                                     padding: const EdgeInsets.only(top: 8.0),
@@ -261,7 +260,7 @@ class _SignInPageState extends State<SignInPage> {
 
                                 const SizedBox(height: 20),
 
-                                // 服務器錯誤信息 - 只有在有錯誤時才顯示
+                                // 服務器錯誤信息
                                 if (_serverError.isNotEmpty)
                                   Padding(
                                     padding: const EdgeInsets.only(bottom: 8.0),
@@ -276,7 +275,7 @@ class _SignInPageState extends State<SignInPage> {
                                 // 使用 Spacer 來推送登入按鈕到底部
                                 const Spacer(),
 
-                                // 登入按鈕，增加了載入狀態
+                                // 登入按鈕
                                 Center(
                                   child: ElevatedButton(
                                     onPressed: _isLoading ? null : _validateInputs,
@@ -306,7 +305,7 @@ class _SignInPageState extends State<SignInPage> {
 
                                 const SizedBox(height: 16),
 
-                                // 忘記密碼
+                                // 底部提示
                                 const Center(
                                   child: Text(
                                     '發生問題請點此處',
@@ -314,7 +313,7 @@ class _SignInPageState extends State<SignInPage> {
                                   ),
                                 ),
 
-                                const SizedBox(height: 20), // 底部間距
+                                const SizedBox(height: 20),
                               ],
                             ),
                           ),

@@ -55,9 +55,9 @@ class _SignUpPageState extends State<SignUpPage> {
     if (!mounted) return;
 
     setState(() {
-      _isLoading = true;  // 顯示加載動畫
-      _errorMessage = ''; // 清空錯誤訊息
-      _hasErrors = false; // 重置错误状态
+      _isLoading = true;
+      _errorMessage = '';
+      _hasErrors = false;
     });
 
     String username = _usernameController.text.trim();
@@ -65,28 +65,50 @@ class _SignUpPageState extends State<SignUpPage> {
     String password = _passwordController.text.trim();
     String confirmPassword = _confirmPasswordController.text.trim();
 
+    // 基本驗證
+    if (username.isEmpty || email.isEmpty || password.isEmpty) {
+      setState(() {
+        _isLoading = false;
+        _hasErrors = true;
+        _errorMessage = "請填寫所有必填欄位";
+      });
+      return;
+    }
+
     if (password != confirmPassword) {
       setState(() {
         _isLoading = false;
         _hasErrors = true;
-        _errorMessage = "Passwords do not match";
+        _errorMessage = "密碼不一致";
       });
       return;
     }
 
     try {
-      final response = await apiService.registerUser(username, email, password);
+      final response = await apiService.registerUser(
+        username: username,
+        email: email,
+        password: password,
+      );
 
       if (!mounted) return;
 
-      _showSuccessDialog(response['message']);
+      if (response['success']) {
+        _showSuccessDialog(response['data']?['message'] ?? '註冊成功！');
+      } else {
+        setState(() {
+          _isLoading = false;
+          _hasErrors = true;
+          _errorMessage = response['error'] ?? '註冊失敗';
+        });
+      }
     } catch (e) {
       if (!mounted) return;
 
       setState(() {
         _isLoading = false;
         _hasErrors = true;
-        _errorMessage = e.toString();
+        _errorMessage = '註冊時發生錯誤: $e';
       });
     }
   }
@@ -97,12 +119,12 @@ class _SignUpPageState extends State<SignUpPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Error"),
+        title: const Text("錯誤"),
         content: Text(message),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("OK"),
+            child: const Text("確定"),
           ),
         ],
       ),
@@ -115,7 +137,7 @@ class _SignUpPageState extends State<SignUpPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Success"),
+        title: const Text("成功"),
         content: Text(message),
         actions: [
           TextButton(
@@ -126,7 +148,7 @@ class _SignUpPageState extends State<SignUpPage> {
                 MaterialPageRoute(builder: (context) => const SignInPage()),
               );
             },
-            child: const Text("OK"),
+            child: const Text("確定"),
           ),
         ],
       ),
@@ -137,10 +159,19 @@ class _SignUpPageState extends State<SignUpPage> {
   void _getVerificationCode() {
     if (_isCountingDown) return;
 
+    String email = _emailController.text.trim();
+    if (email.isEmpty) {
+      _showErrorDialog('請先輸入電子信箱');
+      return;
+    }
+
     setState(() {
       _isCountingDown = true;
       _countdown = 60;
     });
+
+    // 這裡可以加入實際的發送驗證碼 API 呼叫
+    // 例如：apiService.sendVerificationCode(email);
 
     // 开始倒计时
     _startCountdown();
@@ -319,6 +350,7 @@ class _SignUpPageState extends State<SignUpPage> {
                         ),
                         child: TextFormField(
                           controller: _emailController,
+                          keyboardType: TextInputType.emailAddress,
                           decoration: const InputDecoration(
                             border: InputBorder.none,
                             contentPadding: EdgeInsets.symmetric(
@@ -379,8 +411,8 @@ class _SignUpPageState extends State<SignUpPage> {
                               ),
                               child: Text(
                                 _isCountingDown ? '${_countdown}s' : '發送信件',
-                                style: const TextStyle(
-                                  color: Colors.black,
+                                style: TextStyle(
+                                  color: _isCountingDown ? Colors.grey : Colors.black,
                                   fontSize: 14,
                                   fontWeight: FontWeight.w500,
                                 ),
@@ -392,33 +424,22 @@ class _SignUpPageState extends State<SignUpPage> {
                       const SizedBox(height: 30),
 
                       // 错误提示区域
-                      if (_hasErrors)
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
-                            Text(
-                              '• 使用者帳號規範不正確',
-                              style: TextStyle(color: Colors.red, fontSize: 14),
-                            ),
-                            Text(
-                              '• 使用者帳號已存在',
-                              style: TextStyle(color: Colors.red, fontSize: 14),
-                            ),
-                            Text(
-                              '• 密碼規範不正確',
-                              style: TextStyle(color: Colors.red, fontSize: 14),
-                            ),
-                            Text(
-                              '• 密碼與上面不同',
-                              style: TextStyle(color: Colors.red, fontSize: 14),
-                            ),
-                            Text(
-                              '• 驗證碼錯誤',
-                              style: TextStyle(color: Colors.red, fontSize: 14),
-                            ),
-                            SizedBox(height: 20),
-                          ],
+                      if (_hasErrors && _errorMessage.isNotEmpty)
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.red.shade200),
+                          ),
+                          child: Text(
+                            _errorMessage,
+                            style: const TextStyle(color: Colors.red, fontSize: 14),
+                          ),
                         ),
+
+                      if (_hasErrors && _errorMessage.isNotEmpty)
+                        const SizedBox(height: 20),
 
                       // 註冊按钮
                       Center(
@@ -458,6 +479,7 @@ class _SignUpPageState extends State<SignUpPage> {
                         child: TextButton(
                           onPressed: () {
                             // 处理问题的逻辑
+                            _showErrorDialog('如有問題，請聯繫客服');
                           },
                           child: const Text(
                             '發生問題請點選此處',

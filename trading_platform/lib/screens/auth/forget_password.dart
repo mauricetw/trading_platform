@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:first_flutter_project/services/api_service.dart';
+import 'package:first_flutter_project/screens/auth/reset_password_confirm.dart';
 
 class AccountVerificationPage extends StatefulWidget {
   const AccountVerificationPage({super.key});
@@ -10,40 +12,88 @@ class AccountVerificationPage extends StatefulWidget {
 class _AccountVerificationPageState extends State<AccountVerificationPage> {
   final TextEditingController _accountController = TextEditingController();
   bool _showError = false;
+  bool _isLoading = false;
+  String _errorMessage = '';
+  final ApiService apiService = ApiService();
 
-  // 模擬驗證帳號
-  void _verifyAccountAndProceed() {
+  void _verifyAccountAndProceed() async {
     final account = _accountController.text.trim();
 
     if (account.isEmpty) {
       setState(() {
         _showError = true;
+        _errorMessage = '請輸入使用者帳號或電子信箱';
       });
       return;
     }
 
-    // 這裡應該有實際的API調用來驗證帳號
-    // 模擬驗證成功的情況
-    if (account == "123456" || account.contains('@')) {
-      // 驗證成功，跳轉到密碼重設頁面
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => PasswordResetConfirmPage(userId: account),
-        ),
-      );
-    } else {
-      // 驗證失敗，顯示錯誤
+    setState(() {
+      _showError = false;
+      _isLoading = true;
+      _errorMessage = '';
+    });
+
+    try {
+      // 判斷輸入的是帳號還是信箱
+      String loginField = account;
+
+      // 呼叫忘記密碼 API
+      final response = await apiService.forgotPassword(loginField);
+
+      if (!mounted) return;
+
+      if (response['success']) {
+        // 成功：顯示成功訊息並跳轉到下一頁
+        _showSuccessDialog();
+      } else {
+        // 失敗：顯示錯誤訊息
+        setState(() {
+          _showError = true;
+          _errorMessage = response['error'] ?? '帳號或信箱不存在';
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+
       setState(() {
         _showError = true;
+        _errorMessage = '網路連線錯誤，請稍後再試';
+        _isLoading = false;
       });
     }
+  }
+
+  void _showSuccessDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('發送成功'),
+          content: const Text('密碼重設信件已發送到您的電子信箱，請查收。'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // 關閉對話框
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => PasswordResetPage(userId: _accountController.text.trim()),
+                  ),
+                );
+              },
+              child: const Text('確定'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color.fromRGBO(255, 255, 255, 1), // 淺灰色背景
+      backgroundColor: const Color.fromRGBO(255, 255, 255, 1),
       body: SafeArea(
         child: Center(
           child: Container(
@@ -63,13 +113,12 @@ class _AccountVerificationPageState extends State<AccountVerificationPage> {
                     padding: const EdgeInsets.only(top: 16, left: 16),
                     child: ElevatedButton.icon(
                       onPressed: () {
-                        // 返回上一頁
                         Navigator.pop(context);
                       },
                       icon: const Icon(Icons.arrow_back, color: Colors.white),
                       label: const Text('返回', style: TextStyle(color: Colors.white)),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0D47A1), // 深藍色按鈕
+                        backgroundColor: const Color(0xFF0D47A1),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(20),
                         ),
@@ -96,6 +145,7 @@ class _AccountVerificationPageState extends State<AccountVerificationPage> {
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: TextField(
                     controller: _accountController,
+                    enabled: !_isLoading, // 載入時禁用輸入
                     decoration: InputDecoration(
                       hintText: '輸入使用者帳號或電子信箱',
                       hintStyle: const TextStyle(
@@ -119,10 +169,10 @@ class _AccountVerificationPageState extends State<AccountVerificationPage> {
                     ),
                     style: const TextStyle(color: Colors.white),
                     onChanged: (value) {
-                      // 當輸入改變時，重設錯誤訊息
                       if (_showError) {
                         setState(() {
                           _showError = false;
+                          _errorMessage = '';
                         });
                       }
                     },
@@ -130,24 +180,37 @@ class _AccountVerificationPageState extends State<AccountVerificationPage> {
                 ),
 
                 // 錯誤訊息
-                if (_showError)
+                if (_showError && _errorMessage.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 8, left: 24),
                     child: Align(
                       alignment: Alignment.centerLeft,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
-                          Text(
-                            '*帳號不存在',
-                            style: TextStyle(color: Colors.red, fontSize: 12),
-                          ),
-                          Text(
-                            '*電子信箱未註冊',
-                            style: TextStyle(color: Colors.red, fontSize: 12),
-                          ),
-                        ],
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: Colors.red.shade200),
+                        ),
+                        child: Text(
+                          _errorMessage,
+                          style: const TextStyle(color: Colors.red, fontSize: 12),
+                        ),
                       ),
+                    ),
+                  ),
+
+                // 說明文字
+                if (!_showError)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12, left: 24, right: 24),
+                    child: Text(
+                      '我們會發送密碼重設連結到您的電子信箱',
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontSize: 12,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
                   ),
 
@@ -156,16 +219,25 @@ class _AccountVerificationPageState extends State<AccountVerificationPage> {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 40),
                   child: ElevatedButton(
-                    onPressed: _verifyAccountAndProceed,
+                    onPressed: _isLoading ? null : _verifyAccountAndProceed,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFF9800), // 橙色按鈕
+                      backgroundColor: const Color(0xFFFF9800),
                       minimumSize: const Size(120, 40),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20),
                       ),
                     ),
-                    child: const Text(
-                      '確認',
+                    child: _isLoading
+                        ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                        : const Text(
+                      '發送重設信件',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 16,
@@ -176,11 +248,19 @@ class _AccountVerificationPageState extends State<AccountVerificationPage> {
                 ),
 
                 // 底部文字
-                const Text(
-                  '沒有收到？重新發送',
-                  style: TextStyle(
-                    color: Colors.black54,
-                    fontSize: 12,
+                TextButton(
+                  onPressed: _isLoading ? null : () {
+                    // 重新發送邏輯
+                    if (_accountController.text.trim().isNotEmpty) {
+                      _verifyAccountAndProceed();
+                    }
+                  },
+                  child: const Text(
+                    '沒有收到？重新發送',
+                    style: TextStyle(
+                      color: Colors.black54,
+                      fontSize: 12,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -196,53 +276,5 @@ class _AccountVerificationPageState extends State<AccountVerificationPage> {
   void dispose() {
     _accountController.dispose();
     super.dispose();
-  }
-}
-
-// 您需要創建這個密碼重設確認頁面
-class PasswordResetConfirmPage extends StatelessWidget {
-  final String userId;
-
-  const PasswordResetConfirmPage({
-    super.key,
-    required this.userId,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('密碼重設確認'),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text(
-              '驗證成功！',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              '帳號：$userId',
-              style: const TextStyle(fontSize: 16),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              '請檢查您的電子信箱以重設密碼',
-              style: TextStyle(fontSize: 16),
-            ),
-            const SizedBox(height: 40),
-            ElevatedButton(
-              onPressed: () {
-                // 返回到登入頁面或其他頁面
-                Navigator.pop(context);
-              },
-              child: const Text('返回'),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
