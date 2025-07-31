@@ -8,9 +8,12 @@
    在cmd中執行
 	-	 	python -m venv venv  #安裝虛擬機
 	-	  venv\Scripts\activate  #啟動虛擬機
+
+4. 更新 pip 套件：
+	 -	 	pip install --upgrade pip
  
-4. 安裝 FastAPI、Uvicorn、MySQL、provider 相關套件：
-	 -	 	pip install fastapi uvicorn sqlalchemy mysql-connector-python python-multipart passlib[bcrypt]
+5. 安裝 requirements.txt 中所有套件：
+	 -	 	pip install -r requirements.txt
 
    fastapi：主框架
    
@@ -25,76 +28,6 @@
    passlib[bcrypt]：密碼加密（註冊/登入用）
 
    provider： 狀態管理，版本 ^6.0.5
-
-5. 建立基本專案結構：
-
-	> /trading_backend/
- 	> 
-	> │
- 	> 
-	> ├── main.py               # FastAPI 主入口
- 	> 
-	> ├── requirements.txt      # 專案用到的所有Python套件
- 	> 
-	> │
- 	> 
-	> ├── database/
- 	> 
-	> │   ├── __init__.py        # SQLAlchemy資料庫連線設定
- 	> 
-	> │
- 	> 
-	> ├── models/
- 	> 
-	> │   ├── __init__.py
- 	> 
-	> │   ├── user.py            # User資料表模型
- 	> 
-	> │   ├── product.py         # Product資料表模型
- 	> 
-	> │   ├── order.py           # Order資料表模型
- 	> 
-	> │
- 	> 
-	> ├── schemas/
- 	> 
-	> │   ├── __init__.py
- 	> 
-	> │   ├── user_schema.py     # User資料表用到的資料結構
- 	> 
-	> │   ├── product_schema.py  # Product資料表用到的資料結構
- 	> 
-	> │   ├── order_schema.py    # Order資料表用到的資料結構
- 	> 
-	> │
- 	> 
-	> ├── routers/
- 	> 
-	> │   ├── __init__.py
- 	> 
-	> │   ├── auth.py            # 登入/註冊/忘記密碼/重設密碼功能
- 	> 
-	> │   ├── product.py         # 商品相關API
- 	> 
-	> │   ├── order.py           # 訂單相關API
- 	> 
-	> │
- 	> 
-	> ├── utils/
- 	> 
-	> │   ├── __init__.py
- 	> 
-	> │   ├── hashing.py         # 密碼加密驗證
- 	> 
-	> │   ├── token.py           # 重設密碼的token生成與驗證
- 	> 
-	> │
- 	> 
-	> ├── mail_config.py         # 發送email相關設定
- 	> 
-	> │
- 	> 
-	> └── .env                   # 環境變數設定（如資料庫帳密）
 
 
  - schema:用來描述資料庫內中的表格結構、欄位格式以及記載每個表格中的關聯。當你日後要寫入的資料不符合 Schema 的規範時，那就會出現錯誤。
