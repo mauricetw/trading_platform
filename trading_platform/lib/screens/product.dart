@@ -1,14 +1,26 @@
 import 'package:flutter/material.dart';
-// 假設你可能還會用到日期或價格格式化
-import '../models/product/product.dart'; // 您的 Product model 路徑
-import '../models/user/user.dart';      // 您的 User model 路徑
+import '../models/product/product.dart';
+import '../models/user/user.dart';
+import 'user/public_profile.dart';
 import 'cart.dart';
 
-// 假設的跳轉函式，你需要實現它
+
 void navigateToSellerProfile(BuildContext context, User seller) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text('跳轉到賣家 ${seller.username} 的個人資料頁面')),
-  );
+  // 確保 seller 對象和 seller.id 是有效的
+  if (seller.id.isNotEmpty) { // 通常 id 不會是空的，但檢查一下更安全
+    print('Navigating to seller profile: ${seller.id} - ${seller.username}');
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PublicUserProfilePage(userId: seller.id),
+      ),
+    );
+  } else {
+    print('Error: Seller ID is empty, cannot navigate.');
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('無法獲取賣家資訊，請稍後再試')),
+    );
+  }
 }
 
 class ProductScreen extends StatefulWidget {
@@ -22,9 +34,6 @@ class ProductScreen extends StatefulWidget {
 
 class _ProductScreenState extends State<ProductScreen> {
   bool _isLiked = false;
-
-  // _buildRatingStars 函式現在可以被移除，因為我們不再顯示賣家評分
-  // 或者保留它，以備將來可能需要顯示商品自身的評分
 
   @override
   Widget build(BuildContext context) {

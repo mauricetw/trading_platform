@@ -18,7 +18,7 @@ Message _$MessageFromJson(Map<String, dynamic> json) => Message(
   fileUrl: json['fileUrl'] as String?,
   fileName: json['fileName'] as String?,
   fileSize: (json['fileSize'] as num?)?.toInt(),
-  timestamp: _dateTimeFlexibleFromJson(json['timestamp']),
+  timestamp: _dateTimeFromJson(json['timestamp'] as String),
   type:
       json['type'] == null
           ? MessageType.text
@@ -40,7 +40,7 @@ Map<String, dynamic> _$MessageToJson(Message instance) => <String, dynamic>{
   'fileUrl': instance.fileUrl,
   'fileName': instance.fileName,
   'fileSize': instance.fileSize,
-  'timestamp': _dateTimeToTimestamp(instance.timestamp),
+  'timestamp': _dateTimeToJson(instance.timestamp),
   'type': _messageTypeToString(instance.type),
   'isRead': instance.isRead,
   'isEdited': instance.isEdited,

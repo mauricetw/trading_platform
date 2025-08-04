@@ -1,5 +1,4 @@
 import 'package:json_annotation/json_annotation.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 part 'message.g.dart';
 
@@ -29,42 +28,28 @@ String _messageTypeToString(MessageType type) {
   return type.toString().split('.').last;
 }
 
-// Helper functions for Firebase Timestamp conversion (or general DateTime)
-// DateTime _dateTimeFromTimestamp(Timestamp timestamp) => timestamp.toDate(); // 如果只處理 Timestamp
-// Timestamp _dateTimeToTimestamp(DateTime dateTime) => Timestamp.fromDate(dateTime); // 如果只處理 Timestamp
-
-// Flexible DateTime deserializer (handles Timestamp or ISO String)
-DateTime _dateTimeFlexibleFromJson(dynamic jsonValue) {
-  if (jsonValue is Timestamp) {
-    return jsonValue.toDate();
+// --- DateTime Helpers for standard JSON (ISO 8601 String) ---
+DateTime _dateTimeFromJson(String isoString) {
+  try {
+    return DateTime.parse(isoString);
+  } catch (e) {
+    // Handle parsing error, e.g., return a default or rethrow
+    print('Error parsing DateTime from string "$isoString": $e. Using current time.');
+    return DateTime.now(); // Or throw FormatException('Invalid date format: $isoString');
   }
-  if (jsonValue is String) {
-    // 嘗試解析，如果失敗或為空，則返回當前時間或拋出錯誤
-    // 這裡的 DateTime.now() 是一個回退，您可能希望更嚴格地處理錯誤
-    return DateTime.tryParse(jsonValue) ?? DateTime.now();
-  }
-  // 如果類型不是 Timestamp 或 String，決定如何處理
-  // 例如，拋出一個格式異常，或者返回一個默認值
-  print('Warning: Unexpected type for timestamp: ${jsonValue.runtimeType}. Using current time.');
-  return DateTime.now(); // 或者 throw FormatException('Invalid type for timestamp: ${jsonValue.runtimeType}');
 }
 
-// DateTime serializer (converts DateTime to Timestamp for Firestore)
-Timestamp _dateTimeToTimestamp(DateTime dateTime) {
-  return Timestamp.fromDate(dateTime);
+String _dateTimeToJson(DateTime dateTime) {
+  return dateTime.toIso8601String();
 }
-// 如果您的 API 期望 ISO 字符串：
-// String _dateTimeToIsoString(DateTime dateTime) {
-//   return dateTime.toIso8601String();
-// }
+// --- End DateTime Helpers ---
 
 
 @JsonSerializable(explicitToJson: true)
 class Message {
-  // id 仍然是 final，但構造函數中變為可選，由 fromFirestore 或 copyWith 設置
-  final String? id; // 改為可選 String?
+  // 'id' is optional and would typically come from your API response
+  final String? id;
 
-  // ... (其他字段保持不變) ...
   final String chatRoomId;
   final String senderId;
   final String receiverId;
@@ -77,8 +62,8 @@ class Message {
   final int? fileSize;
 
   @JsonKey(
-      fromJson: _dateTimeFlexibleFromJson,
-      toJson: _dateTimeToTimestamp
+      fromJson: _dateTimeFromJson, // Use the new helper
+      toJson: _dateTimeToJson      // Use the new helper
   )
   final DateTime timestamp;
 
@@ -99,7 +84,7 @@ class Message {
 
 
   Message({
-    this.id, // <--- 改為可選，不再是 required
+    this.id,
     required this.chatRoomId,
     required this.senderId,
     required this.receiverId,
@@ -119,21 +104,10 @@ class Message {
 
   factory Message.fromJson(Map<String, dynamic> json) => _$MessageFromJson(json);
 
-  factory Message.fromFirestore(DocumentSnapshot<Map<String, dynamic>> snapshot) {
-    final data = snapshot.data();
-    if (data == null) {
-      throw StateError('Missing data for Message ${snapshot.id}');
-    }
-    // _$MessageFromJson 會創建一個 Message 實例，其 id 為 null
-    final messageFromJson = _$MessageFromJson(data);
-    // 使用 copyWith (或直接構造新實例) 來設置 id
-    return messageFromJson.copyWith(id: snapshot.id);
-  }
-
   Map<String, dynamic> toJson() => _$MessageToJson(this);
 
   Message copyWith({
-    String? id, // copyWith 的 id 參數也應該是 String?
+    String? id,
     String? chatRoomId,
     String? senderId,
     String? receiverId,
@@ -149,10 +123,10 @@ class Message {
     bool? isRead,
     bool? isEdited,
     Map<String, dynamic>? metadata,
-    bool clearId = false, // 可選: 添加一個標記來顯式清除 id
+    bool clearId = false,
   }) {
     return Message(
-      id: clearId ? null : (id ?? this.id), // 在 copyWith 中處理 id
+      id: clearId ? null : (id ?? this.id),
       chatRoomId: chatRoomId ?? this.chatRoomId,
       senderId: senderId ?? this.senderId,
       receiverId: receiverId ?? this.receiverId,
@@ -171,8 +145,6 @@ class Message {
     );
   }
 }
-
-// ... (MessageType enum and helper functions remain the same) ...
 
 // Enum (no changes needed for json_serializable if using helper functions)
 enum MessageType {

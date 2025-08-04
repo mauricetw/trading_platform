@@ -7,6 +7,7 @@ part of 'chat_room.dart';
 // **************************************************************************
 
 ChatRoom _$ChatRoomFromJson(Map<String, dynamic> json) => ChatRoom(
+  id: json['id'] as String?,
   participantIds:
       (json['participantIds'] as List<dynamic>)
           .map((e) => e as String)
@@ -15,8 +16,8 @@ ChatRoom _$ChatRoomFromJson(Map<String, dynamic> json) => ChatRoom(
       json['lastMessage'] == null
           ? null
           : Message.fromJson(json['lastMessage'] as Map<String, dynamic>),
-  lastMessageTimestamp: _dateTimeFlexibleFromJsonOptional(
-    json['lastMessageTimestamp'],
+  lastMessageTimestamp: _dateTimeFromStringOptional(
+    json['lastMessageTimestamp'] as String?,
   ),
   unreadCounts: (json['unreadCounts'] as Map<String, dynamic>?)?.map(
     (k, e) => MapEntry(k, (e as num).toInt()),
@@ -24,9 +25,10 @@ ChatRoom _$ChatRoomFromJson(Map<String, dynamic> json) => ChatRoom(
 );
 
 Map<String, dynamic> _$ChatRoomToJson(ChatRoom instance) => <String, dynamic>{
+  'id': instance.id,
   'participantIds': instance.participantIds,
   'lastMessage': instance.lastMessage?.toJson(),
-  'lastMessageTimestamp': _dateTimeToTimestampOptional(
+  'lastMessageTimestamp': _dateTimeToStringOptional(
     instance.lastMessageTimestamp,
   ),
   'unreadCounts': instance.unreadCounts,

@@ -1,7 +1,6 @@
-// lib/models/product/product.dart
 import 'package:json_annotation/json_annotation.dart';
-import '../user/user.dart'; // 確保 User 類也已更新並使用了 json_serializable (如果它有 toJson/fromJson)
-import '../order/shipping_info.dart'; // 確保 ShippingInformation 也類似
+import '../user/user.dart';
+import '../order/shipping_info.dart';
 
 part 'product.g.dart'; // 需要這一行來鏈接生成的代碼
 

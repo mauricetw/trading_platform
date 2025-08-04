@@ -28,7 +28,7 @@ class Profile extends StatelessWidget {
         TextStyle? baseStyle,
       }) {
     final TextTheme textTheme = Theme.of(context).textTheme;
-    final TextStyle effectiveBaseStyle = baseStyle ?? textTheme.bodyLarge ?? const TextStyle(fontSize: 16.0, color: Colors.black87);
+    final TextStyle effectiveBaseStyle = baseStyle ?? textTheme.bodyLarge ?? const TextStyle(fontSize: 28.0, color: Colors.black87);
 
     return Text(
       text,
@@ -108,7 +108,7 @@ class Profile extends StatelessWidget {
         settingsButtonApproxHeight +
         desiredAvatarTopMarginFromSettingsBottom;
 
-    final double avatarRadius = 45.0;
+    final double avatarRadius = 60.0;
     final double infoRowHeightEstimate = (textTheme.titleMedium?.fontSize ?? 16.0) * 1.5;
     final double profileInfoContentHeightEstimate = (avatarRadius * 2) + 12.0 + infoRowHeightEstimate + 20.0;
     final double profileCurveHeight = 50.0;
@@ -138,14 +138,13 @@ class Profile extends StatelessWidget {
                           top: schoolCardContentTopPadding,
                           left: 20.0,
                           right: 20.0,
-                          bottom: 0.0,
                         ),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                vertical: 20.0,
+                                vertical: 10.0,
                                 horizontal: 16.0,
                               ),
                               child: Column(
@@ -157,6 +156,7 @@ class Profile extends StatelessWidget {
                                     baseStyle: textTheme.titleMedium,
                                     color: primaryCS.onSurface,
                                     fontWeight: FontWeight.w500,
+                                    fontSize: 20,
                                     textAlign: TextAlign.center,
                                   ),
                                   if ((user.schoolName != null && user.schoolName!.isNotEmpty) &&
@@ -167,10 +167,21 @@ class Profile extends StatelessWidget {
                                       context,
                                       userLocation,
                                       baseStyle: textTheme.bodyMedium,
+                                      fontSize: 20,
                                       color: primaryCS.onSurfaceVariant,
                                       textAlign: TextAlign.center,
                                     ),
                                 ],
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 24.0),
+                              child: Container(
+                                height: 4,
+                                decoration: BoxDecoration(
+                                  color: primaryCS.primary,
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
                               ),
                             ),
                           ],
@@ -254,7 +265,7 @@ class Profile extends StatelessWidget {
                                           child: _buildInfoText(
                                             context,
                                             user.username,
-                                            baseStyle: textTheme.titleMedium?.copyWith(fontSize: 16),
+                                            baseStyle: textTheme.titleMedium?.copyWith(fontSize: 20),
                                             color: primaryCS.onPrimary,
                                             fontWeight: FontWeight.w600,
                                             textAlign: TextAlign.center,
@@ -263,15 +274,15 @@ class Profile extends StatelessWidget {
                                         Padding(
                                           padding: const EdgeInsets.symmetric(horizontal: 8.0),
                                           child: Text(
-                                            "•",
-                                            style: TextStyle(color: primaryCS.onPrimary, fontSize: 14),
+                                            " | ",
+                                            style: TextStyle(color: primaryCS.onPrimary, fontSize: 20),
                                           ),
                                         ),
                                         Flexible(
                                           child: _buildInfoText(
                                             context,
                                             "ID: ${user.id ?? 'N/A'}",
-                                            baseStyle: textTheme.bodyMedium?.copyWith(fontSize: 18),
+                                            baseStyle: textTheme.bodyMedium?.copyWith(fontSize: 20),
                                             color: primaryCS.onPrimary,
                                             textAlign: TextAlign.center,
                                           ),
@@ -282,7 +293,7 @@ class Profile extends StatelessWidget {
                                   const SizedBox(width: 8), // 用戶名/ID 與箭頭之間的間距
                                   Icon(
                                     Icons.arrow_forward_ios,
-                                    size: 16,
+                                    size: 18,
                                     color: primaryCS.onPrimary,
                                   ),
                                 ],
@@ -302,16 +313,7 @@ class Profile extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 24.0),
-                        child: Container(
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: primaryCS.primary,
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                        ),
-                      ),
+
                       Padding(
                         padding: const EdgeInsets.only(bottom: 12.0),
                         child: Text(
@@ -349,13 +351,6 @@ class Profile extends StatelessWidget {
                       ),
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 24.0),
-                        child: Container(
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: primaryCS.primary,
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                        ),
                       ),
                       Padding(
                         padding: const EdgeInsets.only(bottom: 12.0),

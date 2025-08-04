@@ -1,55 +1,49 @@
 import 'package:json_annotation/json_annotation.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // 需要導入以處理 Timestamp (如果 lastMessageTimestamp 使用它)
-import 'message.dart'; // 確保路徑正確 (如果 Message.dart 在上一級目錄)
-// 或者 'message.dart' (如果在同一目錄)
+import 'message.dart'; // 確保 message.dart 已經更新為不使用 Firestore
 
 part 'chat_room.g.dart'; // 生成的文件名
 
-// 輔助函數 (與 Message 模型中的類似，如果 lastMessageTimestamp 使用 Timestamp)
-DateTime? _dateTimeFlexibleFromJsonOptional(dynamic jsonValue) {
-  if (jsonValue == null) return null;
-  if (jsonValue is Timestamp) {
-    return jsonValue.toDate();
+// --- DateTime Helpers for optional ISO 8601 String ---
+DateTime? _dateTimeFromStringOptional(String? isoString) {
+  if (isoString == null) return null;
+  try {
+    return DateTime.parse(isoString);
+  } catch (e) {
+    // Handle parsing error for optional fields, e.g., return null or log
+    print('Error parsing optional DateTime from string "$isoString": $e. Returning null.');
+    return null; // Or rethrow if strict parsing is needed
   }
-  if (jsonValue is String) {
-    return DateTime.tryParse(jsonValue);
-  }
-  return null; // 或者拋出錯誤，或者返回一個默認的 DateTime
 }
 
-Timestamp? _dateTimeToTimestampOptional(DateTime? dateTime) {
+String? _dateTimeToStringOptional(DateTime? dateTime) {
   if (dateTime == null) return null;
-  return Timestamp.fromDate(dateTime);
+  return dateTime.toIso8601String();
 }
-// 如果您的 API 期望 ISO 字符串：
-// String? _dateTimeToIsoStringOptional(DateTime? dateTime) {
-//   if (dateTime == null) return null;
-//   return dateTime.toIso8601String();
-// }
+// --- End DateTime Helpers ---
 
 
-@JsonSerializable(explicitToJson: true) // explicitToJson: true 因為包含了 Message 對象
+@JsonSerializable(explicitToJson: true) // explicitToJson: true because it includes Message objects
 class ChatRoom {
-  @JsonKey(includeFromJson: false, includeToJson: false) // 假設 id 也是來自 Firestore document ID
-  final String? id; // 改為可選，以便 fromJson 可以創建實例，然後由 fromFirestore 設置
+  // 'id' is optional and would typically come from your API response
+  final String? id;
 
   final List<String> participantIds;
 
-  // Message 類型已經有自己的 fromJson/toJson，json_serializable 會自動調用它們
-  final Message? lastMessage;
+  // Message type already has its own fromJson/toJson if it's JsonSerializable
+  final Message? lastMessage; // Assuming Message class is also JsonSerializable
 
   @JsonKey(
-      fromJson: _dateTimeFlexibleFromJsonOptional,
-      toJson: _dateTimeToTimestampOptional // 或 _dateTimeToIsoStringOptional
+      fromJson: _dateTimeFromStringOptional, // Use the new helper
+      toJson: _dateTimeToStringOptional      // Use the new helper
   )
   final DateTime? lastMessageTimestamp;
 
-  // Map<String, int> 是 json_serializable 可以直接處理的
+  // Map<String, int> can be handled directly by json_serializable
   final Map<String, int>? unreadCounts;
-  // ... 其他你需要的欄位
+  // ... other fields you might need
 
   ChatRoom({
-    this.id, // 改為可選
+    this.id,
     required this.participantIds,
     this.lastMessage,
     this.lastMessageTimestamp,
@@ -59,31 +53,21 @@ class ChatRoom {
   factory ChatRoom.fromJson(Map<String, dynamic> json) =>
       _$ChatRoomFromJson(json);
 
-  /// Creates a ChatRoom from a Firestore document snapshot.
-  factory ChatRoom.fromFirestore(DocumentSnapshot<Map<String, dynamic>> snapshot) {
-    final data = snapshot.data();
-    if (data == null) {
-      throw StateError('Missing data for ChatRoom ${snapshot.id}');
-    }
-    final chatRoom = _$ChatRoomFromJson(data);
-    return chatRoom.copyWith(id: snapshot.id);
-  }
-
   Map<String, dynamic> toJson() => _$ChatRoomToJson(this);
 
   ChatRoom copyWith({
     String? id,
     List<String>? participantIds,
-    Message? lastMessage,
-    DateTime? lastMessageTimestamp, // 注意可空性
-    bool clearLastMessageTimestamp = false, // 用於顯式清除日期
+    Message? lastMessage, // If Message itself is copyWith-able, you could be more granular
+    DateTime? lastMessageTimestamp,
+    bool clearLastMessageTimestamp = false, // To explicitly clear the date
     Map<String, int>? unreadCounts,
-    bool clearUnreadCounts = false, // 用於顯式清除 map
+    bool clearUnreadCounts = false, // To explicitly clear the map
   }) {
     return ChatRoom(
       id: id ?? this.id,
       participantIds: participantIds ?? this.participantIds,
-      lastMessage: lastMessage ?? this.lastMessage, // 如果 Message 也是可copyWith的，可以更精細
+      lastMessage: lastMessage ?? this.lastMessage,
       lastMessageTimestamp: clearLastMessageTimestamp ? null : (lastMessageTimestamp ?? this.lastMessageTimestamp),
       unreadCounts: clearUnreadCounts ? null : (unreadCounts ?? this.unreadCounts),
     );

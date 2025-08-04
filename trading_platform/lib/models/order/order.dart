@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart'; // For IconData, not directly used by json_serializable
 import 'package:json_annotation/json_annotation.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // If DateTime needs to be Timestamp
 
 part 'order.g.dart';
 
@@ -38,41 +37,31 @@ OrderStatus _orderStatusFromJson(String? statusString) {
 // --- End OrderStatus Helpers ---
 
 
-// --- DateTime Helpers (similar to what we used in Message/ChatRoom) ---
-// Flexible DateTime deserializer (handles Timestamp or ISO String)
-DateTime _dateTimeFlexibleFromJson(dynamic jsonValue) {
-  if (jsonValue is Timestamp) {
-    return jsonValue.toDate();
-  }
-  if (jsonValue is String) {
-    return DateTime.tryParse(jsonValue) ?? DateTime.now(); // Fallback to now if parse fails
-  }
-  return DateTime.now(); // Fallback for other unexpected types
+// --- DateTime Helpers for standard JSON (ISO 8601 String) ---
+DateTime _dateTimeFromJson(String isoString) {
+  return DateTime.parse(isoString);
 }
 
-Timestamp _dateTimeToTimestamp(DateTime dateTime) {
-  return Timestamp.fromDate(dateTime);
+String _dateTimeToJson(DateTime dateTime) {
+  return dateTime.toIso8601String();
 }
-// String _dateTimeToIsoString(DateTime dateTime) => dateTime.toIso8601String();
 // --- End DateTime Helpers ---
 
 
 @JsonSerializable(explicitToJson: true) // explicitToJson because of List<OrderStatusUpdate>
 class OrderModel {
-  @JsonKey(includeFromJson: false, includeToJson: false) // Assuming orderId comes from Firestore doc ID
-  final String? id; // Made nullable for fromJson, will be set by fromFirestore
+  // If your HTTP API provides an 'id', use it. Otherwise, you might not need it
+  // or it might be assigned by the client.
+  final String? id; // This can come from your JSON payload if available
 
-  final String orderId; // This seems like it could be the same as 'id' from Firestore.
-  // If so, consider removing this and just using 'id'.
-  // If it's different, ensure it's populated from JSON or constructor.
-  // For now, assuming it's required from JSON if not the doc ID.
+  final String orderId; // Assuming this is a key field from your API's JSON response
 
   final String productName;
   final double totalPrice;
 
   @JsonKey(
-      fromJson: _dateTimeFlexibleFromJson,
-      toJson: _dateTimeToTimestamp // Or _dateTimeToIsoString
+      fromJson: _dateTimeFromJson,
+      toJson: _dateTimeToJson
   )
   final DateTime orderDate;
 
@@ -80,12 +69,12 @@ class OrderModel {
       fromJson: _orderStatusFromJson,
       toJson: _orderStatusToJson
   )
-  OrderStatus currentStatus; // Made non-final as it was in original code
+  OrderStatus currentStatus;
 
   final List<OrderStatusUpdate> statusHistory;
 
   OrderModel({
-    this.id, // For fromFirestore
+    this.id,
     required this.orderId,
     required this.productName,
     required this.totalPrice,
@@ -94,24 +83,16 @@ class OrderModel {
     this.statusHistory = const [],
   });
 
+  // Factory constructor for creating a new OrderModel instance from a map.
+  // This is used by json_serializable.
   factory OrderModel.fromJson(Map<String, dynamic> json) =>
       _$OrderModelFromJson(json);
 
-  factory OrderModel.fromFirestore(DocumentSnapshot<Map<String, dynamic>> snapshot) {
-    final data = snapshot.data();
-    if (data == null) {
-      throw StateError('Missing data for OrderModel ${snapshot.id}');
-    }
-    final order = _$OrderModelFromJson(data);
-    // If orderId field is meant to be the Firestore document ID:
-    // return order.copyWith(id: snapshot.id, orderId: snapshot.id);
-    // If orderId is a separate field within the document data, and 'id' is for the model's own ID:
-    return order.copyWith(id: snapshot.id);
-  }
-
+  // Method for converting an OrderModel instance to a map.
+  // This is used by json_serializable.
   Map<String, dynamic> toJson() => _$OrderModelToJson(this);
 
-  // Consider adding copyWith if you need to update instances, especially if fields are final
+  // copyWith method remains useful for immutability and updates
   OrderModel copyWith({
     String? id,
     String? orderId,
@@ -142,8 +123,8 @@ class OrderStatusUpdate {
   final OrderStatus status;
 
   @JsonKey(
-      fromJson: _dateTimeFlexibleFromJson,
-      toJson: _dateTimeToTimestamp // Or _dateTimeToIsoString
+      fromJson: _dateTimeFromJson,
+      toJson: _dateTimeToJson
   )
   final DateTime timestamp;
   final String? description;
@@ -159,7 +140,6 @@ class OrderStatusUpdate {
 
   Map<String, dynamic> toJson() => _$OrderStatusUpdateToJson(this);
 
-  // Optional: copyWith for OrderStatusUpdate
   OrderStatusUpdate copyWith({
     OrderStatus? status,
     DateTime? timestamp,
@@ -184,7 +164,16 @@ String orderStatusToDisplayString(OrderStatus status) {
       return '訂單已建立';
     case OrderStatus.paid:
       return '已付款';
-  // ... (rest of your cases) ...
+    case OrderStatus.preparing:
+      return '準備中';
+    case OrderStatus.delivering:
+      return '運送中';
+    case OrderStatus.completed:
+      return '已完成';
+    case OrderStatus.cancelled:
+      return '已取消';
+    case OrderStatus.refunded:
+      return '已退款';
     default:
       return '未知狀態';
   }
@@ -195,7 +184,18 @@ IconData getOrderStatusIcon(OrderStatus status) {
   switch (status) {
     case OrderStatus.established:
       return Icons.receipt_long_outlined;
-  // ... (rest of your cases) ...
+    case OrderStatus.paid:
+      return Icons.payment_outlined;
+    case OrderStatus.preparing:
+      return Icons.inventory_2_outlined;
+    case OrderStatus.delivering:
+      return Icons.local_shipping_outlined;
+    case OrderStatus.completed:
+      return Icons.check_circle_outline;
+    case OrderStatus.cancelled:
+      return Icons.cancel_outlined;
+    case OrderStatus.refunded:
+      return Icons.settings_backup_restore_outlined;
     default:
       return Icons.help_outline;
   }
