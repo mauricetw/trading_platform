@@ -1,9 +1,10 @@
 import 'package:first_flutter_project/screens/settings/setting.dart';
 import 'package:flutter/material.dart';
-import '../../models/user/user.dart'; // 確保路徑正確
+import '../../models/user/user.dart';
 import 'public_profile.dart';
-import '../cart.dart'; // 確保路徑正確
-import '../orderlist.dart'; // 確保路徑正確
+import 'cart.dart';
+import 'orderlist.dart';
+import 'wishlist.dart';
 import '../seller/product_management.dart';
 import '../seller/order_page.dart';
 import '../seller/shipping_setting_page.dart';
@@ -331,7 +332,7 @@ class Profile extends StatelessWidget {
                             context: context,
                             label: '收藏',
                             icon: Icons.favorite_border,
-                            onPressed: () { print('收藏'); },
+                            onPressed: () { Navigator.push(context, MaterialPageRoute(builder: (context) => const WishlistScreen())); },
                           ),
                           const SizedBox(width: 15),
                           _buildStyledButton(

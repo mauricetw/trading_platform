@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:first_flutter_project/models/order/order.dart'; // 確保路徑正確
-import 'order_tracking.dart'; // 確保路徑正確
+import 'package:first_flutter_project/models/order/order.dart';
+import 'order_tracking.dart';
 
 class OrderListScreen extends StatefulWidget {
   const OrderListScreen({super.key});
@@ -9,7 +9,6 @@ class OrderListScreen extends StatefulWidget {
   State<OrderListScreen> createState() => _OrderListScreenState();
 }
 
-// 定義篩選選項，包含 "全部"
 enum OrderListFilterValue {
   all,
   established,
@@ -18,7 +17,6 @@ enum OrderListFilterValue {
   cancelled,
 }
 
-// MODIFIED HERE
 String orderListFilterValueToString(OrderListFilterValue filterVal) {
   switch (filterVal) {
     case OrderListFilterValue.all:

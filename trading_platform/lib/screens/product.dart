@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/product/product.dart';
 import '../models/user/user.dart';
 import 'user/public_profile.dart';
-import 'cart.dart';
+import 'user/cart.dart';
 
 
 void navigateToSellerProfile(BuildContext context, User seller) {

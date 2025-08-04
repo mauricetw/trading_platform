@@ -1,88 +1,67 @@
+// lib/models/user/wishlist_item.dart (或者您的路徑)
 import 'package:json_annotation/json_annotation.dart';
-// 如果你決定將來嵌入 Product 的部分信息，或者需要引用 Product 類型
-// import '../product/product.dart';
+import '../product/product.dart'; // <--- 確保導入 Product 模型
 
 part 'wishlist_item.g.dart';
 
-@JsonSerializable() // 假設沒有嵌套其他需要 explicitToJson 的自定義類
+@JsonSerializable(explicitToJson: true) // explicitToJson 很重要，如果 Product 也用 json_serializable
 class WishlistItem {
-  final String id;        // 收藏項目的唯一 ID (例如，由後端數據庫生成)
-  final String userId;    // 收藏該商品的用戶 ID
-  final String productId; // 被收藏的商品 ID
-  final DateTime createdAt; // 添加到願望清單的時間
-
-  // 可選: 如果你決定嵌入部分商品信息作為快照
-  // final String? productNameSnapshot;
-  // final String? productImageUrlSnapshot;
-  // final double? productPriceSnapshot;
+  final String id;
+  final String userId;
+  final String productId;
+  final DateTime createdAt;
+  final Product product;
 
   WishlistItem({
     required this.id,
     required this.userId,
     required this.productId,
     required this.createdAt,
-    // this.productNameSnapshot,
-    // this.productImageUrlSnapshot,
-    // this.productPriceSnapshot,
+    required this.product,
   });
 
-  // --- 手動實現 copyWith, ==, hashCode ---
+  factory WishlistItem.fromJson(Map<String, dynamic> json) => _$WishlistItemFromJson(json);
+  Map<String, dynamic> toJson() => _$WishlistItemToJson(this);
 
+  // --- 更新 copyWith, ==, hashCode 以包含 product ---
   WishlistItem copyWith({
     String? id,
     String? userId,
     String? productId,
     DateTime? createdAt,
-    // String? productNameSnapshot,
-    // String? productImageUrlSnapshot,
-    // double? productPriceSnapshot,
+    Product? product, // <--- 新增
   }) {
     return WishlistItem(
       id: id ?? this.id,
       userId: userId ?? this.userId,
       productId: productId ?? this.productId,
       createdAt: createdAt ?? this.createdAt,
-      // productNameSnapshot: productNameSnapshot ?? this.productNameSnapshot,
-      // productImageUrlSnapshot: productImageUrlSnapshot ?? this.productImageUrlSnapshot,
-      // productPriceSnapshot: productPriceSnapshot ?? this.productPriceSnapshot,
+      product: product ?? this.product, // <--- 新增
     );
   }
 
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
-
     return other is WishlistItem &&
         other.id == id &&
         other.userId == userId &&
         other.productId == productId &&
-        other.createdAt == createdAt;
-    // && other.productNameSnapshot == productNameSnapshot
-    // && other.productImageUrlSnapshot == productImageUrlSnapshot
-    // && other.productPriceSnapshot == productPriceSnapshot;
+        other.createdAt == createdAt &&
+        other.product == product;
   }
 
   @override
   int get hashCode {
-    // final int productNameSnapshotHash = productNameSnapshot?.hashCode ?? 0;
-    // final int productImageUrlSnapshotHash = productImageUrlSnapshot?.hashCode ?? 0;
-    // final int productPriceSnapshotHash = productPriceSnapshot?.hashCode ?? 0;
-
     return id.hashCode ^
     userId.hashCode ^
     productId.hashCode ^
-    createdAt.hashCode;
-    // ^ productNameSnapshotHash
-    // ^ productImageUrlSnapshotHash
-    // ^ productPriceSnapshotHash;
+    createdAt.hashCode ^
+    product.hashCode;
   }
 
   @override
   String toString() {
-    return 'WishlistItem(id: $id, userId: $userId, productId: $productId, createdAt: $createdAt)';
+    return 'WishlistItem(id: $id, userId: $userId, productId: $productId, createdAt: $createdAt, product: ${product.name})'; // 示例 toString
   }
-
-  // --- 由 json_serializable 生成 ---
-  factory WishlistItem.fromJson(Map<String, dynamic> json) => _$WishlistItemFromJson(json);
-  Map<String, dynamic> toJson() => _$WishlistItemToJson(this);
 }

@@ -11,6 +11,7 @@ WishlistItem _$WishlistItemFromJson(Map<String, dynamic> json) => WishlistItem(
   userId: json['userId'] as String,
   productId: json['productId'] as String,
   createdAt: DateTime.parse(json['createdAt'] as String),
+  product: Product.fromJson(json['product'] as Map<String, dynamic>),
 );
 
 Map<String, dynamic> _$WishlistItemToJson(WishlistItem instance) =>
@@ -19,4 +20,5 @@ Map<String, dynamic> _$WishlistItemToJson(WishlistItem instance) =>
       'userId': instance.userId,
       'productId': instance.productId,
       'createdAt': instance.createdAt.toIso8601String(),
+      'product': instance.product.toJson(),
     };

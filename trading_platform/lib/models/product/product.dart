@@ -30,6 +30,13 @@ class Product {
   @JsonKey(defaultValue: false)
   final bool isSold;     // Used by _buildProductCard to show "SOLD" tag
 
+  // --- 新增開始 ---
+  // 客戶端使用的狀態，標記當前用戶是否收藏了此商品
+  // 不參與 JSON 序列化/反序列化，其值由客戶端邏輯管理
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  final bool isFavoriteByCurrentUser;
+  // --- 新增結束 ---
+
   Product({
     required this.id,
     required this.name,
@@ -50,9 +57,9 @@ class Product {
     this.shippingInfo,
     this.seller,
     this.isSold = false,     // 構造函數中的默認值
+    this.isFavoriteByCurrentUser = false, // --- 新增: 構造函數中的默認值 ---
   });
 
-  // --- 手動實現部分 (可以保留你已有的 copyWith) ---
   Product copyWith({
     String? id,
     String? name,
@@ -72,8 +79,8 @@ class Product {
     List<String>? tags,
     ShippingInformation? shippingInfo,
     User? seller,
-    bool? isFavorite,
     bool? isSold,
+    bool? isFavoriteByCurrentUser, // --- 修改: 之前是 isFavorite，統一為 isFavoriteByCurrentUser ---
   }) {
     return Product(
       id: id ?? this.id,
@@ -95,14 +102,13 @@ class Product {
       shippingInfo: shippingInfo ?? this.shippingInfo,
       seller: seller ?? this.seller,
       isSold: isSold ?? this.isSold,
+      isFavoriteByCurrentUser: isFavoriteByCurrentUser ?? this.isFavoriteByCurrentUser, // --- 新增 ---
     );
   }
 
-  // --- 手動實現 operator == 和 hashCode ---
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
-    // final listEquals = const DeepCollectionEquality().equals; // 需要 collection 包
 
     return other is Product &&
         other.id == id &&
@@ -112,8 +118,7 @@ class Product {
         other.price == price &&
         other.categoryId == categoryId &&
         other.stockQuantity == stockQuantity &&
-        // listEquals(other.imageUrls, imageUrls) && // imageUrls 是非空的
-        _listEquals(other.imageUrls, imageUrls) && // imageUrls 是非空的
+        _listEquals(other.imageUrls, imageUrls) &&
         other.category == category &&
         other.status == status &&
         other.createdAt == createdAt &&
@@ -121,18 +126,21 @@ class Product {
         other.salesCount == salesCount &&
         other.averageRating == averageRating &&
         other.reviewCount == reviewCount &&
-        // listEquals(other.tags, tags) && // tags 是可空的
-        _listEquals(other.tags, tags) && // tags 是可空的
-        other.shippingInfo == shippingInfo && // 假設 ShippingInformation 也實現了 ==
-        other.seller == seller &&             // 假設 User 也實現了 ==
-        other.isSold == isSold;
+        _listEquals(other.tags, tags) &&
+        other.shippingInfo == shippingInfo &&
+        other.seller == seller &&
+        other.isSold == isSold &&
+        // --- 新增: 如果您希望 isFavoriteByCurrentUser 也參與對象的相等性比較 ---
+        // 通常情況下，ID 相同即可認為是同一個業務實體，
+        // isFavoriteByCurrentUser 更多是 UI 狀態。但如果您的業務邏輯需要，可以取消下一行的註釋。
+        // other.isFavoriteByCurrentUser == isFavoriteByCurrentUser;
+        true; // 保持您原有的比較邏輯，暫不將 isFavoriteByCurrentUser 加入核心比較
   }
 
-  // 輔助函數比較列表 (如果不想引入 collection 包)
   bool _listEquals<T>(List<T>? a, List<T>? b) {
-    if (a == null) return b == null; // 如果 a 是 null，只有當 b 也是 null 時才相等
+    if (a == null) return b == null;
     if (b == null || a.length != b.length) return false;
-    if (a.isEmpty && b.isEmpty) return true; // 兩個空列表相等
+    if (a.isEmpty && b.isEmpty) return true;
     for (int i = 0; i < a.length; i++) {
       if (a[i] != b[i]) {
         return false;
@@ -142,33 +150,33 @@ class Product {
   }
 
   @override
-  @override
   int get hashCode {
+    // 省略了詳細的 hashCode 計算，以保持與您原有邏輯的一致性。
+    // 如果 isFavoriteByCurrentUser 加入了 == 的比較，這裡也應該相應地加入。
+    // 為了簡潔，我們先不修改您已有的 hashCode。
+    // 但請注意，如果 == 比較中加入了 isFavoriteByCurrentUser，hashCode 也必須加入，
+    // 以維持 hashCode 和 == 之間的一致性約定。
+    // (即 a == b implies a.hashCode == b.hashCode)
+
     final int originalPriceHash = originalPrice?.hashCode ?? 0;
     final int averageRatingHash = averageRating?.hashCode ?? 0;
     final int reviewCountHash = reviewCount?.hashCode ?? 0;
-
     int imageUrlsCombinedHash = 17;
-    // imageUrls is List<String> (non-nullable list, but could be empty)
     for (final imageUrl in imageUrls) {
       imageUrlsCombinedHash = imageUrlsCombinedHash * 31 + imageUrl.hashCode;
     }
-    // If imageUrls can be empty, imageUrlsCombinedHash will remain 17.
-    // If you want empty list to have hash 0, you can add:
-    // if (imageUrls.isEmpty) imageUrlsCombinedHash = 0;
-
-
     int tagsCombinedHash = 17;
     if (tags != null) {
-      for (final tag in tags!) { // tags! is safe here
+      for (final tag in tags!) {
         tagsCombinedHash = tagsCombinedHash * 31 + tag.hashCode;
       }
     } else {
       tagsCombinedHash = 0;
     }
-
     final int shippingInfoHash = shippingInfo?.hashCode ?? 0;
     final int sellerHash = seller?.hashCode ?? 0;
+    // --- 新增: 如果 isFavoriteByCurrentUser 加入了 hashCode 計算 ---
+    // final int isFavoriteHash = isFavoriteByCurrentUser.hashCode;
 
     return id.hashCode ^
     name.hashCode ^
@@ -177,7 +185,7 @@ class Product {
     price.hashCode ^
     categoryId.hashCode ^
     stockQuantity.hashCode ^
-    imageUrlsCombinedHash ^ // 使用組合後的哈希
+    imageUrlsCombinedHash ^
     category.hashCode ^
     status.hashCode ^
     createdAt.hashCode ^
@@ -185,19 +193,20 @@ class Product {
     salesCount.hashCode ^
     averageRatingHash ^
     reviewCountHash ^
-    tagsCombinedHash ^ // 使用組合後的哈希
+    tagsCombinedHash ^
     shippingInfoHash ^
     sellerHash ^
     isSold.hashCode;
+    // ^ isFavoriteHash; // --- 新增: 如果加入 hashCode 計算 ---
   }
 
   @override
   String toString() {
-    return 'Product(id: $id, name: $name, price: $price, category: $category, stockQuantity: $stockQuantity)';
-    // 自定義 toString 以便調試
+    // --- 修改: 加入 isFavoriteByCurrentUser 到 toString 以便調試 ---
+    return 'Product(id: $id, name: $name, price: $price, category: $category, stockQuantity: $stockQuantity, isFavorite: $isFavoriteByCurrentUser)';
   }
 
-  // --- 由 json_serializable 生成 ---
   factory Product.fromJson(Map<String, dynamic> json) => _$ProductFromJson(json);
   Map<String, dynamic> toJson() => _$ProductToJson(this);
 }
+

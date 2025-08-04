@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-// 假設您的 order_model.dart 在同一目錄或正確導入
-import 'package:first_flutter_project/models/order/order.dart'; // 確保引入 OrderModel 和 OrderStatus
+import 'package:first_flutter_project/models/order/order.dart';
 
 class OrderTrackingScreen extends StatefulWidget {
   final String orderId; // 傳入要追蹤的訂單 ID

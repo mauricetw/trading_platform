@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import '../screens/main_market.dart';
+
 import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
-import 'providers/wishlist_item.dart';
+import 'providers/wishlist_provider.dart';
 import 'providers/category_provider.dart';
+
+import 'services/wishlist_service.dart';
+
 import 'models/user/user.dart';
 import 'theme/app_theme.dart';
 
@@ -19,19 +23,55 @@ void main() {
         // CategoryProvider
         ChangeNotifierProvider(create: (context) => CategoryProvider()),
         // WishlistProvider (如果需要依賴 AuthProvider，可以使用 ChangeNotifierProxyProvider)
-        ChangeNotifierProxyProvider<AuthProvider, WishlistProvider>(
-          create: (context) => WishlistProvider(), // 初始創建一個 WishlistProvider 實例
-          update: (context, authProvider, wishlistProvider) {
-            // 這個方法會在 AuthProvider 改變時被呼叫
-            // 更新 WishlistProvider 的狀態，例如傳入當前使用者 ID
-            wishlistProvider ??= WishlistProvider(); // 如果 wishlistProvider 還沒有被創建，就創建一個
-            wishlistProvider.updateCurrentUser(authProvider.currentUser?.id); // 假設 AuthProvider 有 currentUser
+        // 3. 提供 WishlistService
+        //    這使得 WishlistService 可以在下面被 WishlistProvider 訪問。
+        //    WishlistService 本身不是 ChangeNotifier，所以使用 Provider<T>.
+        Provider<WishlistService>(
+          create: (_) => WishlistService(),
+          // 如果 WishlistService 需要在銷毀時清理資源 (例如關閉 http.Client)，
+          // 則需要更複雜的處理，但對於簡單的 Service，這樣通常足夠。
+        ),
+
+        // 4. WishlistProvider (依賴 AuthProvider 和 WishlistService)
+        ChangeNotifierProxyProvider2<AuthProvider, WishlistService, WishlistProvider>(
+          // 泛型參數:
+          // AuthProvider:      第一個依賴的 Provider
+          // WishlistService:   第二個依賴的 Provider/Service
+          // WishlistProvider:  我們要創建並提供的 ChangeNotifier
+
+          create: (context) {
+            // 'create' 在 MultiProvider 第一次構建時被調用。
+            // 在這裡，我們需要創建一個 WishlistProvider 的初始實例。
+            // 我們可以從上下文中讀取已經註冊的 WishlistService。
+            final wishlistService = context.read<WishlistService>();
+            return WishlistProvider(wishlistService); // WishlistProvider 構造函數接收 WishlistService
+          },
+          update: (
+              BuildContext context,
+              AuthProvider authProvider,       // 來自 AuthProvider 的最新值
+              WishlistService wishlistService,  // 來自 Provider<WishlistService> 的實例 (通常不變)
+              WishlistProvider? previousWishlistProvider, // 上一個 WishlistProvider 實例 (可能為 null)
+              ) {
+            // 'update' 會在 AuthProvider (因為它是 ChangeNotifier) 狀態改變時被調用，
+            // 或者如果 WishlistService 也是 ChangeNotifier 並且改變時 (本例中不是)。
+            // 它也會在 MultiProvider 重建時被調用。
+
+            // 確保我們有一個 WishlistProvider 實例。
+            // 如果 previousWishlistProvider 是 null (例如首次創建後)，
+            // 或者您希望在每次依賴更新時都創建新實例（不常見），則創建新的。
+            // 通常，我們會重用 previousWishlistProvider 並更新其狀態。
+            final wishlistProvider = previousWishlistProvider ?? WishlistProvider(wishlistService);
+
+            // 關鍵：將 AuthProvider 的狀態更新傳遞給 WishlistProvider
+            wishlistProvider.updateCurrentUser(authProvider.currentUser?.id);
+
             return wishlistProvider;
           },
         ),
-        // 添加其他你需要註冊的 Providers
-        // 例如：ChangeNotifierProvider(create: (context) => CartProvider()),
-        // 例如：ChangeNotifierProvider(create: (context) => OrderProvider()),
+        // --- End of Wishlist Providers ---
+
+        // 添加其他您需要的 Providers
+        // 例如：ChangeNotifierProvider(create: (context) => CartProvider());
       ],
       // child 屬性仍然是你的應用程式的根 Widget
       child: const MyApp(),
