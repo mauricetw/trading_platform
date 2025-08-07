@@ -104,7 +104,6 @@ class ShippingOption {
     );
   }
 
-  // == 和 hashCode 方法可以保留，它們對於比較對象很有用
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||

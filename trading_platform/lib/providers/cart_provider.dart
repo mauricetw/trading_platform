@@ -1,8 +1,6 @@
-// lib/providers/cart_provider.dart
-
 import 'package:flutter/foundation.dart';
 import '../models/user/cart_item.dart';
-import '../models/product/product.dart'; // 需要 Product Model
+import '../models/product/product.dart';
 
 class CartProvider with ChangeNotifier {
   // 使用 Map 來儲存購物車項目，key 是商品 ID (或商品規格 ID)，value 是 CartItem

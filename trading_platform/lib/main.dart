@@ -16,15 +16,12 @@ void main() {
   runApp(
     // 使用 MultiProvider 替換單個 ChangeNotifierProvider
     MultiProvider(
-      // providers 列表包含所有你想要在應用程式中提供的 Providers
       providers: [
         // AuthProvider
         ChangeNotifierProvider(create: (context) => AuthProvider()),
         // CategoryProvider
         ChangeNotifierProvider(create: (context) => CategoryProvider()),
-        // WishlistProvider (如果需要依賴 AuthProvider，可以使用 ChangeNotifierProxyProvider)
-        // 3. 提供 WishlistService
-        //    這使得 WishlistService 可以在下面被 WishlistProvider 訪問。
+        // WishlistService
         //    WishlistService 本身不是 ChangeNotifier，所以使用 Provider<T>.
         Provider<WishlistService>(
           create: (_) => WishlistService(),
@@ -32,7 +29,7 @@ void main() {
           // 則需要更複雜的處理，但對於簡單的 Service，這樣通常足夠。
         ),
 
-        // 4. WishlistProvider (依賴 AuthProvider 和 WishlistService)
+        // WishlistProvider (依賴 AuthProvider 和 WishlistService)
         ChangeNotifierProxyProvider2<AuthProvider, WishlistService, WishlistProvider>(
           // 泛型參數:
           // AuthProvider:      第一個依賴的 Provider
@@ -68,10 +65,10 @@ void main() {
             return wishlistProvider;
           },
         ),
-        // --- End of Wishlist Providers ---
 
         // 添加其他您需要的 Providers
-        // 例如：ChangeNotifierProvider(create: (context) => CartProvider());
+
+
       ],
       // child 屬性仍然是你的應用程式的根 Widget
       child: const MyApp(),

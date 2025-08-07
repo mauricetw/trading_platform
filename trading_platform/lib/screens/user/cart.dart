@@ -1,6 +1,5 @@
-// lib/cart_page.dart
-
 import 'package:flutter/material.dart';
+import 'checkout.dart';
 
 class CartPage extends StatelessWidget {
   const CartPage({super.key});
@@ -73,7 +72,7 @@ class CartPage extends StatelessWidget {
       ),
       floatingActionButton: FloatingActionButton.extended( // 結帳按鈕 (無實際功能)
         onPressed: () {
-          // 在實際應用中，您會在這裡實現結帳邏輯
+
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('前往結帳 (無實際功能)')),
           );

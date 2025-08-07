@@ -1,3 +1,4 @@
+import 'package:first_flutter_project/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:first_flutter_project/models/order/order.dart';
 import 'order_tracking.dart';
@@ -176,6 +177,8 @@ class _OrderListScreenState extends State<OrderListScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('我的訂單'),
+        centerTitle: true,
+        backgroundColor: primaryCS.secondary,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),

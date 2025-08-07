@@ -1,8 +1,11 @@
+import 'package:first_flutter_project/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../providers/wishlist_provider.dart'; // 調整導入路徑
-import '../../models/product/product.dart';     // 調整導入路徑
-import '../../models/user/wishlist_item.dart'; // 調整導入路徑
+import '../../providers/wishlist_provider.dart';
+import '../../models/product/product.dart';
+import '../../models/user/wishlist_item.dart';
+
+import '../../widgets/FullBottomConcaveAppBarShape.dart';
 
 // 假設您有一個 ProductCard Widget，如果沒有，我們會內聯創建列表項
 // import '../../widgets/product_card.dart'; // 例如
@@ -301,7 +304,10 @@ class _WishlistScreenState extends State<WishlistScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('我的願望清單'),
+        title: const Text(''),
+        centerTitle: true,
+        shape: FullBottomConcaveAppBarShape(curveHeight: 25.0 ),
+        backgroundColor: primaryCS.primary,
         // 可以考慮添加一個 "清空願望清單" 的按鈕，如果需要
         // actions: [
         //   if (wishlistProvider.status == WishlistStatus.loaded && wishlistProvider.wishlistItems.isNotEmpty)
