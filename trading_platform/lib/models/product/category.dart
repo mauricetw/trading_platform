@@ -1,5 +1,3 @@
-// lib/models/product/category.dart
-
 class Category {
   final String id; // 分類 ID
   final String name; // 分類名稱

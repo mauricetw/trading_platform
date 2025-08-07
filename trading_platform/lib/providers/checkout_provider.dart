@@ -8,14 +8,18 @@ import '../models/order/discount_info.dart';
 import '../services/interfaces/order_service_interface.dart';
 import '../services/interfaces/address_service_interface.dart';
 
+// 【【新增】】導入您項目中的 AuthProvider 和 CartProvider
+import 'auth_provider.dart'; // 假設路徑，請根據您的項目結構修改
+import 'cart_provider.dart';   // 假設路徑，請根據您的項目結構修改
+
 class CheckoutProvider with ChangeNotifier {
   final IOrderService _orderService;
   final IAddressService _addressService;
-
-  CheckoutProvider(this._orderService, this._addressService);
+  final AuthProvider _authProvider; // 【【新增】】
+  final CartProvider _cartProvider;   // 【【新增】】
 
   // --- 狀態變量 ---
-  bool _isLoadingOverall = false; // 通用加載狀態，可以用於初始加載等
+  bool _isLoadingOverall = false;
   bool get isLoadingOverall => _isLoadingOverall;
 
   bool _isLoadingAddresses = false;
@@ -42,8 +46,8 @@ class CheckoutProvider with ChangeNotifier {
   ShippingOption? _selectedShippingOption;
   ShippingOption? get selectedShippingOption => _selectedShippingOption;
 
-  List<CartItem> _checkoutItems = [];
-  List<CartItem> get checkoutItems => List.unmodifiable(_checkoutItems);
+  // _checkoutItems 現在將從 CartProvider 的選中商品獲取
+  List<CartItem> get checkoutItems => _cartProvider.selectedItems; // 【【修改】】直接從 CartProvider 獲取
 
   DiscountInfo? _discountInfo;
   DiscountInfo? get discountInfo => _discountInfo;
@@ -54,86 +58,169 @@ class CheckoutProvider with ChangeNotifier {
   OrderModel? _createdOrder;
   OrderModel? get createdOrder => _createdOrder;
 
+  String? get _currentUserId => _authProvider.currentUser?.id; // 【【新增】】輔助 getter
+
+  // 【【修改】】構造函數以接收 AuthProvider 和 CartProvider
+  CheckoutProvider(
+      this._orderService,
+      this._addressService,
+      this._authProvider,
+      this._cartProvider,
+      ) {
+    // 【【新增】】監聽 AuthProvider 和 CartProvider 的變化
+    _authProvider.addListener(_handleAuthOrCartChange);
+    _cartProvider.addListener(_handleAuthOrCartChange);
+
+    // 初始加載數據（如果用戶已登錄且購物車有商品）
+    _initializeCheckoutData();
+  }
+
+  // 【【新增】】處理認證或購物車變化的方法
+  void _handleAuthOrCartChange() {
+    print("CheckoutProvider: Auth or Cart changed. Re-initializing checkout data.");
+    // 當用戶登錄狀態或購物車選中項變化時，重新初始化結帳數據
+    _initializeCheckoutData();
+    // 購物車變化可能導致優惠券失效或運費變化
+    _discountInfo = null; // 清除舊的優惠券信息
+    if (checkoutItems.isEmpty) { // 如果購物車變為空
+      _selectedShippingOption = null; // 清除配送方式
+      _shippingOptions = [];
+    }
+    notifyListeners(); // 通知UI更新
+  }
+
+  // 【【新增】】初始化或刷新結帳數據的邏輯
+  Future<void> _initializeCheckoutData() async {
+    if (_currentUserId == null) {
+      print("CheckoutProvider: User not logged in. Clearing checkout state.");
+      resetCheckoutState(notify: false); // 重置狀態但不立即通知，等待後續操作
+      _availableAddresses = []; // 清空地址
+      _selectedAddress = null;
+      notifyListeners();
+      return;
+    }
+
+    // 如果購物車為空，則不需要加載配送等
+    if (checkoutItems.isEmpty) {
+      print("CheckoutProvider: Checkout items are empty. Not fetching shipping methods.");
+      _shippingOptions = [];
+      _selectedShippingOption = null;
+      // 仍然需要加載地址
+      if (_availableAddresses.isEmpty) { // 只有在地址列表為空時才加載
+        await fetchAddresses();
+      }
+      notifyListeners();
+      return;
+    }
+
+    _isLoadingOverall = true;
+    notifyListeners();
+
+    await fetchAddresses(); // 加載或刷新地址
+    // fetchAddresses 內部會在選中默認地址後嘗試 fetchShippingMethods
+    // 所以這裡不需要再次顯式調用 fetchShippingMethods，除非 fetchAddresses 邏輯有變
+
+    _isLoadingOverall = false;
+    notifyListeners();
+  }
+
 
   // --- Getters ---
-  double get itemsSubtotal { // 改名以匹配 CheckoutScreen
-    if (_checkoutItems.isEmpty) return 0.0;
-    return _checkoutItems.fold(
+  double get itemsSubtotal {
+    if (checkoutItems.isEmpty) return 0.0; // 使用 getter checkoutItems
+    return checkoutItems.fold(
         0.0, (sum, item) => sum + (item.productPrice * item.quantity));
   }
 
   double get shippingCost {
     if (_discountInfo?.isFreeShipping == true && _selectedShippingOption != null) {
-      return 0.0; // 如果是免運費優惠券，運費為0
+      return 0.0;
     }
     return _selectedShippingOption?.cost ?? 0.0;
   }
 
-  // discountAmount 現在從 _discountInfo 獲取
   double get discountAmount => _discountInfo?.discountAmount ?? 0.0;
-
-  // lastAppliedCouponCode 現在從 _discountInfo 獲取
   String? get lastAppliedCouponCode => _discountInfo?.appliedCouponCode;
-
 
   double get totalAmount {
     double currentSubtotal = itemsSubtotal;
-    double currentShippingCost = shippingCost; // 使用 getter
-    double currentDiscount = discountAmount; // 使用 getter
-
+    double currentShippingCost = shippingCost;
+    double currentDiscount = discountAmount;
     double calculatedTotal = currentSubtotal + currentShippingCost - currentDiscount;
     return calculatedTotal > 0 ? calculatedTotal : 0.0;
   }
 
   // --- Methods ---
 
+  // loadInitialData 現在由 _initializeCheckoutData 和構造函數處理，可以考慮移除或保留用於手動刷新
   Future<void> loadInitialData() async {
-    _isLoadingOverall = true;
-    notifyListeners();
-    // 這裡可以決定初始加載哪些數據，例如地址
-    // 購物車項目通常由 CartScreen 或類似頁面傳遞過來
-    await fetchAddresses(); // 示例：初始加載地址
-    _isLoadingOverall = false;
-    notifyListeners();
+    print("CheckoutProvider: Manual loadInitialData called.");
+    await _initializeCheckoutData();
   }
 
-  // 用於從外部（例如 CartScreen 導航過來時）設置購物車項目
-  void setCheckoutItems(List<CartItem> items) {
-    _checkoutItems = List.from(items);
-    _discountInfo = null; // 清除舊的優惠券信息，因為商品變化了
-    _checkoutError = null;
-    if (_selectedAddress != null) {
-      fetchShippingMethods();
-    } else {
-      notifyListeners();
-    }
-  }
+  // setCheckoutItems 方法不再需要從外部調用，因為 CheckoutProvider 會監聽 CartProvider
+  // 如果確實需要一個從外部強制更新購物車項目觸發邏輯的入口，可以保留並調整
+  // 但通常情況下，響應 CartProvider 的變化是更好的模式。
+  // void setCheckoutItems(List<CartItem> items) { ... } // 可以考慮移除
+
 
   Future<void> fetchAddresses() async {
+    if (_currentUserId == null) {
+      _checkoutError = "用戶未登錄，無法加載地址。";
+      _availableAddresses = [];
+      _selectedAddress = null;
+      notifyListeners();
+      return;
+    }
+
     _isLoadingAddresses = true;
     _checkoutError = null;
     notifyListeners();
     try {
-      // TODO: 替換 "mock_user_id" 為真實的用戶 ID
-      _availableAddresses = await _addressService.getUserAddresses("mock_user_id");
+      _availableAddresses = await _addressService.getUserAddresses(_currentUserId!);
       if (_availableAddresses.isNotEmpty) {
-        Address? defaultAddr = await _addressService.getDefaultAddress("mock_user_id");
+        Address? defaultAddr = await _addressService.getDefaultAddress(_currentUserId!);
+        Address? newSelectedAddress = null;
+
         if (defaultAddr != null && _availableAddresses.any((addr) => addr.id == defaultAddr.id)) {
-          // 不直接調用 selectAddress 以避免重複的 notifyListeners
-          _selectedAddress = defaultAddr;
+          newSelectedAddress = defaultAddr;
+        } else if (_availableAddresses.isNotEmpty) {
+          // 如果沒有默認地址，或者默認地址不在列表中，可以考慮選中第一個
+          // newSelectedAddress = _availableAddresses.first;
+          // 或者讓用戶手動選擇，這裡暫時不自動選擇，除非 _selectedAddress 原本就是 null
+        }
+
+        if (newSelectedAddress != null && _selectedAddress?.id != newSelectedAddress.id) {
+          _selectedAddress = newSelectedAddress;
           _shippingOptions = [];
           _selectedShippingOption = null;
-          _discountInfo = null; // 地址變化，優惠券可能失效
-          if (_checkoutItems.isNotEmpty) {
-            await fetchShippingMethods(); // 確保配送方式被獲取
+          _discountInfo = null;
+          if (checkoutItems.isNotEmpty) {
+            await fetchShippingMethods();
           }
-        } else {
-          // 或者選擇第一個，或者讓用戶手動選
+        } else if (_selectedAddress != null && !_availableAddresses.any((addr) => addr.id == _selectedAddress!.id)) {
+          // 如果之前選中的地址不在新的地址列表中了，清空它
+          _selectedAddress = null;
+          _shippingOptions = [];
+          _selectedShippingOption = null;
+          _discountInfo = null;
+        } else if (checkoutItems.isNotEmpty && _selectedAddress != null && _shippingOptions.isEmpty) {
+          // 如果地址沒變，但配送方式是空的，嘗試獲取
+          await fetchShippingMethods();
         }
+
+      } else {
+        _availableAddresses = [];
+        _selectedAddress = null;
+        _shippingOptions = [];
+        _selectedShippingOption = null;
+        _checkoutError = "尚無可用地址，請先新增。";
       }
     } catch (e) {
       _checkoutError = "加載地址失敗: $e";
       print(_checkoutError);
+      _availableAddresses = []; // 出錯時清空，避免UI顯示舊數據
+      _selectedAddress = null;
     } finally {
       _isLoadingAddresses = false;
       notifyListeners();
@@ -144,34 +231,40 @@ class CheckoutProvider with ChangeNotifier {
     if (_selectedAddress?.id == address.id) return;
 
     _selectedAddress = address;
-    _shippingOptions = [];
+    _shippingOptions = []; // 地址改變，配送選項重置
     _selectedShippingOption = null;
-    _discountInfo = null;
-    _checkoutError = null; // 清除可能因舊地址產生的配送錯誤
-    notifyListeners(); // 先更新UI顯示已選地址
+    _discountInfo = null; // 地址改變，優惠券可能失效
+    _checkoutError = null;
+    notifyListeners();
 
-    if (_checkoutItems.isNotEmpty) {
+    if (checkoutItems.isNotEmpty) {
       fetchShippingMethods();
     }
   }
 
   Future<void> fetchShippingMethods() async {
-    if (_selectedAddress == null || _checkoutItems.isEmpty) {
+    if (_selectedAddress == null || checkoutItems.isEmpty) {
       _shippingOptions = [];
       _selectedShippingOption = null;
+      // 不在此處設置 checkoutError，除非是明確的 "無地址" 或 "購物車空" 導致的
       notifyListeners();
       return;
     }
     _isLoadingShippingOptions = true;
-    _checkoutError = null; // 清除之前的錯誤
+    _checkoutError = null;
     notifyListeners();
     try {
       _shippingOptions = await _orderService.getAvailableShippingMethods(
-          _selectedAddress!, _checkoutItems);
+          _selectedAddress!, checkoutItems); // 使用 getter checkoutItems
       if (_shippingOptions.isNotEmpty) {
-        // 可以考慮默認選中第一個可用的，如果之前沒有選中任何配送方式
-        if(_selectedShippingOption == null || !_shippingOptions.any((opt) => opt.id == _selectedShippingOption!.id)){
-          // selectShippingOption(_shippingOptions.firstWhere((opt) => opt.isEnabled, orElse: () => _shippingOptions.first));
+        // 如果之前選擇的配送方式仍然可用，則保持選中，否則可以考慮選中第一個可用的
+        if (_selectedShippingOption != null && !_shippingOptions.any((opt) => opt.id == _selectedShippingOption!.id && opt.isEnabled)) {
+          _selectedShippingOption = null; // 清除無效的選擇
+        }
+        if (_selectedShippingOption == null) {
+          // 可以默認選中第一個可用的，如果 UI/UX 需要
+          // ShippingOption? firstEnabled = _shippingOptions.firstWhere((opt) => opt.isEnabled, orElse: () => null);
+          // if (firstEnabled != null) _selectedShippingOption = firstEnabled;
         }
       } else {
         _selectedShippingOption = null;
@@ -191,64 +284,42 @@ class CheckoutProvider with ChangeNotifier {
   void selectShippingOption(ShippingOption option) {
     if (_selectedShippingOption?.id == option.id) return;
     _selectedShippingOption = option;
-    // 運費變化可能影響優惠券的有效性（例如“滿X免運費”），如果優惠券已應用，可能需要重新驗證
-    // 這裡為了簡化，如果優惠券是 FREESHIP，且選了新的運費，我們可能需要重新評估
-    if (_discountInfo != null && _discountInfo!.appliedCouponCode == 'FREESHIP') {
-      // 如果 OrderService 的 applyCoupon 夠智能，可以重新調用它
-      // 或者，如果只是簡單的免運費，則 totalAmount 會自動處理
-    }
-    _checkoutError = null; // 清除可能因舊配送方式產生的錯誤
+    _checkoutError = null;
+    // 運費變化可能影響總價和優惠券，相關邏輯在 getter 中自動處理
+    // 如果優惠券是免運費類型，shippingCost getter 會處理
     notifyListeners();
   }
 
-  // 【重要】修改 applyCoupon 方法簽名和內部邏輯
-  Future<void> applyCoupon(String code, List<CartItem> items) async { // 假設 items 會從 CheckoutScreen 傳入
+  // applyCoupon 現在使用 checkoutItems getter
+  Future<void> applyCoupon(String code) async { // 不再需要傳入 items
     if (code.isEmpty) {
       _discountInfo = DiscountInfo(
-          appliedCouponCode: null,
-          discountAmount: 0,
-          message: "請輸入優惠券代碼。",
-          isFreeShipping: false);
+          appliedCouponCode: null, discountAmount: 0, message: "請輸入優惠券代碼。", isFreeShipping: false);
       notifyListeners();
       return;
     }
-    if (items.isEmpty) {
+    if (checkoutItems.isEmpty) {
       _discountInfo = DiscountInfo(
-          appliedCouponCode: code, // 即使購物車為空，也記錄嘗試的代碼
-          discountAmount: 0,
-          message: "購物車是空的，無法套用優惠券。",
-          isFreeShipping: false);
+          appliedCouponCode: code, discountAmount: 0, message: "購物車是空的，無法套用優惠券。", isFreeShipping: false);
       notifyListeners();
       return;
     }
 
     _isApplyingCoupon = true;
-    _checkoutError = null; // 清除之前的錯誤
-    _discountInfo = null; // 清除舊的優惠信息
+    _checkoutError = null;
+    _discountInfo = null;
     notifyListeners();
 
     try {
-      // 計算當前小計和運費傳給 OrderService
-      double currentSubtotal = items.fold(0.0, (sum, item) => sum + (item.productPrice * item.quantity));
-      double currentShippingCost = _selectedShippingOption?.cost ?? 0.0;
-
-      final di = await _orderService.applyCoupon(code, items, currentSubtotal, currentShippingCost);
-      _discountInfo = di; // 保存完整的 DiscountInfo
-
-      // 基於 DiscountInfo 的 isFreeShipping 來調整運費顯示（在 shippingCost getter 中處理）
-
-    } on Exception catch (e) { // 捕獲 OrderService 拋出的特定異常
+      // itemsSubtotal 和 shippingCost getter 會提供最新值
+      final di = await _orderService.applyCoupon(code, checkoutItems, itemsSubtotal, shippingCost);
+      _discountInfo = di;
+    } on Exception catch (e) {
       _discountInfo = DiscountInfo(
-          appliedCouponCode: code, // 記錄嘗試的代碼
-          discountAmount: 0,
-          message: e.toString().replaceFirst("Exception: ", ""),
-          isFreeShipping: false);
+          appliedCouponCode: code, discountAmount: 0, message: e.toString().replaceFirst("Exception: ", ""), isFreeShipping: false);
     } catch (e) {
       _discountInfo = DiscountInfo(
-          appliedCouponCode: code, // 記錄嘗試的代碼
-          discountAmount: 0,
-          message: "套用優惠券時發生錯誤。",
-          isFreeShipping: false);
+          appliedCouponCode: code, discountAmount: 0, message: "套用優惠券時發生錯誤。", isFreeShipping: false);
       print("Apply coupon error: $e");
     } finally {
       _isApplyingCoupon = false;
@@ -256,10 +327,13 @@ class CheckoutProvider with ChangeNotifier {
     }
   }
 
-  Future<bool> placeOrder({String paymentMethodId = "default_payment"}) async { // CheckoutScreen 會傳 paymentMethodId
-    if (_selectedAddress == null ||
-        _selectedShippingOption == null ||
-        _checkoutItems.isEmpty) {
+  Future<bool> placeOrder({String paymentMethodId = "default_payment"}) async {
+    if (_currentUserId == null) {
+      _checkoutError = "用戶未登錄，無法下單。";
+      notifyListeners();
+      return false;
+    }
+    if (_selectedAddress == null || _selectedShippingOption == null || checkoutItems.isEmpty) {
       _checkoutError = "請完成所有必填選項：地址、配送方式和商品。";
       notifyListeners();
       return false;
@@ -267,12 +341,12 @@ class CheckoutProvider with ChangeNotifier {
 
     _isPlacingOrder = true;
     _checkoutError = null;
-    _createdOrder = null; // 清除之前的訂單
+    _createdOrder = null;
     notifyListeners();
 
     final orderData = OrderCreationData(
-      userId: "mock_user_id", // TODO: 替換為真實用戶 ID
-      items: List<CartItem>.from(_checkoutItems),
+      userId: _currentUserId!, // 【【修改】】使用真實用戶 ID
+      items: List<CartItem>.from(checkoutItems), // 使用 getter checkoutItems
       shippingAddress: _selectedAddress!,
       shippingMethodId: _selectedShippingOption!.id,
       paymentMethodId: paymentMethodId,
@@ -281,14 +355,14 @@ class CheckoutProvider with ChangeNotifier {
       discountAmount: discountAmount,
       couponCode: lastAppliedCouponCode,
       totalAmount: totalAmount,
-      // customerNotes: "一些顧客備註", // 如果需要
     );
 
     try {
       final order = await _orderService.createOrder(orderData);
       if (order != null) {
-        _createdOrder = order; // 保存創建的訂單
-        // resetCheckoutState(); // 應該在訂單成功後，由 UI 層決定是否以及何時重置
+        _createdOrder = order;
+        // 訂單成功後，可以考慮清空購物車選中項（通過 CartProvider）
+        // _cartProvider.clearSelectedItemsAfterOrder(); // 假設 CartProvider 有此方法
         return true;
       } else {
         _checkoutError = "訂單建立失敗，請稍後再試。 (服務返回 null)";
@@ -307,21 +381,32 @@ class CheckoutProvider with ChangeNotifier {
     }
   }
 
-  void resetCheckoutState() {
+  void resetCheckoutState({bool notify = true}) { // 【【修改】】添加可選參數
     _isLoadingOverall = false;
     _isLoadingAddresses = false;
     _isLoadingShippingOptions = false;
     _isApplyingCoupon = false;
     _isPlacingOrder = false;
 
-    // 通常不重置地址列表 _availableAddresses，除非用戶登出或有特定邏輯
+    // 地址列表 _availableAddresses 通常不清空，除非用戶登出（由 _handleAuthOrCartChange 處理）
     _selectedAddress = null;
     _shippingOptions = [];
     _selectedShippingOption = null;
-    _checkoutItems = [];
+    // _checkoutItems 由 CartProvider 管理，這裡不需要重置
     _discountInfo = null;
     _checkoutError = null;
     _createdOrder = null;
-    notifyListeners();
+    if (notify) {
+      notifyListeners();
+    }
+  }
+
+  // 【【新增】】在 Provider 銷毀時移除監聽器
+  @override
+  void dispose() {
+    _authProvider.removeListener(_handleAuthOrCartChange);
+    _cartProvider.removeListener(_handleAuthOrCartChange);
+    super.dispose();
   }
 }
+

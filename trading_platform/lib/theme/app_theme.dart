@@ -23,7 +23,9 @@ final ColorScheme primaryCS = ColorScheme(
     error: Colors.redAccent,
     onError: Colors.black38,
     surface: neutralGray,
-    onSurface: darkBlue
+    onSurface: darkBlue,
+
+    tertiary: accentGreen,
 );
 
 

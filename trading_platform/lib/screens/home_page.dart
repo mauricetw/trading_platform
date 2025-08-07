@@ -1,12 +1,11 @@
-// lib/pages/home_page.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart'; // 用於價格格式化
 
-// 假設您的 model 檔案路徑如下，請根據您的專案結構修改
-import '../models/product/product.dart'; // Ensure this is the renewed Product model
-import '../models/user/user.dart';    // Ensure this is your detailed User model and contains favoriteProductIds
+import '../models/product/product.dart';
+import '../models/user/user.dart';
+import '../models/product/category.dart';
 import '../providers/auth_provider.dart';
-import 'product.dart'; // Assuming this is your Product Detail Screen
+import 'product.dart'; // 修改了 ProductScreen 的導入名稱以匹配常見做法
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -17,23 +16,24 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   List<Product> _filteredProducts = [];
-  int? _selectedCategoryId;
+  String? _selectedCategoryId; // <--- 修改: 類型變為 String?
 
-  // 新增：模擬當前用戶
-  // 在真實應用中，這個用戶對象應該從您的認證/狀態管理器獲取
   User? _currentUser;
 
-  // 商品分類模型 (保持不變)
+  // 商品分類數據 (根據新的 Category 模型調整)
+  // 注意：由於新的 Category 模型沒有 icon 和 count，這裡需要做相應調整
+  // 你可能需要從後端獲取這些數據，或者在 UI 上有不同的呈現方式
   final List<Category> _categories = [
-    Category(id: 1, name: '書籍文具', icon: '📚', count: 156),
-    Category(id: 2, name: '電子產品', icon: '📱', count: 89),
-    Category(id: 3, name: '服裝配件', icon: '👕', count: 234),
-    Category(id: 4, name: '家居用品', icon: '🏠', count: 178),
-    Category(id: 5, name: '美容保健', icon: '💄', count: 67),
-    Category(id: 6, name: '運動戶外', icon: '⚽', count: 123),
+    Category(id: 'cat-001', name: '書籍文具'), // parentId 默認為 null
+    Category(id: 'cat-002', name: '電子產品'),
+    Category(id: 'cat-003', name: '服裝配件'),
+    Category(id: 'cat-004', name: '家居用品'),
+    Category(id: 'cat-005', name: '美容保健'),
+    Category(id: 'cat-006', name: '運動戶外'),
   ];
 
-  // 初始商品數據列表 (isFavorite 不再直接在此處設置)
+  // 初始商品數據列表
+  // 【重要】確保 Product 模型中的 categoryId 也更新為 String 類型，如果它與 Category.id 關聯
   final List<Product> _initialProducts = [
     Product(
       id: 'product-001',
@@ -42,10 +42,9 @@ class _HomePageState extends State<HomePage> {
       price: 450.00,
       originalPrice: 580.00,
       imageUrls: ['https://source.unsplash.com/random/400x300?book', 'https://source.unsplash.com/random/400x300?textbook'],
-      categoryId: 1,
-      category: '書籍文具',
+      categoryId: 1, // <--- 【假設】Product.categoryId 也應為 String
+      category: '書籍文具', // 這個字段可以保留用於顯示，但篩選應基於 categoryId
       stockQuantity: 15,
-      // isFavorite: true, // 移除或忽略，由 currentUser.favoriteProductIds 決定
       isSold: false,
       status: 'available',
       createdAt: DateTime.now().subtract(const Duration(days: 30)),
@@ -54,7 +53,7 @@ class _HomePageState extends State<HomePage> {
       averageRating: 4.7,
       reviewCount: 18,
       tags: ['教科書', '甜點', '大學'],
-      seller: User( // 賣家 User 對象
+      seller: User(
         id: 'user-001',
         username: '校園二手書店',
         email: 'bookstore@example.com',
@@ -67,7 +66,7 @@ class _HomePageState extends State<HomePage> {
         productCount: 50,
         schoolName: '臺灣大學',
         isVerified: true,
-        favoriteProductIds: [], // 賣家本身通常不需要收藏列表
+        favoriteProductIds: [],
       ),
     ),
     Product(
@@ -77,10 +76,9 @@ class _HomePageState extends State<HomePage> {
       price: 8500.00,
       originalPrice: 12900.00,
       imageUrls: ['https://source.unsplash.com/random/400x300?ipad', 'https://source.unsplash.com/random/400x300?tablet'],
-      categoryId: 2,
+      categoryId: 2, // <--- 【假設】
       category: '電子產品',
       stockQuantity: 0,
-      // isFavorite: false, // 移除或忽略
       isSold: true,
       status: 'sold',
       createdAt: DateTime.now().subtract(const Duration(days: 60)),
@@ -111,10 +109,9 @@ class _HomePageState extends State<HomePage> {
       price: 22000.00,
       originalPrice: 35900.00,
       imageUrls: ['https://source.unsplash.com/random/400x300?iphone', 'https://source.unsplash.com/random/400x300?smartphone'],
-      categoryId: 2,
+      categoryId: 2, // <--- 【假設】
       category: '電子產品',
       stockQuantity: 1,
-      // isFavorite: false, // 移除或忽略
       isSold: false,
       status: 'available',
       createdAt: DateTime.now().subtract(const Duration(days: 120)),
@@ -144,10 +141,9 @@ class _HomePageState extends State<HomePage> {
       price: 680.00,
       originalPrice: 980.00,
       imageUrls: ['https://source.unsplash.com/random/400x300?sweater', 'https://source.unsplash.com/random/400x300?clothing'],
-      categoryId: 3,
+      categoryId: 3, // <--- 【假設】
       category: '服裝配件',
       stockQuantity: 8,
-      // isFavorite: true, // 移除或忽略
       isSold: false,
       status: 'available',
       createdAt: DateTime.now().subtract(const Duration(days: 20)),
@@ -171,38 +167,35 @@ class _HomePageState extends State<HomePage> {
     ),
   ];
 
-  List<Product> _products = []; // 用於界面顯示的商品列表
+  List<Product> _products = [];
 
   @override
   void initState() {
     super.initState();
-    _loadCurrentUserData(); // 模擬加載用戶數據
-    _products = List.from(_initialProducts); // 使用 _initialProducts 初始化
-    _filteredProducts = List.from(_products); // 初始化過濾後的商品列表
+    _loadCurrentUserData();
+    // 【重要】確保 Product 模型中的 categoryId 與 Category.id 的類型和值匹配
+    // 如果 Product.categoryId 還是 int，這裡的過濾邏輯會出錯
+    _products = List.from(_initialProducts);
+    _filteredProducts = List.from(_products);
   }
 
-  // 模擬加載用戶數據
   void _loadCurrentUserData() {
-    // 在真實應用中，您會異步獲取用戶數據，例如從 Provider 或 API
     setState(() {
       _currentUser = User(
-        id: 'current-user-id-001', // 模擬用戶ID
+        id: 'current-user-id-001',
         username: '當前用戶',
         email: 'currentuser@example.com',
         registeredAt: DateTime.now().subtract(const Duration(days: 100)),
-        favoriteProductIds: ['product-001', 'product-004'], // 示例：該用戶收藏了這兩個商品
-        // 其他 User 屬性可以根據需要添加
+        favoriteProductIds: ['product-001', 'product-004'],
       );
     });
   }
 
-  // 價格格式化 (使用 intl 套件)
   String _formatPrice(double price) {
     final formatCurrency = NumberFormat.currency(locale: "zh_TW", symbol: "NT\$", decimalDigits: 0);
     return formatCurrency.format(price);
   }
 
-  // 獲取響應式數值的輔助方法 (保持不變)
   int _getCrossAxisCount(BuildContext context, {required String gridType}) {
     final screenWidth = MediaQuery.of(context).size.width;
     if (gridType == 'category') {
@@ -222,12 +215,13 @@ class _HomePageState extends State<HomePage> {
   double _getChildAspectRatio(BuildContext context, {required String gridType}) {
     final screenWidth = MediaQuery.of(context).size.width;
     if (gridType == 'category') {
-      if (screenWidth < 360) return 0.9;
-      if (screenWidth < 600) return 1.0;
-      return 1.1;
+      // 由於沒有了圖標和計數，可能需要調整卡片比例，使其更適合只顯示文字
+      if (screenWidth < 360) return 1.5; // 增加高度以便文字顯示
+      if (screenWidth < 600) return 1.6;
+      return 1.8;
     } else if (gridType == 'product') {
-      if (screenWidth < 360) return 0.8; // 針對單列商品調整比例
-      if (screenWidth < 600) return 0.75; // 默認手機
+      if (screenWidth < 360) return 0.8;
+      if (screenWidth < 600) return 0.75;
       return 0.8;
     }
     return 1.0;
@@ -270,7 +264,8 @@ class _HomePageState extends State<HomePage> {
             SizedBox(height: _getResponsiveSpacing(context, 32.0)),
             _buildSectionTitle(_selectedCategoryId == null
                 ? '熱門商品'
-                : _getCategoryName(_selectedCategoryId!), context),
+                : _getCategoryName(_selectedCategoryId!), // <--- 現在傳遞 String
+                context),
             SizedBox(height: _getResponsiveSpacing(context, 16.0)),
             _filteredProducts.isEmpty
                 ? Center(
@@ -327,14 +322,15 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  // 修改 Category Card 的 UI，因為沒有 icon 和 count
   Widget _buildCategoryCard(Category category, BuildContext context) {
     bool isSelected = _selectedCategoryId == category.id;
     final screenWidth = MediaQuery.of(context).size.width;
-    double iconSize = screenWidth < 360 ? 35 : screenWidth < 600 ? 45 : 50;
-    double iconFontSize = screenWidth < 360 ? 18 : screenWidth < 600 ? 22 : 24;
+    // 移除了 iconSize 和 iconFontSize，因為模型不再包含 icon
+    // 你可以根據需要調整卡片內元素的樣式
 
     return GestureDetector(
-      onTap: () => _filterByCategory(category.id),
+      onTap: () => _filterByCategory(category.id), // <--- 現在傳遞 String
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         decoration: BoxDecoration(
@@ -349,51 +345,27 @@ class _HomePageState extends State<HomePage> {
             ),
           ],
         ),
-        child: Column(
+        child: Column( // 只顯示分類名稱
           mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center, // 確保文字居中
           children: [
-            Container(
-              width: iconSize,
-              height: iconSize,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: isSelected
-                      ? [Theme.of(context).primaryColor, Theme.of(context).primaryColorDark]
-                      : [const Color(0xFF1E88E5), const Color(0xFF1565C0)], // 默認漸變色
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(iconSize / 2),
-              ),
-              child: Center(
-                child: Text(
-                  category.icon,
-                  style: TextStyle(fontSize: iconFontSize, color: Colors.white), // 確保圖示可見
-                ),
-              ),
-            ),
-            SizedBox(height: _getResponsiveSpacing(context, 8.0)),
-            Flexible(
+            // 由於沒有 icon，我們可以增大 name 的字體或做其他強調
+            // 或者使用一個固定的圖標 placeholder
+            Padding( // 給文字一些邊距，避免貼邊
+              padding: EdgeInsets.all(_getResponsiveSpacing(context, 8.0)),
               child: Text(
                 category.name,
                 style: TextStyle(
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                  fontSize: _getResponsiveFontSize(context, 12),
+                  fontSize: _getResponsiveFontSize(context, 14), // 調整字體大小
                   color: isSelected ? Theme.of(context).primaryColor : Colors.black87,
                 ),
                 textAlign: TextAlign.center,
-                maxLines: 1,
+                maxLines: 2, // 允許兩行以防名稱過長
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            SizedBox(height: _getResponsiveSpacing(context, 4.0)),
-            Text(
-              '${category.count} 件',
-              style: TextStyle(
-                fontSize: _getResponsiveFontSize(context, 10),
-                color: isSelected ? Theme.of(context).primaryColor.withOpacity(0.8) : Colors.grey[600],
-              ),
-            ),
+            // 移除了顯示 count 的 Text Widget
           ],
         ),
       ),
@@ -417,7 +389,6 @@ class _HomePageState extends State<HomePage> {
       itemCount: _filteredProducts.length,
       itemBuilder: (context, index) {
         final product = _filteredProducts[index];
-        // 判斷商品是否被當前用戶收藏
         bool isFavByCurrentUser = _currentUser?.favoriteProductIds.contains(product.id) ?? false;
         return _buildProductCard(product, context, isFavByCurrentUser);
       },
@@ -519,7 +490,7 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ),
                   Padding(
-                    padding: EdgeInsets.all(_getResponsiveSpacing(context, 6.0)), // 調整圖標外邊距
+                    padding: EdgeInsets.all(_getResponsiveSpacing(context, 6.0)),
                     child: GestureDetector(
                       onTap: () => _toggleFavorite(product),
                       child: Container(
@@ -592,23 +563,26 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  void _filterByCategory(int categoryId) {
+  // 修改: categoryId 類型變為 String
+  void _filterByCategory(String categoryId) {
     setState(() {
       if (_selectedCategoryId == categoryId) {
         _selectedCategoryId = null;
-        _filteredProducts = List.from(_products); // 恢復到所有商品 (或基於當前 _products)
+        _filteredProducts = List.from(_products);
       } else {
         _selectedCategoryId = categoryId;
+        // 【重要】確保 Product.categoryId 也是 String 類型，並且與 Category.id 的值可以匹配
         _filteredProducts = _products.where((product) => product.categoryId == categoryId).toList();
       }
     });
   }
 
-  String _getCategoryName(int categoryId) {
+  // 修改: categoryId 類型變為 String
+  String _getCategoryName(String categoryId) {
     try {
       return _categories.firstWhere((category) => category.id == categoryId).name;
     } catch (e) {
-      return "未知分類";
+      return "未知分類"; // 或者返回空字符串，或者處理錯誤
     }
   }
 
@@ -620,39 +594,25 @@ class _HomePageState extends State<HomePage> {
       return;
     }
 
-    // 先记录下操作前的收藏状态，用于后续判断是添加还是移除
     final bool wasFavoriteBeforeToggle = _currentUser!.favoriteProductIds.contains(productToToggle.id);
-    bool isNowFavorite; // 在 setState 外部声明，以便 SnackBar 可以访问
+    // bool isNowFavorite; // 在 setState 外部声明，以便 SnackBar 可以访问 (这个变量在这里不是必须的，因为我们直接用更新后的currentUser判断)
 
     setState(() {
       List<String> updatedFavoriteIds = List.from(_currentUser!.favoriteProductIds);
 
-      if (wasFavoriteBeforeToggle) { // 如果之前已收藏，则现在是移除
+      if (wasFavoriteBeforeToggle) {
         updatedFavoriteIds.remove(productToToggle.id);
-        isNowFavorite = false; // 更新状态
-        // TODO: 調用 API 將商品從後端收藏中移除
+        // isNowFavorite = false;
         print('API CALL: Remove ${productToToggle.id} from favorites for user ${_currentUser!.id}');
-      } else { // 如果之前未收藏，则现在是添加
+      } else {
         updatedFavoriteIds.add(productToToggle.id);
-        isNowFavorite = true; // 更新状态
-        // TODO: 調用 API 將商品添加到後端收藏中
+        // isNowFavorite = true;
         print('API CALL: Add ${productToToggle.id} to favorites for user ${_currentUser!.id}');
       }
-
-      // 更新本地用戶對象的收藏列表
       _currentUser = _currentUser!.copyWith(favoriteProductIds: updatedFavoriteIds);
     });
 
-    // setState 完成后，_currentUser 的状态已经更新
-    // 我们可以直接从更新后的 _currentUser 判断当前的收藏状态来显示 SnackBar
-    // 或者使用在 setState 中更新的 isNowFavorite 变量
-    // 为了更清晰，我们使用 isNowFavorite (它在 setState 之后的值是正确的)
-
-    // 在这里，isNowFavorite 应该已经被正确赋值
-    // 但为了确保，我们重新从 _currentUser 获取最新的状态来决定提示信息
-    // 这是一个更保险的做法，确保提示信息与实际状态一致
     final bool currentFavoriteStatus = _currentUser!.favoriteProductIds.contains(productToToggle.id);
-
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(currentFavoriteStatus ? '已加入收藏 ❤️' : '已取消收藏'),
@@ -661,38 +621,14 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-
   void _viewProduct(Product product) {
-    // 傳遞商品到詳情頁
-    // 如果 ProductScreen 也需要知道收藏狀態，您可能需要傳遞 _currentUser 或 isCurrentlyFavorite
-    bool isCurrentlyFavorite = _currentUser?.favoriteProductIds.contains(product.id) ?? false;
-
     Navigator.push(
       context,
       MaterialPageRoute(
-        // 假設 ProductScreen 可以接收 product 和 isFavorite 狀態
-        // 您可能需要修改 ProductScreen 的構造函數
         builder: (context) => ProductScreen(
-          product: product,
-          // initialIsFavorite: isCurrentlyFavorite, // 示例：如果ProductScreen需要初始收藏狀態
-          // currentUser: _currentUser, // 或者直接傳遞用戶對象，讓 ProductScreen 自己處理
+          productId: product.id, // 確保 ProductScreen 接受 productId
         ),
       ),
     );
   }
-}
-
-// 商品分類模型 (通常會放在單獨的 model 檔案中)
-class Category {
-  final int id;
-  final String name;
-  final String icon;
-  final int count;
-
-  Category({
-    required this.id,
-    required this.name,
-    required this.icon,
-    required this.count,
-  });
 }

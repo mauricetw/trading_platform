@@ -1,27 +1,14 @@
 class CartItem {
-  // 購物車項目的唯一 ID (可選，如果後端為購物車項目生成 ID)
   final String? id;
-
-  // 與此購物車項目關聯的使用者 ID
   final String userId;
-
-  // 購物車中的商品 ID
   final String productId;
-
-  // 購買數量
   int quantity;
-
-  // 可選：商品的基本資訊快照，方便顯示
-  // 這樣做的好處是，即使商品價格或名稱在您將其添加到購物車後發生變化，
-  // 購物車中顯示的仍然是您添加時的資訊。
-  // 但需要確保在結帳時檢查最新的商品價格。
   final String productName;
   final double productPrice;
-  final String? productImage; // 商品圖片 URL
+  final String? productImage;
 
-  // TODO: 如果商品有規格（例如顏色、尺寸），可能需要添加規格相關的 ID 或信息
-  // final String? selectedVariantId;
-  // final String? selectedOptions; // 例如：'顏色: 紅色, 尺寸: M'
+  // 【【新增】】用於標記此商品是否被選中去結帳
+  bool isSelected;
 
   CartItem({
     this.id,
@@ -31,27 +18,25 @@ class CartItem {
     required this.productName,
     required this.productPrice,
     this.productImage,
-    // this.selectedVariantId,
-    // this.selectedOptions,
+    this.isSelected = false, // 默認不選中
   });
 
-  // 創建一個拷貝並增加數量的輔助方法
-  CartItem copyWith({int? quantity}) {
+  CartItem copyWith({
+    int? quantity,
+    bool? isSelected, // 【【新增】】允許複製時修改選中狀態
+  }) {
     return CartItem(
       id: id,
       userId: userId,
       productId: productId,
       quantity: quantity ?? this.quantity,
-      // 如果 quantity 為 null，保持原來的數量
       productName: productName,
       productPrice: productPrice,
       productImage: productImage,
-      // selectedVariantId: selectedVariantId,
-      // selectedOptions: selectedOptions,
+      isSelected: isSelected ?? this.isSelected, // 【【新增】】
     );
   }
 
-  // 從 JSON 創建 CartItem 物件
   factory CartItem.fromJson(Map<String, dynamic> json) {
     return CartItem(
       id: json['id'] as String?,
@@ -61,12 +46,12 @@ class CartItem {
       productName: json['productName'] as String,
       productPrice: (json['productPrice'] as num).toDouble(),
       productImage: json['productImage'] as String?,
-      // selectedVariantId: json['selectedVariantId'] as String?,
-      // selectedOptions: json['selectedOptions'] as String?,
+      // 從 JSON 加載時，可以決定 isSelected 的默認值，通常是 false
+      // 或者如果後端也保存選中狀態，則從 json['isSelected'] 獲取
+      isSelected: json['isSelected'] as bool? ?? false, // 【【新增】】並提供默認值
     );
   }
 
-  // 將 CartItem 物件轉換為 JSON
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -76,8 +61,13 @@ class CartItem {
       'productName': productName,
       'productPrice': productPrice,
       'productImage': productImage,
-      // 'selectedVariantId': selectedVariantId,
-      // 'selectedOptions': selectedOptions,
+      'isSelected': isSelected, // 【【新增】】
     };
+  }
+
+  // 可選：為了方便調試，可以重寫 toString
+  @override
+  String toString() {
+    return 'CartItem(id: $id, name: $productName, quantity: $quantity, price: $productPrice, isSelected: $isSelected)';
   }
 }

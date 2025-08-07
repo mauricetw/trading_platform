@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/wishlist_provider.dart';
 import 'providers/category_provider.dart';
+import 'providers/cart_provider.dart';
+import 'providers/checkout_provider.dart';
 
 import 'services/wishlist_service.dart';
 
@@ -67,6 +69,7 @@ void main() {
         ),
 
         // 添加其他您需要的 Providers
+        ChangeNotifierProvider(create: (context) => CartProvider()),
 
 
       ],

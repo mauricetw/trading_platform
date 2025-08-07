@@ -452,7 +452,7 @@ class _PublicUserProfilePageState extends State<PublicUserProfilePage> {
     );
   }
 
-  Widget _buildProductListItem(BuildContext context, Product productFromList, // 變數名已是 productFromList
+  Widget _buildProductListItem(BuildContext context, Product productFromList,
       ColorScheme colorScheme, TextTheme textTheme) {
     return Card(
       elevation: 1.5,
@@ -469,7 +469,7 @@ class _PublicUserProfilePageState extends State<PublicUserProfilePage> {
             context,
             MaterialPageRoute(
               // productFromList 已經是官方的 Product 類型
-              builder: (context) => ProductScreen(product: productFromList),
+              builder: (context) => ProductScreen(productId: productFromList.id),
             ),
           );
           // --- 導航結束 ---
