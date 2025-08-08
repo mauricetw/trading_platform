@@ -5,8 +5,9 @@ import 'package:provider/provider.dart';
 // --- 引入所有需要的 Providers ---
 import 'providers/auth_provider.dart';
 import 'providers/product_provider.dart';
-import 'providers/category_provider.dart'; // 來自組員版本
-import 'providers/wishlist_item.dart';   // 來自組員版本
+import 'providers/category_provider.dart';
+// --- 修正：引入正確的 Provider 檔案 ---
+import 'providers/wishlist_provider.dart';
 
 // --- 引入所有需要的頁面 ---
 import 'screens/auth/login_main.dart';
@@ -18,26 +19,20 @@ import 'theme/app_theme.dart'; // 來自組員版本
 
 void main() {
   runApp(
-    // 使用 MultiProvider 註冊 App 所需的所有狀態管理器
     MultiProvider(
       providers: [
-        // 1. 身份驗證狀態
         ChangeNotifierProvider(create: (context) => AuthProvider()),
-        // 2. 商品資料狀態
         ChangeNotifierProvider(create: (context) => ProductProvider()),
-        // 3. 商品分類狀態 (來自組員版本)
         ChangeNotifierProvider(create: (context) => CategoryProvider()),
-        // 4. 收藏清單狀態 (來自組員版本)
-        // ChangeNotifierProxyProvider 會在 AuthProvider 改變時，更新 WishlistProvider
+
         ChangeNotifierProxyProvider<AuthProvider, WishlistProvider>(
           create: (context) => WishlistProvider(),
           update: (context, auth, previousWishlist) {
-            // 當使用者登入或登出時，更新收藏清單的狀態
+            // 這個邏輯現在是完全正確的
             previousWishlist?.updateAuth(auth.token, auth.currentUser);
             return previousWishlist ?? WishlistProvider();
           },
         ),
-        // TODO: 未來可以在此處加入 CartProvider, OrderProvider 等
       ],
       child: const MyApp(),
     ),

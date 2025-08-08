@@ -309,21 +309,74 @@ class ApiService {
       rethrow;
     }
   }
-/*
-  Future<Product> createProduct(Product product) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/products'),
-      headers: {'Content-Type': 'application/json'},
-      body: json.encode(product.toJson()),  // 確保 `toJson()` 有對應欄位
-    );
 
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      return Product.fromJson(json.decode(response.body));
-    } else {
-      throw Exception('上架商品失敗：${response.statusCode}');
+  // --- 新增：上架新商品 ---
+  // 我們傳入一個 Map 而不是完整的 Product 物件，因為很多欄位是由後端生成的
+  Future<Product> createProduct(Map<String, dynamic> productData) async {
+    // 請求的 Header 中會自動包含 JWT Token，後端會用它來識別賣家身份
+    final url = Uri.http(_authority, '/products');
+    try {
+      final response = await http.post(
+        url,
+        headers: _getHeaders(),
+        body: jsonEncode(productData),
+      );
+      final responseBody = jsonDecode(utf8.decode(response.bodyBytes));
+
+      if (response.statusCode == 201) { // 201 Created
+        return Product.fromJson(responseBody);
+      } else {
+        throw ApiException(responseBody['detail'] ?? '上架商品失敗', response.statusCode);
+      }
+    } on SocketException {
+      throw ApiException('無法連線到伺服器，請檢查您的網路。');
+    } catch (e) {
+      rethrow;
     }
   }
-*/
+
+  // --- 新增：獲取當前賣家自己的商品列表 ---
+  Future<List<Product>> getMyProducts() async {
+    if (_token == null) throw ApiException('需要登入才能查看您的商品');
+    // 假設後端有一個專門的 /seller/products 端點
+    final url = Uri.http(_authority, '/seller/products');
+    try {
+      final response = await http.get(url, headers: _getHeaders());
+      final responseBody = jsonDecode(utf8.decode(response.bodyBytes));
+
+      if (response.statusCode == 200) {
+        final List<dynamic> productListJson = responseBody;
+        return productListJson.map((json) => Product.fromJson(json)).toList();
+      } else {
+        throw ApiException(responseBody['detail'] ?? '獲取您的商品失敗', response.statusCode);
+      }
+    } on SocketException {
+      throw ApiException('無法連線到伺服器，請檢查您的網路。');
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // --- 新增：刪除商品 ---
+  Future<void> deleteProduct(int productId) async {
+    if (_token == null) throw ApiException('需要登入才能刪除商品');
+    final url = Uri.http(_authority, '/products/$productId');
+    try {
+      final response = await http.delete(url, headers: _getHeaders());
+      if (response.statusCode != 204) { // 204 No Content
+        final responseBody = jsonDecode(utf8.decode(response.bodyBytes));
+        throw ApiException(responseBody['detail'] ?? '刪除商品失敗', response.statusCode);
+      }
+      // 成功時沒有內容，直接返回
+    } on SocketException {
+      throw ApiException('無法連線到伺服器，請檢查您的網路。');
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+// TODO: 新增 updateProduct 方法 (與 createProduct 類似，但使用 http.put)
+
 /*
   // --- 新增的公告相關方法 ---
 

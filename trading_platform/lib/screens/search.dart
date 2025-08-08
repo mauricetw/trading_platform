@@ -8,7 +8,7 @@ import 'package:first_flutter_project/widgets/filter_options.dart'; // <<<=== �
 class SearchPage extends StatefulWidget {
   final String? searchText;
 
-  const SearchPage({super.key, this.searchText});
+  const SearchPage({Key? key, this.searchText}) : super(key: key);
 
   @override
   State<SearchPage> createState() => _SearchPageState();
@@ -85,7 +85,7 @@ class _SearchPageState extends State<SearchPage> {
     try {
       // 在調用 API 時傳遞篩選條件
       // 您需要修改 ApiService().searchItems 來接受這些篩選參數
-      final results = await _apiService.searchItems(
+      /*final results = await _apiService.searchItems(
         query,
         sortBy: currentFiltersToUse.sortBy,
         categories: currentFiltersToUse.categories,
@@ -96,7 +96,7 @@ class _SearchPageState extends State<SearchPage> {
         setState(() {
           _searchResults = results;
         });
-      }
+      }*/
     } catch (e) {
       if (mounted) {
         setState(() {

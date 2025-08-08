@@ -3,7 +3,7 @@ import 'package:first_flutter_project/models/announcement/announcement.dart'; //
 import 'announcement_detail.dart';
 
 class AnnouncementListScreen extends StatefulWidget {
-  const AnnouncementListScreen({super.key});
+  const AnnouncementListScreen({Key? key}) : super(key: key);
 
   @override
   State<AnnouncementListScreen> createState() => _AnnouncementListScreenState();
@@ -16,7 +16,7 @@ class _AnnouncementListScreenState extends State<AnnouncementListScreen> {
   String? _error;
 
   // 用於本地存儲已讀公告ID的集合 (示例，實際應用可能用SharedPreferences)
-  final Set<String> _readAnnouncementIds = {};
+  Set<String> _readAnnouncementIds = {};
 
   @override
   void initState() {
