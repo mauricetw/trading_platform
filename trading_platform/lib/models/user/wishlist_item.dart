@@ -1,15 +1,18 @@
-// lib/models/user/wishlist_item.dart (或者您的路徑)
+// --- FILE: lib/models/user/wishlist_item.dart ---
 import 'package:json_annotation/json_annotation.dart';
-import '../product/product.dart'; // <--- 確保導入 Product 模型
+import '../product/product.dart';
 
 part 'wishlist_item.g.dart';
 
-@JsonSerializable(explicitToJson: true) // explicitToJson 很重要，如果 Product 也用 json_serializable
+@JsonSerializable(fieldRename: FieldRename.snake, explicitToJson: true)
 class WishlistItem {
-  final String id;
-  final String userId;
-  final String productId;
+  // --- 類型修正：使用與後端一致的 int 類型 ---
+  final int id;
+  final int userId;
+  final int productId;
   final DateTime createdAt;
+
+  // 為了方便在收藏頁面直接顯示，API 通常會一併回傳商品資訊
   final Product product;
 
   WishlistItem({
@@ -23,20 +26,20 @@ class WishlistItem {
   factory WishlistItem.fromJson(Map<String, dynamic> json) => _$WishlistItemFromJson(json);
   Map<String, dynamic> toJson() => _$WishlistItemToJson(this);
 
-  // --- 更新 copyWith, ==, hashCode 以包含 product ---
+  // --- 整合有用的輔助方法 ---
   WishlistItem copyWith({
-    String? id,
-    String? userId,
-    String? productId,
+    int? id,
+    int? userId,
+    int? productId,
     DateTime? createdAt,
-    Product? product, // <--- 新增
+    Product? product,
   }) {
     return WishlistItem(
       id: id ?? this.id,
       userId: userId ?? this.userId,
       productId: productId ?? this.productId,
       createdAt: createdAt ?? this.createdAt,
-      product: product ?? this.product, // <--- 新增
+      product: product ?? this.product,
     );
   }
 
@@ -48,7 +51,7 @@ class WishlistItem {
         other.userId == userId &&
         other.productId == productId &&
         other.createdAt == createdAt &&
-        other.product == product;
+        other.product == product; // 假設 Product 也實現了 ==
   }
 
   @override
@@ -62,6 +65,6 @@ class WishlistItem {
 
   @override
   String toString() {
-    return 'WishlistItem(id: $id, userId: $userId, productId: $productId, createdAt: $createdAt, product: ${product.name})'; // 示例 toString
+    return 'WishlistItem(id: $id, userId: $userId, productId: $productId, product: ${product.name})';
   }
 }
