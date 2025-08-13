@@ -2,18 +2,18 @@
 import 'package:flutter/foundation.dart';
 import '../models/user/cart_item.dart';
 import '../models/product/product.dart';
-import '../services/cart_service.dart'; // 引入我們建立的 CartService
-import 'auth_provider.dart'; // 依賴 AuthProvider 來獲取使用者狀態
+import '../services/cart_service.dart';
+import 'auth_provider.dart';
 
 class CartProvider with ChangeNotifier {
   final CartService _cartService;
-  AuthProvider? _authProvider; // 用於獲取 token 和 user id
+  AuthProvider? _authProvider;
 
-  Map<int, CartItem> _items = {}; // 修改：Key 使用 int (productId)
+  Map<int, CartItem> _items = {};
   bool _isLoading = false;
   String? _error;
 
-  // --- Getters (與你的版本保持一致) ---
+  // --- Getters ---
   List<CartItem> get items => _items.values.toList();
   bool get isLoading => _isLoading;
   String? get error => _error;
@@ -34,12 +34,12 @@ class CartProvider with ChangeNotifier {
     return _items.values.every((item) => item.isSelected);
   }
 
-  // 建構函式，接收傳入的 services
+  // 建構函式
   CartProvider(this._cartService, this._authProvider) {
     _updateDependencies();
   }
 
-  // 當依賴的 AuthProvider 更新時，由 ProxyProvider 呼叫
+  // 由 ProxyProvider 呼叫
   void update(AuthProvider newAuthProvider) {
     _authProvider = newAuthProvider;
     _updateDependencies();
@@ -47,14 +47,14 @@ class CartProvider with ChangeNotifier {
 
   void _updateDependencies() {
     if (_authProvider?.isLoggedIn ?? false) {
-      fetchUserCart(); // 如果使用者已登入，自動獲取購物車
+      fetchUserCart();
     } else {
-      _items = {}; // 如果使用者登出，清空購物車
+      _items = {};
       notifyListeners();
     }
   }
 
-  // --- 核心業務邏輯 (注入真實 API 呼叫) ---
+  // --- 核心業務邏輯 ---
 
   Future<void> fetchUserCart({bool forceRefresh = false}) async {
     if (!(_authProvider?.isLoggedIn ?? false)) return;
@@ -84,31 +84,25 @@ class CartProvider with ChangeNotifier {
     if (quantityToAdd <= 0) return;
 
     final int key = product.id;
-    final existingItem = _items[key];
-    final int newQuantity = (existingItem?.quantity ?? 0) + quantityToAdd;
-
     try {
-      // 呼叫真實 API
       final updatedItem = await _cartService.addItemToCart(key, quantityToAdd);
       _items[key] = updatedItem;
       notifyListeners();
     } catch (e) {
       _error = "加入購物車失敗: $e";
       notifyListeners();
-      rethrow; // 向上拋出，讓 UI 層可以顯示 SnackBar
+      rethrow;
     }
   }
 
   Future<void> removeItem(int productId) async {
     if (!_items.containsKey(productId)) return;
-
-    final removedItem = _items.remove(productId); // 樂觀更新 UI
+    final removedItem = _items.remove(productId);
     notifyListeners();
-
     try {
       await _cartService.removeItemFromCart(productId);
     } catch (e) {
-      _items[productId] = removedItem!; // 如果 API 失敗，將項目加回來
+      _items[productId] = removedItem!;
       _error = "移除商品失敗: $e";
       notifyListeners();
       rethrow;
@@ -118,28 +112,22 @@ class CartProvider with ChangeNotifier {
   Future<void> updateQuantity(int productId, int newQuantity) async {
     if (!_items.containsKey(productId)) return;
 
-    final originalQuantity = _items[productId]!.quantity;
-    if (newQuantity == originalQuantity) return;
+    final originalItem = _items[productId]!;
+    if (newQuantity == originalItem.quantity) return;
 
-    // 如果新數量為 0 或更少，則執行移除操作
     if (newQuantity <= 0) {
       await removeItem(productId);
       return;
     }
 
-    // --- 錯誤 1 修正 ---
-    // 因為 CartItem 是不可變的 (immutable)，我們不能直接修改 quantity。
-    // 我們應該使用 copyWith 創建一個新的 CartItem 實例來進行樂觀更新。
-    _items[productId] = _items[productId]!.copyWith(quantity: newQuantity); // 樂觀更新 UI
+    _items[productId] = originalItem.copyWith(quantity: newQuantity);
     notifyListeners();
 
     try {
       final updatedItem = await _cartService.updateCartItemQuantity(productId, newQuantity);
       _items[productId] = updatedItem;
     } catch (e) {
-      // --- 錯誤 2 修正 ---
-      // 如果 API 失敗，恢復原來的 CartItem 實例。
-      _items[productId] = _items[productId]!.copyWith(quantity: originalQuantity);
+      _items[productId] = originalItem; // API 失敗時回滾
       _error = "更新數量失敗: $e";
       rethrow;
     } finally {
@@ -164,33 +152,58 @@ class CartProvider with ChangeNotifier {
     final backupItems = Map.of(_items);
     _items.clear();
     notifyListeners();
-
     try {
       await _cartService.clearRemoteCart();
     } catch (e) {
-      _items = backupItems; // 如果 API 失敗，恢復購物車
+      _items = backupItems;
       _error = "清空購物車失敗: $e";
       notifyListeners();
       rethrow;
     }
   }
 
-  // --- 純前端 UI 狀態操作 (無需 API 呼叫) ---
-  // --- 錯誤 3 修正 ---
-  // 將 productId 的類型從 String 改為 int，以匹配 Map 的 key 類型。
+  // --- 【【【錯誤修正：新增這個方法】】】 ---
+  /// 清除所有已選中的商品 (通常在下單成功後呼叫)
+  Future<void> clearSelectedItems() async {
+    if (!(_authProvider?.isLoggedIn ?? false)) return;
+
+    // 1. 找出所有被選中的商品 ID
+    final selectedIds = _items.values
+        .where((item) => item.isSelected)
+        .map((item) => item.productId)
+        .toList();
+
+    if (selectedIds.isEmpty) return;
+
+    // 2. 樂觀更新：先在 UI 上移除
+    final backupItems = Map.of(_items);
+    _items.removeWhere((key, value) => value.isSelected);
+    notifyListeners();
+
+    try {
+      // 3. 呼叫後端 API 逐一刪除
+      // 注意：更高效的做法是提供一個可以批量刪除的後端 API
+      await Future.wait(
+          selectedIds.map((id) => _cartService.removeItemFromCart(id))
+      );
+    } catch (e) {
+      // 4. 如果 API 失敗，回滾 UI
+      _items = backupItems;
+      _error = "清除已選商品失敗: $e";
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  // --- 純前端 UI 狀態操作 ---
   void toggleItemSelected(int productId, bool isSelected) {
     if (!_items.containsKey(productId)) return;
-
-    // 我們可以直接修改 isSelected，因為它在 CartItem 模型中不是 final。
-    // 如果它是 final，我們也需要使用 copyWith。
     _items[productId]!.isSelected = isSelected;
     notifyListeners();
   }
 
-
   void toggleSelectAll(bool select) {
     if (_items.isEmpty) return;
-
     for (var item in _items.values) {
       item.isSelected = select;
     }
