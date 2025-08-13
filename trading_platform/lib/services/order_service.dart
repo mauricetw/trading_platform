@@ -1,4 +1,4 @@
-// lib/services/order_service.dart
+// --- FILE: lib/services/order_service.dart ---
 import 'dart:math';
 import '../models/user/address.dart';
 import '../models/user/cart_item.dart';
@@ -24,8 +24,9 @@ class OrderService implements IOrderService {
     DateTime now = DateTime.now();
     DateTime mockCreatedAt = now.subtract(const Duration(days: 30));
 
+    // ... (運送選項的模擬邏輯保持不變)
     if (destination.country == '台灣') {
-      options.add(ShippingOption( // 如果這裡的 ShippingOption 標紅，問題可能在導入或 ShippingOption 類本身
+      options.add(ShippingOption(
           id: 'standard_tw',
           name: '標準宅配 (台灣)',
           description: '預計 3-5 個工作日送達',
@@ -82,9 +83,8 @@ class OrderService implements IOrderService {
     await _simulateNetworkDelay();
     print('[OrderService] Mock: Applying coupon: $couponCode');
 
-    // 檢查點 1: items.isEmpty 的處理
     if (items.isEmpty) {
-      return DiscountInfo( // <--- 檢查此行是否標紅
+      return DiscountInfo(
         discountAmount: 0,
         message: "購物車是空的",
         appliedCouponCode: couponCode,
@@ -151,10 +151,17 @@ class OrderService implements IOrderService {
       throw Exception("無法創建訂單：總金額異常。");
     }
 
+    // --- 【【【錯誤修正】】】 ---
+    // 舊的寫法: item.productName
+    // 新的寫法: item.product.name
+    // 我們現在從 CartItem 中嵌入的 Product 物件來獲取商品名稱。
+    final productNames = data.items.map((item) => item.product.name).join(', ');
+    final displayProductName = productNames.substring(0, min(50, productNames.length)) + (data.items.length > 2 ? "..." : "");
+
     final createdOrder = OrderModel(
       id: 'db_id_${DateTime.now().microsecondsSinceEpoch}',
-      orderId: 'MOCK-${DateTime.now().year}${DateTime.now().month.toString().padLeft(2, '0')}${DateTime.now().day.toString().padLeft(2, '0')}-${Random().nextInt(99999).toString().padLeft(5, '0')}',
-      productName: data.items.map((item) => item.productName).join(', ').substring(0, min(50, data.items.map((item) => item.productName).join(', ').length)) + (data.items.length > 2 ? "..." : ""),
+      orderId: 'MOCK-${DateTime.now().year}${DateTime.now().month.toString().padLeft(2, '0')}${DateTime.now().day.toString().padLeft(5, '0')}',
+      productName: displayProductName, // <-- 使用修正後的名稱
       totalPrice: data.totalAmount,
       orderDate: DateTime.now(),
       currentStatus: OrderStatus.established,

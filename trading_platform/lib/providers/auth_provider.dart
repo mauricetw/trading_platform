@@ -1,60 +1,120 @@
+// --- FILE: lib/providers/auth_provider.dart ---
 import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
 import '../models/user/user.dart';
+import '../models/auth/auth_response.dart';
+import '../services/api_client.dart'; // 引入 ApiClient
+import '../services/auth_service.dart'; // 引入 AuthService
+import '../services/user_service.dart'; // 引入 UserService
 
 class AuthProvider with ChangeNotifier {
-  // 1. 需要儲存當前使用者資料的變數
+  // --- 依賴注入：不再依賴舊的 ApiService，而是依賴職責單一的 Service ---
+  final AuthService _authService;
+  final UserService _userService;
+  final ApiClient _apiClient; // 用於設定 token
+  final FlutterSecureStorage _storage = const FlutterSecureStorage();
+
   User? _currentUser;
+  String? _token;
 
-  // 2. 提供給外部訪問當前使用者的 getter
   User? get currentUser => _currentUser;
+  String? get token => _token;
+  bool get isLoggedIn => _token != null && _currentUser != null;
 
-  // 3. 提供給外部判斷是否已登入的 getter
-  bool get isLoggedIn => _currentUser != null;
+  // 建構函式，接收傳入的 services
+  AuthProvider(this._authService, this._userService, this._apiClient);
 
-  // 4. 模擬登入的方法：需要一個 User 物件作為參數
-  void login(User user) {
-    _currentUser = user;
-    notifyListeners(); // 通知監聽者狀態已改變
+  // --- 登入 ---
+  Future<void> login(String identifier, String password) async {
+    try {
+      // 呼叫 AuthService 的 login 方法
+      final authResponse = await _authService.login(identifier, password);
+      await _handleAuthSuccess(authResponse);
+    } catch (e) {
+      rethrow;
+    }
   }
 
-  // 5. 模擬登出的方法：不需要參數
-  void logout() {
+  // --- 發送註冊驗證碼 ---
+  Future<void> sendVerificationCode(String email) async {
+    // 呼叫 AuthService 的方法
+    await _authService.sendVerificationCode(email);
+  }
+
+  // --- 註冊 ---
+  Future<void> register(String username, String email, String password, String code) async {
+    try {
+      // 呼叫 AuthService 的方法
+      final authResponse = await _authService.register(username, email, password, code);
+      await _handleAuthSuccess(authResponse);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // --- 處理登入/註冊成功後的通用邏輯 ---
+  Future<void> _handleAuthSuccess(AuthResponse authResponse) async {
+    _currentUser = authResponse.user;
+    _token = authResponse.token.accessToken;
+
+    // 將 token 傳遞給底層的 ApiClient 供後續所有請求使用
+    _apiClient.setAuthToken(_token);
+
+    // 將 token 安全地儲存在手機上
+    await _storage.write(key: 'auth_token', value: _token);
+    notifyListeners();
+  }
+
+  // --- App 啟動時嘗試自動登入 ---
+  Future<bool> tryAutoLogin() async {
+    final storedToken = await _storage.read(key: 'auth_token');
+    if (storedToken == null) return false;
+
+    _token = storedToken;
+    _apiClient.setAuthToken(_token);
+
+    try {
+      // 透過 UserService 獲取最新的使用者資料
+      final user = await _userService.getMyProfile();
+      _currentUser = user;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      await logout();
+      return false;
+    }
+  }
+
+  // --- 更新使用者資料 ---
+  Future<void> updateUserProfile({
+    required String username,
+    required String bio,
+    required String schoolName,
+    required String avatarUrl,
+  }) async {
+    if (!isLoggedIn) return;
+    try {
+      // 呼叫 UserService 的方法
+      final updatedUser = await _userService.updateUserProfile(
+        username: username,
+        bio: bio,
+        schoolName: schoolName,
+        avatarUrl: avatarUrl,
+      );
+      _currentUser = updatedUser;
+      notifyListeners();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // --- 登出 ---
+  Future<void> logout() async {
     _currentUser = null;
-    notifyListeners(); // 通知監聽者狀態已改變
-  }
-
-  // 6. 模擬更新使用者資訊的方法：需要一個更新後的 User 物件作為參數
-  void updateUser(User updatedUser) {
-    // ... 更新邏輯 ...
-    notifyListeners(); // 通知監聽者狀態已改變
-  }
-
-  // 7. （可選）在構造函數中進行初始化操作
-  AuthProvider() {
-    _currentUser = User(
-      id: 'defaultSellerXYZ789',
-      username: '校園123 (預設)',
-      email: 'default.seller.campus@example.com',
-      registeredAt: DateTime.now().subtract(Duration(days: 120)), // 假設註冊於120天前
-      phoneNumber: '0912-345-678',
-      avatarUrl: 'https://i.pravatar.cc/150?u=defaultcampusstore', // Pravatar 是一個提供隨機頭像的服務
-      lastLoginAt: DateTime.now().subtract(Duration(minutes: 30)), // 假設30分鐘前登錄
-      bio: '本店預設提供各類優質商品，由 AuthProvider 直接生成。',
-      schoolName: '預設模擬大學',
-      isVerified: true,
-      roles: ['user', 'seller'], // 明確角色
-      isSeller: true,          // 明確是賣家
-      sellerName: '校園百寶小店 (AuthProvider 預設)',
-      sellerDescription: '這是一個由 AuthProvider 在構造時自動創建的模擬賣家，用於開發和測試。',
-      sellerRating: 4.75,
-      productCount: 42,
-      favoriteProductIds: ['prod_sample_1', 'prod_sample_2', 'prod_sample_3'], // 模擬一些收藏
-    );
-
-    // 在構造函數中，通常不需要調用 notifyListeners()，
-    // 因為 Provider 尚未被 Widget 監聽。
-    // 如果您在 Provider 創建後立即在 Widget 中使用它，
-    // Widget 的初始 build 會讀取到這個 _currentUser。
-    print("AuthProvider Initialized: Simulated login for default seller '${_currentUser?.username}'");
+    _token = null;
+    _apiClient.setAuthToken(null);
+    await _storage.delete(key: 'auth_token');
+    notifyListeners();
   }
 }

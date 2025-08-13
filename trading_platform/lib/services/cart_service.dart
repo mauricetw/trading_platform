@@ -1,145 +1,70 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
+// --- FILE: lib/services/cart_service.dart ---
 import '../models/user/cart_item.dart';
-// 假設您有一個全局的 API 配置或用戶 token 管理器
-import '../config/api_config.dart';
-import 'auth_service.dart';
+import 'api_client.dart';
 
 class CartService {
-  final String _apiBaseUrl = APIConfig.baseUrl; // 從您的 API 配置中獲取
-  final AuthService _authService; // 假設您有一個 AuthService 來獲取 token
+  final ApiClient _apiClient;
+  // CartService 依賴於 ApiClient 來完成所有網路請求
+  CartService(this._apiClient);
 
-  CartService(this._authService);
+  /// 從後端獲取當前登入使用者的購物車列表。
+  ///
+  /// 此方法會呼叫後端的 `GET /cart` 端點。
+  /// 成功時回傳一個 `List<CartItem>`，每個項目都包含完整的商品資訊。
+  Future<List<CartItem>> fetchCartItems() async {
+    // 呼叫 ApiClient 的 get 方法，路徑與後端 router 一致
+    final responseBody = await _apiClient.get('/cart');
 
-  // 輔助方法：獲取認證頭
-  Future<Map<String, String>> _getHeaders() async {
-    final token = await _authService.getUserToken(); // 假設 AuthService 提供獲取 token 的方法
-    if (token == null) {
-      // 如果沒有 token，可以拋出異常或返回一個指示未認證的狀態
-      throw Exception('User not authenticated');
-    }
-    return {
-      'Content-Type': 'application/json; charset=UTF-8',
-      'Authorization': 'Bearer $token',
-    };
+    // ApiClient 會自動處理錯誤和 JSON 解析，我們只需要處理型別轉換
+    final List<dynamic> itemsJson = responseBody;
+    return itemsJson.map((json) => CartItem.fromJson(json)).toList();
   }
 
-  /// 從後端獲取指定用戶的購物車列表
-  Future<List<CartItem>> fetchCartItems(String userId) async {
-    // 【【注意】】後端 API 端點 `/users/{userId}/cart` 僅為示例，請替換為您的實際端點
-    final url = Uri.parse('$_apiBaseUrl/users/$userId/cart');
-    try {
-      final headers = await _getHeaders();
-      final response = await http.get(url, headers: headers);
-
-      if (response.statusCode == 200) {
-        final List<dynamic> responseData = json.decode(response.body);
-        return responseData.map((data) => CartItem.fromJson(data)).toList();
-      } else if (response.statusCode == 404) {
-        // 購物車為空或用戶不存在，返回空列表
-        return [];
-      } else {
-        // 處理其他錯誤情況
-        print('Failed to load cart items: ${response.statusCode} ${response.body}');
-        throw Exception('Failed to load cart items: ${response.body}');
-      }
-    } catch (error) {
-      print('Error fetching cart items: $error');
-      throw Exception('Error fetching cart items: $error');
-    }
+  /// 將商品添加到後端購物車。
+  ///
+  /// 此方法會呼叫後端的 `POST /cart` 端點。
+  /// [productId] 是要加入的商品 ID，[quantity] 是要加入的數量。
+  /// 成功時回傳後端更新或建立的 `CartItem` 物件。
+  Future<CartItem> addItemToCart(int productId, int quantity) async {
+    // 請求的 body 格式與後端 CartItemCreate schema 一致
+    final responseBody = await _apiClient.post(
+      '/cart',
+      body: {
+        'product_id': productId,
+        'quantity': quantity
+      },
+    );
+    return CartItem.fromJson(responseBody);
   }
 
-  /// 將商品添加到後端購物車
-  /// 返回後端創建的 CartItem (可能包含後端生成的 id)
-  Future<CartItem> addItemToCart(String userId, String productId, int quantity) async {
-    // 【【注意】】後端 API 端點 `/users/{userId}/cart` 僅為示例
-    final url = Uri.parse('$_apiBaseUrl/users/$userId/cart');
-    try {
-      final headers = await _getHeaders();
-      final body = json.encode({
-        'productId': productId,
-        'quantity': quantity,
-        // 後端可能需要其他信息，例如商品快照 (如果後端不自己處理)
-      });
-
-      final response = await http.post(url, headers: headers, body: body);
-
-      if (response.statusCode == 201 || response.statusCode == 200) { // 201 Created or 200 OK (如果更新數量)
-        return CartItem.fromJson(json.decode(response.body));
-      } else {
-        print('Failed to add item to cart: ${response.statusCode} ${response.body}');
-        throw Exception('Failed to add item to cart: ${response.body}');
-      }
-    } catch (error) {
-      print('Error adding item to cart: $error');
-      throw Exception('Error adding item to cart: $error');
-    }
+  /// 更新後端購物車中商品的數量。
+  ///
+  /// 此方法會呼叫後端的 `PUT /cart/{product_id}` 端點。
+  /// [productId] 是要更新的商品 ID，[newQuantity] 是新的數量。
+  /// 成功時回傳更新後的 `CartItem` 物件。
+  Future<CartItem> updateCartItemQuantity(int productId, int newQuantity) async {
+    // 請求的 body 格式與後端 CartItemUpdate schema 一致
+    final responseBody = await _apiClient.put(
+      '/cart/$productId',
+      body: {'quantity': newQuantity},
+    );
+    return CartItem.fromJson(responseBody);
   }
 
-  /// 更新後端購物車中商品的數量
-  /// [cartItemId] 是後端數據庫中購物車項目的唯一 ID，或者使用 productId 如果後端這樣設計
-  Future<CartItem> updateCartItemQuantity(String userId, String cartItemIdOrProductId, int newQuantity) async {
-    // 【【注意】】端點示例: /users/{userId}/cart/{cartItemIdOrProductId}
-    final url = Uri.parse('$_apiBaseUrl/users/$userId/cart/$cartItemIdOrProductId');
-    try {
-      final headers = await _getHeaders();
-      final body = json.encode({'quantity': newQuantity});
-
-      final response = await http.put(url, headers: headers, body: body); // 或 PATCH
-
-      if (response.statusCode == 200) {
-        return CartItem.fromJson(json.decode(response.body));
-      } else {
-        print('Failed to update cart item quantity: ${response.statusCode} ${response.body}');
-        throw Exception('Failed to update cart item quantity: ${response.body}');
-      }
-    } catch (error) {
-      print('Error updating cart item quantity: $error');
-      throw Exception('Error updating cart item quantity: $error');
-    }
+  /// 從後端購物車中移除商品。
+  ///
+  /// 此方法會呼叫後端的 `DELETE /cart/{product_id}` 端點。
+  /// [productId] 是要移除的商品 ID。
+  Future<void> removeItemFromCart(int productId) async {
+    // 將 productId 放在 URL 路徑中，與後端 router 一致
+    await _apiClient.delete('/cart/$productId');
   }
 
-  /// 從後端購物車中移除商品
-  /// [cartItemId] 是後端數據庫中購物車項目的唯一 ID，或者使用 productId
-  Future<void> removeItemFromCart(String userId, String cartItemIdOrProductId) async {
-    // 【【注意】】端點示例: /users/{userId}/cart/{cartItemIdOrProductId}
-    final url = Uri.parse('$_apiBaseUrl/users/$userId/cart/$cartItemIdOrProductId');
-    try {
-      final headers = await _getHeaders();
-      final response = await http.delete(url, headers: headers);
-
-      if (response.statusCode == 204 || response.statusCode == 200) { // 204 No Content or 200 OK
-        // 成功移除
-        return;
-      } else {
-        print('Failed to remove item from cart: ${response.statusCode} ${response.body}');
-        throw Exception('Failed to remove item from cart: ${response.body}');
-      }
-    } catch (error) {
-      print('Error removing item from cart: $error');
-      throw Exception('Error removing item from cart: $error');
-    }
-  }
-
-  /// 清空後端指定用戶的購物車
-  Future<void> clearRemoteCart(String userId) async {
-    // 【【注意】】端點示例: /users/{userId}/cart/clear 或 DELETE /users/{userId}/cart
-    final url = Uri.parse('$_apiBaseUrl/users/$userId/cart/clear'); // 或直接 DELETE 到 /cart
-    try {
-      final headers = await _getHeaders();
-      // 通常清空是 POST 到一個特定端點或 DELETE 到集合端點
-      final response = await http.post(url, headers: headers); // 或者 http.delete
-
-      if (response.statusCode == 204 || response.statusCode == 200) {
-        return;
-      } else {
-        print('Failed to clear remote cart: ${response.statusCode} ${response.body}');
-        throw Exception('Failed to clear remote cart: ${response.body}');
-      }
-    } catch (error) {
-      print('Error clearing remote cart: $error');
-      throw Exception('Error clearing remote cart: $error');
-    }
+  /// 清空後端當前用戶的購物車。
+  ///
+  /// 此方法會呼叫後端的 `DELETE /cart` 端點。
+  Future<void> clearRemoteCart() async {
+    await _apiClient.delete('/cart');
   }
 
 // --- 選項：批量同步購物車 ---

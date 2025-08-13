@@ -1,73 +1,56 @@
-class CartItem {
-  final String? id;
-  final String userId;
-  final String productId;
-  int quantity;
-  final String productName;
-  final double productPrice;
-  final String? productImage;
+// --- FILE: lib/models/user/cart_item.dart ---
+import 'package:json_annotation/json_annotation.dart';
+import '../product/product.dart';
 
-  // 【【新增】】用於標記此商品是否被選中去結帳
+part 'cart_item.g.dart';
+
+@JsonSerializable(fieldRename: FieldRename.snake, explicitToJson: true)
+class CartItem {
+  // --- 與後端 CartItemResponse 完全匹配的欄位 ---
+  final int id;
+  final int userId;
+  final int productId;
+  final int quantity;
+  final DateTime addedAt;
+  // API 回應會嵌入完整的商品資訊
+  final Product product;
+
+  // --- 純粹的前端 UI 狀態 ---
+  // 用於標記此商品是否被選中去結帳
+  // @JsonKey 告訴 json_serializable 在序列化/反序列化時忽略此欄位
+  @JsonKey(includeFromJson: false, includeToJson: false)
   bool isSelected;
 
   CartItem({
-    this.id,
+    required this.id,
     required this.userId,
     required this.productId,
     required this.quantity,
-    required this.productName,
-    required this.productPrice,
-    this.productImage,
+    required this.addedAt,
+    required this.product,
     this.isSelected = false, // 默認不選中
   });
 
+  factory CartItem.fromJson(Map<String, dynamic> json) => _$CartItemFromJson(json);
+  Map<String, dynamic> toJson() => _$CartItemToJson(this);
+
   CartItem copyWith({
+    int? id,
+    int? userId,
+    int? productId,
     int? quantity,
-    bool? isSelected, // 【【新增】】允許複製時修改選中狀態
+    DateTime? addedAt,
+    Product? product,
+    bool? isSelected,
   }) {
     return CartItem(
-      id: id,
-      userId: userId,
-      productId: productId,
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      productId: productId ?? this.productId,
       quantity: quantity ?? this.quantity,
-      productName: productName,
-      productPrice: productPrice,
-      productImage: productImage,
-      isSelected: isSelected ?? this.isSelected, // 【【新增】】
+      addedAt: addedAt ?? this.addedAt,
+      product: product ?? this.product,
+      isSelected: isSelected ?? this.isSelected,
     );
-  }
-
-  factory CartItem.fromJson(Map<String, dynamic> json) {
-    return CartItem(
-      id: json['id'] as String?,
-      userId: json['userId'] as String,
-      productId: json['productId'] as String,
-      quantity: json['quantity'] as int,
-      productName: json['productName'] as String,
-      productPrice: (json['productPrice'] as num).toDouble(),
-      productImage: json['productImage'] as String?,
-      // 從 JSON 加載時，可以決定 isSelected 的默認值，通常是 false
-      // 或者如果後端也保存選中狀態，則從 json['isSelected'] 獲取
-      isSelected: json['isSelected'] as bool? ?? false, // 【【新增】】並提供默認值
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'userId': userId,
-      'productId': productId,
-      'quantity': quantity,
-      'productName': productName,
-      'productPrice': productPrice,
-      'productImage': productImage,
-      'isSelected': isSelected, // 【【新增】】
-    };
-  }
-
-  // 可選：為了方便調試，可以重寫 toString
-  @override
-  String toString() {
-    return 'CartItem(id: $id, name: $productName, quantity: $quantity, price: $productPrice, isSelected: $isSelected)';
   }
 }
