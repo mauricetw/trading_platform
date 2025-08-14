@@ -1,20 +1,15 @@
-// main_market.dart
+// --- FILE: lib/screens/main_market.dart ---
 import 'package:flutter/material.dart';
 import 'search.dart';
-import 'annoucement.dart';
-import 'user/profile.dart';
+import 'announcement.dart';
+import 'user/profile.dart'; // 確保 profile.dart 位於 user/ 資料夾下
 import 'chatlist/chat_list.dart';
 import 'home_page.dart';
-import '../models/user/user.dart';
 import '../widgets/market_search_bar.dart';
-import 'package:first_flutter_project/theme/app_theme.dart'; // 導入包含 MyThemesExtension 的文件
-
+import '../theme/app_theme.dart'; // 【【錯誤 2 修正】】引入主題設定檔
 
 class MainMarket extends StatefulWidget {
   const MainMarket({super.key});
-
-  static String routeName = 'MainMarket';
-  static String routePath = '/main_market';
 
   @override
   State<MainMarket> createState() => _MainMarketState();
@@ -25,6 +20,15 @@ class _MainMarketState extends State<MainMarket> {
   int _currentIndex = 0;
   final PageController _pageController = PageController(initialPage: 0);
 
+  // --- 【【錯誤 1 修正】】 ---
+  // Profile() 現在是無參數的，它會自己從 AuthProvider 獲取使用者資料。
+  final List<Widget> _pages = const [
+    HomePage(),
+    ChatListScreen(),
+    AnnouncementListScreen(),
+    Profile(), // 不再需要傳入 currentUser
+  ];
+
   @override
   void dispose() {
     _marketSearchController.dispose();
@@ -33,17 +37,13 @@ class _MainMarketState extends State<MainMarket> {
   }
 
   void _navigateToMarketSearchPage() {
-    String searchText = _marketSearchController.text;
+    String searchText = _marketSearchController.text.trim();
     if (searchText.isNotEmpty) {
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => SearchPage(searchText: searchText),
         ),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter something to search')),
       );
     }
   }
@@ -64,64 +64,43 @@ class _MainMarketState extends State<MainMarket> {
 
   @override
   Widget build(BuildContext context) {
+    // --- 【【錯誤 1 修正】】移除不再需要的 dummyUser ---
 
-    final User dummyUser = User(
-      id: 'test_user_id',
-      username: '測試用戶',
-      email: 'test@example.com',
-      registeredAt: DateTime.now(),
-      isSeller: true,
-      bio: '這是一個測試帳號的簡介',
-      schoolName: '測試大學',
-    );
-
+    // 從主題中獲取顏色配置
+    final primaryCS = Theme.of(context).extension<MyThemesExtension>()!;
     bool showMarketSearchBar = _currentIndex == 0;
 
     return Scaffold(
-      // 現在你可以使用 primaryCS 中的顏色了
-      // 例如，如果你想讓 Scaffold 的背景色來自你的 primaryCS:
-      // backgroundColor: primaryCS.background,
-
-      body: Column(
-        children: [
-          if (showMarketSearchBar)
-            MarketSearchBar(
-              controller: _marketSearchController,
-              onSubmitted: (_) => _navigateToMarketSearchPage(),
-              // 你可以將 primaryCS 或其顏色傳遞給 MarketSearchBar (如果它接受的話)
-              // 例如： searchBarBackgroundColor: primaryCS.surface,
-            ),
-          Expanded(
-            child: PageView(
-              controller: _pageController,
-              onPageChanged: _onPageChanged,
-              physics: const NeverScrollableScrollPhysics(),
-              children: [
-                // 假設 HomePage 也想使用 primaryCS，它內部也需要類似的獲取邏輯
-                // 或者你將 primaryCS 作為參數傳遞下去
-                const HomePage(/* customScheme: primaryCS */),
-                const ChatListScreen(),
-                const AnnouncementListScreen(),
-                Profile(currentUser: dummyUser /*, customScheme: primaryCS */),
-              ],
-            ),
-          ),
-        ],
+      appBar: showMarketSearchBar
+          ? AppBar(
+        title: MarketSearchBar(
+          controller: _marketSearchController,
+          onSubmitted: (_) => _navigateToMarketSearchPage(),
+        ),
+        backgroundColor: Colors.white,
+        elevation: 1,
+      )
+          : null,
+      body: PageView(
+        controller: _pageController,
+        onPageChanged: _onPageChanged,
+        physics: const NeverScrollableScrollPhysics(),
+        children: _pages,
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          // 使用 primaryCS 中的顏色來定義漸變
+          // 使用主題中的顏色來定義漸層
           gradient: LinearGradient(
             colors: [
-              primaryCS.primary, // 例如使用 primaryCS.primary
-              primaryCS.primary
+              primaryCS.primary,
+              primaryCS.primary.withOpacity(0.9)
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           boxShadow: [
             BoxShadow(
-              color: primaryCS.shadow?.withOpacity(0.1) ?? Colors.black.withOpacity(0.1), // 使用 primaryCS 中的陰影色
+              color: primaryCS.shadow?.withOpacity(0.1) ?? Colors.black.withOpacity(0.1),
               blurRadius: 10,
               offset: const Offset(0, -2),
             ),
@@ -131,33 +110,18 @@ class _MainMarketState extends State<MainMarket> {
           currentIndex: _currentIndex,
           onTap: _onItemTapped,
           type: BottomNavigationBarType.fixed,
-          backgroundColor: Colors.transparent, // 因為背景由 Container 的 gradient 提供
-          // selectedItemColor: primaryCS.onPrimary, // 選中項的顏色，來自 primaryCS
-          // unselectedItemColor: primaryCS.onPrimary.withOpacity(0.7), // 未選中項的顏色
-          selectedItemColor: primaryCS.secondary, // 或者使用 primaryCS.secondary
+          backgroundColor: Colors.transparent,
+          // 使用主題中的顏色來設定項目顏色
+          selectedItemColor: primaryCS.secondary,
           unselectedItemColor: primaryCS.onSecondary,
-
-
           selectedFontSize: 12,
           unselectedFontSize: 12,
           elevation: 0,
           items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.home),
-              label: '首頁',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.message),
-              label: '訊息',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.notifications),
-              label: '通知',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person),
-              label: '個人檔案',
-            ),
+            BottomNavigationBarItem(icon: Icon(Icons.home), label: '首頁'),
+            BottomNavigationBarItem(icon: Icon(Icons.message), label: '訊息'),
+            BottomNavigationBarItem(icon: Icon(Icons.notifications), label: '通知'),
+            BottomNavigationBarItem(icon: Icon(Icons.person), label: '個人檔案'),
           ],
         ),
       ),

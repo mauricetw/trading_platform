@@ -1,79 +1,87 @@
+// --- FILE: lib/main.dart ---
 import 'package:flutter/material.dart';
-import '../screens/main_market.dart';
-
 import 'package:provider/provider.dart';
+
+// --- 引入所有需要的 Providers ---
 import 'providers/auth_provider.dart';
-import 'providers/wishlist_provider.dart';
+import 'providers/product_provider.dart';
 import 'providers/category_provider.dart';
+import 'providers/wishlist_provider.dart';
 import 'providers/cart_provider.dart';
 import 'providers/checkout_provider.dart';
+import 'providers/announcement_provider.dart';
 
+// --- 引入所有需要的 Services ---
+import 'services/api_client.dart';
+import 'services/auth_service.dart';
+import 'services/user_service.dart';
+import 'services/product_service.dart';
+import 'services/cart_service.dart';
 import 'services/wishlist_service.dart';
+import 'services/order_service.dart';
+import 'services/address_service.dart';
+import 'services/announcement_service.dart';
 
-import 'models/user/user.dart';
+// --- 引入所有需要的頁面 ---
+import 'screens/auth/login_main.dart';
+import 'screens/main_market.dart';
+import 'screens/splash_screen.dart';
+
+// --- 引入主題設定 ---
 import 'theme/app_theme.dart';
 
 void main() {
+  // --- 1. 建立所有 Service 的單一實例 ---
+  // 我們只建立一次，然後透過 Provider 傳遞給需要它們的地方
+  final ApiClient apiClient = ApiClient();
+  final AuthService authService = AuthService(apiClient);
+  final UserService userService = UserService(apiClient);
+  final ProductService productService = ProductService(apiClient);
+  final CartService cartService = CartService(apiClient);
+  final WishlistService wishlistService = WishlistService(apiClient);
+  final AnnouncementService announcementService = AnnouncementService(apiClient);
+  // 模擬服務
+  final OrderService orderService = OrderService();
+  final AddressService addressService = AddressService();
 
   runApp(
-    // 使用 MultiProvider 替換單個 ChangeNotifierProvider
+    // 使用 MultiProvider 註冊 App 所需的所有狀態管理器
     MultiProvider(
       providers: [
-        // AuthProvider
-        ChangeNotifierProvider(create: (context) => AuthProvider()),
-        // CategoryProvider
+        // --- 2. 建立基礎 Provider ---
+        ChangeNotifierProvider(
+          create: (context) => AuthProvider(authService, userService, apiClient),
+        ),
+        ChangeNotifierProvider(
+          create: (context) => ProductProvider(productService),
+        ),
         ChangeNotifierProvider(create: (context) => CategoryProvider()),
-        // WishlistService
-        //    WishlistService 本身不是 ChangeNotifier，所以使用 Provider<T>.
-        Provider<WishlistService>(
-          create: (_) => WishlistService(),
-          // 如果 WishlistService 需要在銷毀時清理資源 (例如關閉 http.Client)，
-          // 則需要更複雜的處理，但對於簡單的 Service，這樣通常足夠。
-        ),
+        // 註冊 Provider
+        ChangeNotifierProvider(create: (context) => AnnouncementProvider(announcementService)),
 
-        // WishlistProvider (依賴 AuthProvider 和 WishlistService)
-        ChangeNotifierProxyProvider2<AuthProvider, WishlistService, WishlistProvider>(
-          // 泛型參數:
-          // AuthProvider:      第一個依賴的 Provider
-          // WishlistService:   第二個依賴的 Provider/Service
-          // WishlistProvider:  我們要創建並提供的 ChangeNotifier
-
-          create: (context) {
-            // 'create' 在 MultiProvider 第一次構建時被調用。
-            // 在這裡，我們需要創建一個 WishlistProvider 的初始實例。
-            // 我們可以從上下文中讀取已經註冊的 WishlistService。
-            final wishlistService = context.read<WishlistService>();
-            return WishlistProvider(wishlistService); // WishlistProvider 構造函數接收 WishlistService
-          },
-          update: (
-              BuildContext context,
-              AuthProvider authProvider,       // 來自 AuthProvider 的最新值
-              WishlistService wishlistService,  // 來自 Provider<WishlistService> 的實例 (通常不變)
-              WishlistProvider? previousWishlistProvider, // 上一個 WishlistProvider 實例 (可能為 null)
-              ) {
-            // 'update' 會在 AuthProvider (因為它是 ChangeNotifier) 狀態改變時被調用，
-            // 或者如果 WishlistService 也是 ChangeNotifier 並且改變時 (本例中不是)。
-            // 它也會在 MultiProvider 重建時被調用。
-
-            // 確保我們有一個 WishlistProvider 實例。
-            // 如果 previousWishlistProvider 是 null (例如首次創建後)，
-            // 或者您希望在每次依賴更新時都創建新實例（不常見），則創建新的。
-            // 通常，我們會重用 previousWishlistProvider 並更新其狀態。
-            final wishlistProvider = previousWishlistProvider ?? WishlistProvider(wishlistService);
-
-            // 關鍵：將 AuthProvider 的狀態更新傳遞給 WishlistProvider
-            wishlistProvider.updateCurrentUser(authProvider.currentUser?.id);
-
-            return wishlistProvider;
+        // --- 3. 建立依賴其他 Provider 的 ProxyProvider ---
+        ChangeNotifierProxyProvider<AuthProvider, CartProvider>(
+          create: (context) => CartProvider(cartService, null),
+          update: (context, auth, previousCart) {
+            previousCart?.update(auth);
+            return previousCart ?? CartProvider(cartService, auth);
           },
         ),
-
-        // 添加其他您需要的 Providers
-        ChangeNotifierProvider(create: (context) => CartProvider()),
-
-
+        ChangeNotifierProxyProvider<AuthProvider, WishlistProvider>(
+          create: (context) => WishlistProvider(wishlistService, null),
+          update: (context, auth, previousWishlist) {
+            previousWishlist?.update(auth);
+            return previousWishlist ?? WishlistProvider(wishlistService, auth);
+          },
+        ),
+        ChangeNotifierProxyProvider2<AuthProvider, CartProvider, CheckoutProvider>(
+          create: (context) => CheckoutProvider(orderService, addressService, null, null),
+          update: (context, auth, cart, previousCheckout) {
+            previousCheckout?.update(auth, cart);
+            return previousCheckout ?? CheckoutProvider(orderService, addressService, auth, cart);
+          },
+        ),
       ],
-      // child 屬性仍然是你的應用程式的根 Widget
       child: const MyApp(),
     ),
   );
@@ -198,58 +206,29 @@ void main() {
 // }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Trading Platform',
+      title: '交易平台',
+
+      // --- 整合點 1：使用組員版本的主題設定 ---
       theme: appLightTheme,
       darkTheme: appDarkTheme,
-      themeMode: ThemeMode.system,
+      themeMode: ThemeMode.system, // 根據系統設定自動切換亮暗模式
 
-      // 不再直接設置 home，而是通過 Consumer 決定
-      home: Consumer<AuthProvider>(
-        builder: (context, authProvider, child) {
-          // 檢查用戶是否已登錄
-          if (authProvider.isLoggedIn && authProvider.currentUser != null) {
-            final User currentUser = authProvider.currentUser!;
+      // --- 整合點 2：使用你的 SplashScreen 作為 App 入口 ---
+      // 這樣可以優雅地處理啟動時的認證檢查
+      home: const SplashScreen(),
 
-            // 檢查用戶是否為賣家
-            // 您可以根據 User 模型中的 isSeller 屬性或 roles 列表來判斷
-            bool isSeller = currentUser.isSeller ?? false;
-            // 或者更嚴謹的判斷，如果 roles 列表存在且包含 'seller'
-            // if (currentUser.roles != null && currentUser.roles!.contains('seller')) {
-            //   isSeller = true;
-            // }
-
-            if (isSeller) {
-              // 如果是賣家，導向賣家儀表板
-              // 確保 SellerDashboardScreen 的構造函數是 const SellerDashboardScreen()
-              // 它會從內部通過 Provider 獲取 currentUser
-              return const MainMarket();
-            } else {
-              // 如果已登錄但不是賣家，可以導向市場主頁或其他普通用戶頁面
-              // 這裡我們假設 MainMarket 也可以作為普通登錄用戶的主頁
-              print("User '${currentUser.username}' is logged in but not a seller. Showing MainMarket.");
-              return const MainMarket(); // 或者一個 BuyerDashboardScreen()
-            }
-          } else {
-            // 如果用戶未登錄，顯示 MainMarket (假設它是登錄頁面或公共市場頁)
-            print("User not logged in. Showing MainMarket.");
-            return const MainMarket();
-          }
-        },
-      ),
-      // 您可能還會有路由表，用於處理命名路由
-      // routes: {
-      //   '/login': (context) => LoginScreen(), // 假設您有 LoginScreen
-      //   '/main_market': (context) => const MainMarket(),
-      //   '/seller_dashboard': (context) => const SellerDashboardScreen(),
-      //   // ... 其他路由
-      // },
+      // --- 整合點 3：使用你的命名路由，方便全域導航 ---
+      // 確保 SplashScreen 和其他頁面可以使用這些路由
+      routes: {
+        '/login': (context) => const LoginScreen(),
+        '/home': (context) => const MainMarket(),
+      },
     );
   }
 }

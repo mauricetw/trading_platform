@@ -1,14 +1,17 @@
-import 'dart:async'; // 用於 Timer (防抖)
+// --- FILE: lib/screens/search.dart ---
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:first_flutter_project/services/api_service.dart';
-// 導入您的 FilterOptions 和 FilterOptionsWidget
-import 'package:first_flutter_project/widgets/filter_options.dart'; // <<<=== 確保路徑正確
+import 'package:provider/provider.dart';
 
+import '../models/product/product.dart';
+import '../providers/product_provider.dart';
+import '../widgets/filter_options.dart'; // 確保 FilterOptionsWidget 路徑正確
+import 'home_page.dart'; // 我們將重用 HomePage 中的 _ProductCard Widget
 
 class SearchPage extends StatefulWidget {
   final String? searchText;
 
-  const SearchPage({super.key, this.searchText});
+  const SearchPage({Key? key, this.searchText}) : super(key: key);
 
   @override
   State<SearchPage> createState() => _SearchPageState();
@@ -16,28 +19,28 @@ class SearchPage extends StatefulWidget {
 
 class _SearchPageState extends State<SearchPage> {
   final TextEditingController _searchController = TextEditingController();
-  final ApiService _apiService = ApiService();
-
-  List<dynamic> _searchResults = [];
-  bool _isLoading = false;
-  String? _error;
-  bool _hasSearched = false;
   Timer? _debounce;
 
-  // 新增：保存當前激活的篩選條件
-  FilterOptions _activeFilters = const FilterOptions(); // 使用 freezed 生成的預設構造函數
+  // 本地狀態，用於管理篩選條件
+  // 注意：這裡的篩選是純 UI 狀態，最終會傳遞給 Provider
+  FilterOptions _activeFilters = const FilterOptions();
 
   @override
   void initState() {
     super.initState();
 
+    final productProvider = Provider.of<ProductProvider>(context, listen: false);
+
     if (widget.searchText != null && widget.searchText!.trim().isNotEmpty) {
       _searchController.text = widget.searchText!;
-      _debounce?.cancel();
-      // 初始搜索時也應用當前（可能為預設）的篩選條件
-      _performSearch(widget.searchText!.trim(), filters: _activeFilters);
+      // 頁面載入時，如果帶有初始搜尋文字，立即執行一次搜尋
+      productProvider.fetchProducts(search: widget.searchText!.trim());
+    } else {
+      // 如果沒有初始文字，清空 Provider 中的商品列表，以顯示初始提示
+      productProvider.clearProducts();
     }
 
+    // 監聽文字框的變化以實現防抖搜尋
     _searchController.addListener(_onSearchChanged);
   }
 
@@ -49,188 +52,60 @@ class _SearchPageState extends State<SearchPage> {
     super.dispose();
   }
 
+  /// 當搜尋框文字改變時觸發，使用 Timer 實現防抖
   void _onSearchChanged() {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
     _debounce = Timer(const Duration(milliseconds: 500), () {
-      final query = _searchController.text.trim();
-      // 當搜索詞改變時，也應用當前的篩選條件
-      _performSearch(query, filters: _activeFilters);
+      _performSearch();
     });
   }
 
-  // 修改 _performSearch 以接受和使用 FilterOptions
-  Future<void> _performSearch(String query, {FilterOptions? filters}) async {
-    final currentFiltersToUse = filters ?? _activeFilters;
+  /// 執行搜尋的核心方法
+  Future<void> _performSearch() async {
+    final provider = context.read<ProductProvider>();
+    final query = _searchController.text.trim();
 
-    // 如果查詢為空並且沒有任何篩選條件，則清空結果
-    if (query.isEmpty &&
-        (currentFiltersToUse.sortBy == null || currentFiltersToUse.sortBy!.isEmpty) &&
-        currentFiltersToUse.categories.isEmpty) {
-      setState(() {
-        _searchResults = [];
-        // 即使是清空，也標記為已搜索，以顯示合適的提示
-        _hasSearched = true;
-        _isLoading = false;
-        _error = null;
-      });
-      return;
-    }
+    // 從篩選器中獲取 categoryId
+    // 注意：FilterOptions 中的 categories 是 List<String>，而我們的 API 需要 int?
+    // 這裡我們假設只選擇一個分類進行篩選
+    final categoryName = _activeFilters.categories.isNotEmpty ? _activeFilters.categories.first : null;
+    final categoryId = _getCategoryIdByName(categoryName);
 
-    setState(() {
-      _isLoading = true;
-      _error = null;
-      _hasSearched = true;
-    });
-
-    try {
-      // 在調用 API 時傳遞篩選條件
-      // 您需要修改 ApiService().searchItems 來接受這些篩選參數
-      final results = await _apiService.searchItems(
-        query,
-        sortBy: currentFiltersToUse.sortBy,
-        categories: currentFiltersToUse.categories,
-        // ... 其他您在 FilterOptions 中定義的篩選條件
-      );
-
-      if (mounted) {
-        setState(() {
-          _searchResults = results;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _error = "搜索時發生錯誤: $e";
-        });
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
+    // 呼叫 Provider 的 fetchProducts 方法，傳入搜尋關鍵字和分類 ID
+    provider.fetchProducts(search: query, categoryId: categoryId);
   }
 
-  Widget _buildSearchBar() {
-    return Padding(
-      padding: const EdgeInsets.all(12.0),
-      child: TextField(
-        controller: _searchController,
-        autofocus: widget.searchText == null || widget.searchText!.isEmpty,
-        decoration: InputDecoration(
-          hintText: '搜索商品、資訊...',
-          prefixIcon: const Icon(Icons.search),
-          suffixIcon: _searchController.text.isNotEmpty
-              ? IconButton(
-            icon: const Icon(Icons.clear),
-            onPressed: () {
-              _searchController.clear();
-              // 清空時會自動觸發 _onSearchChanged
-            },
-          )
-              : null,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(25.0),
-            borderSide: BorderSide.none,
-          ),
-          filled: true,
-          fillColor: Colors.grey[200],
-          contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 20),
-        ),
-        onSubmitted: (value) {
-          if (value.trim().isNotEmpty) {
-            _debounce?.cancel();
-            _performSearch(value.trim(), filters: _activeFilters);
-          } else {
-            // 如果提交的是空字符串，也觸發一次帶篩選的搜索（可能清空結果或按篩選顯示）
-            _performSearch("", filters: _activeFilters);
-          }
-        },
-      ),
-    );
-  }
-
-  // 新增：顯示篩選器 BottomSheet 的方法
+  /// 顯示篩選器 BottomSheet
   void _showFilterOptions() async {
     final selectedFilters = await showModalBottomSheet<FilterOptions>(
       context: context,
-      isScrollControlled: true, // 如果篩選內容較多，允許滾動
-      shape: const RoundedRectangleBorder( // 美化頂部圓角
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20.0)),
       ),
       builder: (BuildContext context) {
-        // 傳遞當前激活的篩選條件給 FilterOptionsWidget
         return FilterOptionsWidget(initialFilters: _activeFilters);
       },
     );
 
-    // 如果用戶確認了篩選（selectedFilters 不是 null）
-    if (selectedFilters != null) {
-      bool filtersChanged = selectedFilters != _activeFilters; // 簡單比較是否改變
+    if (selectedFilters != null && selectedFilters != _activeFilters) {
       setState(() {
         _activeFilters = selectedFilters;
       });
-      // 只有當篩選條件確實改變時，或者搜索框有內容時，才重新執行搜索
-      // 或者如果篩選條件不為空
-      if (filtersChanged || _searchController.text.trim().isNotEmpty || _activeFilters.categories.isNotEmpty || (_activeFilters.sortBy !=null && _activeFilters.sortBy!.isNotEmpty) ) {
-        _debounce?.cancel(); // 如果有正在進行的防抖搜索，取消它
-        _performSearch(_searchController.text.trim(), filters: _activeFilters);
-      }
+      // 套用篩選後，立即重新執行搜尋
+      _performSearch();
     }
-  }
-
-  // 新增：構建顯示當前激活篩選條件的 Widget
-  Widget _buildActiveFiltersDisplay() {
-    if (_activeFilters.categories.isEmpty && (_activeFilters.sortBy == null || _activeFilters.sortBy!.isEmpty)) {
-      return const SizedBox.shrink(); // 沒有激活的篩選，不顯示任何東西
-    }
-
-    List<Widget> filterChips = [];
-
-    if (_activeFilters.sortBy != null && _activeFilters.sortBy!.isNotEmpty) {
-      filterChips.add(Chip(
-        label: Text('排序: ${_activeFilters.sortBy}'),
-        onDeleted: () {
-          setState(() {
-            _activeFilters = _activeFilters.copyWith(sortBy: null); // 清除排序
-          });
-          _performSearch(_searchController.text.trim(), filters: _activeFilters);
-        },
-      ));
-    }
-
-    for (String category in _activeFilters.categories) {
-      filterChips.add(Chip(
-        label: Text(category),
-        onDeleted: () {
-          List<String> updatedCategories = List.from(_activeFilters.categories)..remove(category);
-          setState(() {
-            _activeFilters = _activeFilters.copyWith(categories: updatedCategories);
-          });
-          _performSearch(_searchController.text.trim(), filters: _activeFilters);
-        },
-      ));
-    }
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-      child: Wrap(
-        spacing: 8.0,
-        runSpacing: 4.0,
-        children: filterChips,
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('搜索'),
-        backgroundColor: const Color(0xFF004E98),
+        title: _buildSearchBar(),
+        backgroundColor: Colors.white,
+        elevation: 1,
+        iconTheme: const IconThemeData(color: Colors.black87),
         actions: [
-          // 添加篩選按鈕到 AppBar
           IconButton(
             icon: const Icon(Icons.filter_list),
             onPressed: _showFilterOptions,
@@ -240,87 +115,113 @@ class _SearchPageState extends State<SearchPage> {
       ),
       body: Column(
         children: <Widget>[
-          _buildSearchBar(),
           _buildActiveFiltersDisplay(), // 顯示當前激活的篩選條件
-          if (_isLoading)
-            const Expanded(child: Center(child: CircularProgressIndicator()))
-          else if (_error != null)
-            Expanded(
-                child: Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Text(_error!,
-                          style: const TextStyle(color: Colors.red, fontSize: 16),
-                          textAlign: TextAlign.center),
-                    )))
-          else if (!_hasSearched && _searchController.text.isEmpty && _activeFilters.categories.isEmpty && (_activeFilters.sortBy == null || _activeFilters.sortBy!.isEmpty))
-            // 只有在沒有搜索過、搜索框為空且沒有篩選條件時顯示初始提示
-              const Expanded(
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.search_off_outlined,
-                          size: 60, color: Colors.grey),
-                      SizedBox(height: 16),
-                      Text('輸入關鍵詞開始搜索，或使用篩選器',
-                          style: TextStyle(fontSize: 18, color: Colors.grey),
-                          textAlign: TextAlign.center),
-                    ],
-                  ),
-                ),
-              )
-            else if (_searchResults.isEmpty && _hasSearched)
-                Expanded(
-                  child: Center(
+          Expanded(
+            // 使用 Consumer 來監聽 Provider 的狀態變化並重建 UI
+            child: Consumer<ProductProvider>(
+              builder: (context, provider, child) {
+                if (provider.isListLoading) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (provider.listError != null) {
+                  return Center(child: Text('發生錯誤: ${provider.listError}'));
+                }
+                if (provider.products.isEmpty) {
+                  // 根據是否有搜尋詞或篩選條件，顯示不同的提示
+                  final bool hasInput = _searchController.text.trim().isNotEmpty || _activeFilters.categories.isNotEmpty;
+                  return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.sentiment_dissatisfied_outlined,
-                            size: 60, color: Colors.grey),
+                        Icon(hasInput ? Icons.sentiment_dissatisfied_outlined : Icons.search_off_outlined, size: 60, color: Colors.grey),
                         const SizedBox(height: 16),
                         Text(
-                          _searchController.text.trim().isEmpty && _activeFilters.categories.isEmpty && (_activeFilters.sortBy == null || _activeFilters.sortBy!.isEmpty)
-                              ? '請輸入關鍵詞或選擇篩選條件'
-                              : '未找到與您的搜索和篩選條件相符的結果',
+                          hasInput ? '找不到符合條件的商品' : '輸入關鍵詞開始搜尋',
                           style: const TextStyle(fontSize: 18, color: Colors.grey),
                           textAlign: TextAlign.center,
                         ),
                       ],
                     ),
-                  ),
-                )
-              else
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: _searchResults.length,
-                    itemBuilder: (context, index) {
-                      final item = _searchResults[index];
-                      String title = "未知標題";
-                      String subtitle = "";
-
-                      if (item is Map) {
-                        title = item['name'] ?? item['title'] ?? 'N/A';
-                        subtitle = item['description'] ?? item['category'] ?? '';
-                      }
-                      // else if (item is Product) { // 如果您有具體的 Product 模型
-                      //   title = item.name;
-                      //   subtitle = item.category ?? '';
-                      // }
-
-                      return ListTile(
-                        title: Text(title),
-                        subtitle: Text(subtitle),
-                        onTap: () {
-                          print('Tapped on: $item');
-                          // TODO: 導航到詳情頁
-                        },
-                      );
-                    },
-                  ),
-                ),
+                  );
+                }
+                // 如果有資料，則顯示結果列表
+                return _buildResultsList(provider.products);
+              },
+            ),
+          ),
         ],
       ),
     );
+  }
+
+  // --- UI 元件 (主要採用組員版本的美化設計) ---
+
+  Widget _buildSearchBar() {
+    return TextField(
+      controller: _searchController,
+      autofocus: true,
+      decoration: InputDecoration(
+        hintText: '搜尋商品...',
+        border: InputBorder.none,
+        hintStyle: TextStyle(color: Colors.grey[600]),
+      ),
+      onSubmitted: (value) {
+        _debounce?.cancel();
+        _performSearch();
+      },
+    );
+  }
+
+  Widget _buildActiveFiltersDisplay() {
+    if (_activeFilters.categories.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+      child: Wrap(
+        spacing: 8.0,
+        runSpacing: 4.0,
+        children: _activeFilters.categories.map((categoryName) => Chip(
+          label: Text(categoryName),
+          onDeleted: () {
+            setState(() {
+              final updatedCategories = List<String>.from(_activeFilters.categories)..remove(categoryName);
+              _activeFilters = _activeFilters.copyWith(categories: updatedCategories);
+            });
+            _performSearch();
+          },
+        )).toList(),
+      ),
+    );
+  }
+
+  Widget _buildResultsList(List<Product> results) {
+    // 為了 UI 一致性，我們重用 HomePage 中的 _ProductsGrid 和 _ProductCard
+    // 如果希望搜尋結果是列表而不是網格，可以改用 ListView.builder
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: _ProductsGrid(products: results), // 直接重用網格佈局
+      ),
+    );
+  }
+
+  // 輔助函式，根據分類名稱找到對應的 ID
+  int? _getCategoryIdByName(String? name) {
+    if (name == null) return null;
+    try {
+      // _categories 來自 home_page.dart，為了方便我們在這裡重新定義
+      final categories = [
+        Category(id: 1, name: '書籍文具', icon: '📚', count: 0),
+        Category(id: 2, name: '電子產品', icon: '📱', count: 0),
+        Category(id: 3, name: '服裝配件', icon: '👕', count: 0),
+        Category(id: 4, name: '家居用品', icon: '🏠', count: 0),
+        Category(id: 5, name: '美容保健', icon: '💄', count: 0),
+        Category(id: 6, name: '運動戶外', icon: '⚽', count: 0),
+      ];
+      return categories.firstWhere((c) => c.name == name).id;
+    } catch (e) {
+      return null;
+    }
   }
 }
