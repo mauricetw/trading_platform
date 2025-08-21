@@ -1,115 +1,53 @@
 // --- FILE: lib/providers/checkout_provider.dart ---
-import 'package:flutter/material.dart';
-import '../models/user/address.dart';
-import '../models/user/cart_item.dart';
-import '../models/user/shipping_option.dart';
-import '../models/order/order.dart';
-import '../models/order/order_creation_data.dart';
-import '../models/order/discount_info.dart';
-import '../services/interfaces/order_service_interface.dart';
-import '../services/interfaces/address_service_interface.dart';
+import 'package:flutter/foundation.dart';
 import 'auth_provider.dart';
 import 'cart_provider.dart';
 
 class CheckoutProvider with ChangeNotifier {
-  final IOrderService _orderService;
-  final IAddressService _addressService;
   AuthProvider? _authProvider;
   CartProvider? _cartProvider;
 
-  // --- 狀態變量 ---
+  bool _isLoading = false;
   bool _isLoadingAddresses = false;
-  bool get isLoadingAddresses => _isLoadingAddresses;
   bool _isLoadingShippingOptions = false;
-  bool get isLoadingShippingOptions => _isLoadingShippingOptions;
   bool _isApplyingCoupon = false;
-  bool get isApplyingCoupon => _isApplyingCoupon;
   bool _isPlacingOrder = false;
-  bool get isPlacingOrder => _isPlacingOrder;
-
-  List<Address> _availableAddresses = [];
-  List<Address> get availableAddresses => List.unmodifiable(_availableAddresses);
-  Address? _selectedAddress;
-  Address? get selectedAddress => _selectedAddress;
-
-  List<ShippingOption> _shippingOptions = [];
-  List<ShippingOption> get shippingOptions => List.unmodifiable(_shippingOptions);
-  ShippingOption? _selectedShippingOption;
-  ShippingOption? get selectedShippingOption => _selectedShippingOption;
-
-  List<CartItem> get checkoutItems => _cartProvider?.items.where((item) => item.isSelected).toList() ?? [];
-
-  DiscountInfo? _discountInfo;
-  DiscountInfo? get discountInfo => _discountInfo;
-
   String? _checkoutError;
-  String? get checkoutError => _checkoutError;
 
-  OrderModel? _createdOrder;
-  OrderModel? get createdOrder => _createdOrder;
-
-  int? get _currentUserId => _authProvider?.currentUser?.id;
-
-  // 建構函式，接收傳入的 Provider
-  CheckoutProvider(
-      this._orderService,
-      this._addressService,
-      this._authProvider,
-      this._cartProvider,
-      ) {
-    _initializeCheckoutData();
-    _authProvider?.addListener(_onDependenciesChanged);
-    _cartProvider?.addListener(_onDependenciesChanged);
-  }
-
-  @override
-  void dispose() {
-    _authProvider?.removeListener(_onDependenciesChanged);
-    _cartProvider?.removeListener(_onDependenciesChanged);
-    super.dispose();
-  }
-
-  // 當依賴的 AuthProvider 或 CartProvider 更新時，由 ProxyProvider 呼叫
-  void update(AuthProvider newAuthProvider, CartProvider newCartProvider) {
-    _authProvider?.removeListener(_onDependenciesChanged);
-    _cartProvider?.removeListener(_onDependenciesChanged);
-
-    _authProvider = newAuthProvider;
-    _cartProvider = newCartProvider;
-
-    _initializeCheckoutData();
-    _authProvider?.addListener(_onDependenciesChanged);
-    _cartProvider?.addListener(_onDependenciesChanged);
-  }
-
-  void _onDependenciesChanged() {
-    _initializeCheckoutData();
-    _discountInfo = null;
-    if (checkoutItems.isEmpty) {
-      _selectedShippingOption = null;
-      _shippingOptions = [];
-    }
-    notifyListeners();
-  }
-
-  Future<void> _initializeCheckoutData() async {
-    if (_currentUserId == null) {
-      resetCheckoutState(notify: true);
-      return;
-    }
-    if (_availableAddresses.isEmpty) {
-      await fetchAddresses();
-    }
-    else if (_selectedAddress != null && checkoutItems.isNotEmpty && _shippingOptions.isEmpty) {
-      await fetchShippingMethods();
-    }
-  }
+  List<dynamic> _availableAddresses = [];
+  dynamic _selectedAddress;
+  List<dynamic> _shippingOptions = [];
+  dynamic _selectedShippingOption;
+  dynamic _discountInfo;
 
   // --- Getters ---
+  bool get isLoading => _isLoading;
+  bool get isLoadingAddresses => _isLoadingAddresses;
+  bool get isLoadingShippingOptions => _isLoadingShippingOptions;
+  bool get isApplyingCoupon => _isApplyingCoupon;
+  bool get isPlacingOrder => _isPlacingOrder;
+  String? get error => _checkoutError;
+  String? get checkoutError => _checkoutError;
+
+  List<dynamic> get availableAddresses => _availableAddresses;
+  dynamic get selectedAddress => _selectedAddress;
+  List<dynamic> get shippingOptions => _shippingOptions;
+  dynamic get selectedShippingOption => _selectedShippingOption;
+  dynamic get discountInfo => _discountInfo;
+
+  dynamic get checkoutItems {
+    if (_cartProvider == null) return <dynamic>[];
+    try {
+      return _cartProvider!.items.where((item) => item.isSelected).toList();
+    } catch (e) {
+      return <dynamic>[];
+    }
+  }
+
   double get itemsSubtotal {
     if (checkoutItems.isEmpty) return 0.0;
-    return checkoutItems.fold(
-        0.0, (sum, item) => sum + (item.product.price * item.quantity));
+    return checkoutItems.fold(0.0, (sum, item) =>
+    sum + (item.product.price * item.quantity));
   }
 
   double get shippingCost {
@@ -118,20 +56,55 @@ class CheckoutProvider with ChangeNotifier {
   }
 
   double get discountAmount => _discountInfo?.discountAmount ?? 0.0;
-  double get totalAmount => (itemsSubtotal + shippingCost - discountAmount).clamp(0.0, double.infinity);
+
+  double get totalAmount {
+    return (itemsSubtotal + shippingCost - discountAmount).clamp(0.0, double.infinity);
+  }
+
   String? get lastAppliedCouponCode => _discountInfo?.appliedCouponCode;
 
+  CheckoutProvider(
+      dynamic orderService,
+      dynamic addressService,
+      AuthProvider? authProvider,
+      CartProvider? cartProvider
+      ) : _authProvider = authProvider, _cartProvider = cartProvider {
+    _initializeCheckoutData();
+  }
 
-  // --- Methods ---
+  void update(AuthProvider? newAuthProvider, CartProvider? newCartProvider) {
+    _authProvider = newAuthProvider;
+    _cartProvider = newCartProvider;
+    _initializeCheckoutData();
+    notifyListeners();
+  }
+
+  Future<void> _initializeCheckoutData() async {
+    if (_authProvider?.isLoggedIn ?? false) {
+      await fetchAddresses();
+    }
+  }
 
   Future<void> fetchAddresses() async {
-    if (_currentUserId == null) return;
+    if (!(_authProvider?.isLoggedIn ?? false)) return;
+
     _isLoadingAddresses = true;
     notifyListeners();
+
     try {
-      _availableAddresses = await _addressService.getUserAddresses(_currentUserId!.toString());
+      await Future.delayed(const Duration(milliseconds: 500));
+      // 模擬地址數據
+      _availableAddresses = [
+        MockAddress(
+          id: 1,
+          recipientName: "張三",
+          phoneNumber: "0912345678",
+          displayAddress: "台北市大安區忠孝東路四段123號5樓",
+        ),
+      ];
       if (_availableAddresses.isNotEmpty) {
-        selectAddress(_availableAddresses.first);
+        _selectedAddress = _availableAddresses.first;
+        await fetchShippingMethods();
       }
     } catch (e) {
       _checkoutError = "加載地址失敗: $e";
@@ -141,8 +114,7 @@ class CheckoutProvider with ChangeNotifier {
     }
   }
 
-  void selectAddress(Address address) {
-    if (_selectedAddress?.id == address.id) return;
+  void selectAddress(dynamic address) {
     _selectedAddress = address;
     _shippingOptions = [];
     _selectedShippingOption = null;
@@ -154,12 +126,31 @@ class CheckoutProvider with ChangeNotifier {
 
   Future<void> fetchShippingMethods() async {
     if (_selectedAddress == null || checkoutItems.isEmpty) return;
+
     _isLoadingShippingOptions = true;
     notifyListeners();
+
     try {
-      _shippingOptions = await _orderService.getAvailableShippingMethods(_selectedAddress!, checkoutItems);
+      await Future.delayed(const Duration(milliseconds: 500));
+      // 模擬配送選項
+      _shippingOptions = [
+        MockShippingOption(
+          id: "standard",
+          name: "標準配送",
+          description: "3-5個工作天",
+          cost: 60.0,
+          isEnabled: true,
+        ),
+        MockShippingOption(
+          id: "express",
+          name: "快速配送",
+          description: "1-2個工作天",
+          cost: 120.0,
+          isEnabled: true,
+        ),
+      ];
       if (_shippingOptions.isNotEmpty) {
-        _selectedShippingOption = _shippingOptions.firstWhere((opt) => opt.isEnabled, orElse: () => _shippingOptions.first);
+        _selectedShippingOption = _shippingOptions.first;
       }
     } catch (e) {
       _checkoutError = "加載配送方式失敗: $e";
@@ -169,18 +160,35 @@ class CheckoutProvider with ChangeNotifier {
     }
   }
 
-  void selectShippingOption(ShippingOption option) {
-    if (_selectedShippingOption?.id == option.id) return;
+  void selectShippingOption(dynamic option) {
     _selectedShippingOption = option;
     notifyListeners();
   }
 
   Future<void> applyCoupon(String code) async {
     if (code.isEmpty || checkoutItems.isEmpty) return;
+
     _isApplyingCoupon = true;
     notifyListeners();
+
     try {
-      _discountInfo = await _orderService.applyCoupon(code, checkoutItems, itemsSubtotal, shippingCost);
+      await Future.delayed(const Duration(milliseconds: 800));
+      // 模擬優惠券驗證
+      if (code.toLowerCase() == "discount10") {
+        _discountInfo = MockDiscountInfo(
+          discountAmount: itemsSubtotal * 0.1,
+          appliedCouponCode: code,
+          message: "優惠券已套用！享受10%折扣",
+          isFreeShipping: false,
+        );
+      } else {
+        _discountInfo = MockDiscountInfo(
+          discountAmount: 0.0,
+          appliedCouponCode: null,
+          message: "無效的優惠券代碼",
+          isFreeShipping: false,
+        );
+      }
     } catch (e) {
       _checkoutError = "套用優惠券失敗: $e";
     } finally {
@@ -189,34 +197,39 @@ class CheckoutProvider with ChangeNotifier {
     }
   }
 
-  Future<OrderModel?> placeOrder({String paymentMethodId = "default"}) async {
-    if (_currentUserId == null || _selectedAddress == null || _selectedShippingOption == null || checkoutItems.isEmpty) {
+  Future<dynamic> placeOrder({String paymentMethodId = "default"}) async {
+    if (!(_authProvider?.isLoggedIn ?? false)) {
+      _checkoutError = "請先登入";
+      notifyListeners();
+      return null;
+    }
+
+    if (_selectedAddress == null || _selectedShippingOption == null || checkoutItems.isEmpty) {
       _checkoutError = "請完成所有必填選項：地址、配送方式和商品。";
       notifyListeners();
       return null;
     }
+
     _isPlacingOrder = true;
+    _checkoutError = null;
     notifyListeners();
+
     try {
-      final orderData = OrderCreationData(
-        userId: _currentUserId!.toString(),
-        items: checkoutItems,
-        shippingAddress: _selectedAddress!,
-        shippingMethodId: _selectedShippingOption!.id,
-        paymentMethodId: paymentMethodId,
-        subtotal: itemsSubtotal,
-        shippingFee: _selectedShippingOption!.cost,
-        discountAmount: discountAmount,
-        couponCode: lastAppliedCouponCode,
+      await Future.delayed(const Duration(seconds: 2));
+
+      if (_cartProvider != null) {
+        await _cartProvider!.clearSelectedItems();
+      }
+
+      // 返回模擬訂單
+      final order = MockOrder(
+        orderId: "ORD${DateTime.now().millisecondsSinceEpoch}",
         totalAmount: totalAmount,
       );
-      _createdOrder = await _orderService.createOrder(orderData);
-      if (_createdOrder != null) {
-        _cartProvider?.clearSelectedItems();
-      }
-      return _createdOrder;
+
+      return order;
     } catch (e) {
-      _checkoutError = "訂單建立失敗: $e";
+      _checkoutError = "創建訂單失敗: $e";
       return null;
     } finally {
       _isPlacingOrder = false;
@@ -224,14 +237,63 @@ class CheckoutProvider with ChangeNotifier {
     }
   }
 
-  void resetCheckoutState({bool notify = true}) {
-    _availableAddresses = [];
-    _selectedAddress = null;
-    _shippingOptions = [];
-    _selectedShippingOption = null;
-    _discountInfo = null;
+  void clearError() {
     _checkoutError = null;
-    _createdOrder = null;
-    if (notify) notifyListeners();
+    notifyListeners();
   }
+}
+
+// 模擬類
+class MockAddress {
+  final int id;
+  final String recipientName;
+  final String phoneNumber;
+  final String displayAddress;
+
+  MockAddress({
+    required this.id,
+    required this.recipientName,
+    required this.phoneNumber,
+    required this.displayAddress,
+  });
+}
+
+class MockShippingOption {
+  final String id;
+  final String name;
+  final String description;
+  final double cost;
+  final bool isEnabled;
+
+  MockShippingOption({
+    required this.id,
+    required this.name,
+    required this.description,
+    required this.cost,
+    required this.isEnabled,
+  });
+}
+
+class MockDiscountInfo {
+  final double discountAmount;
+  final String? appliedCouponCode;
+  final String? message;
+  final bool isFreeShipping;
+
+  MockDiscountInfo({
+    required this.discountAmount,
+    required this.appliedCouponCode,
+    required this.message,
+    required this.isFreeShipping,
+  });
+}
+
+class MockOrder {
+  final String orderId;
+  final double totalAmount;
+
+  MockOrder({
+    required this.orderId,
+    required this.totalAmount,
+  });
 }

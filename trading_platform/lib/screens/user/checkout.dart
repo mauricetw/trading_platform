@@ -1,52 +1,49 @@
 import 'package:first_flutter_project/providers/auth_provider.dart';
 import 'package:first_flutter_project/providers/cart_provider.dart';
 import 'package:first_flutter_project/services/address_service.dart';
-import 'package:first_flutter_project/services/auth_service.dart';
-import 'package:first_flutter_project/services/cart_service.dart';
 import 'package:first_flutter_project/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/checkout_provider.dart';
 import '../../services/order_service.dart';
-
-// 移除了未使用的接口導入，如果 Provider 構造函數需要接口類型，則保留
-// import '../../services/interfaces/order_service_interface.dart';
-// import '../../services/interfaces/address_service_interface.dart';
 import '../../widgets/FullBottomConcaveAppBarShape.dart';
-import '../../widgets/BottomConvexArcWidget.dart';
 import '../../models/user/address.dart';
 import '../../models/user/shipping_option.dart';
-import '../../models/user/cart_item.dart'; // 確保導入 CartItem
-// import '../address/add_edit_address_screen.dart'; // 用於導航到地址編輯頁
+import '../../models/user/cart_item.dart';
+import '../../models/order/order.dart'; // 添加 OrderModel 的導入
 
-const double _kBottomSummaryHeightEstimate =
-    220.0; // 估算的底部固定區域高度，用於滾動視圖的 bottom padding
+const double _kBottomSummaryHeightEstimate = 220.0;
 
 class CheckoutScreen extends StatelessWidget {
-  const CheckoutScreen({Key? key}) : super(key: key);
+  const CheckoutScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // 在實際應用中，這些服務實例更適合通過依賴注入框架（如 get_it, provider）在更高層次創建並提供。
-    // 為了簡化，暫時在此處直接實例化。
+    // 從現有的 Provider 獲取實例
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final cartProvider = Provider.of<CartProvider>(context, listen: false);
+
+    // 創建必要的服務
     final orderService = OrderService();
     final addressService = AddressService();
-    final authProvider = AuthProvider();
-    final cartProvider = CartProvider();
 
     return ChangeNotifierProvider(
-      create:
-          (_) =>
-              CheckoutProvider(orderService, addressService, authProvider, cartProvider)..loadInitialData(),
+      create: (_) => CheckoutProvider(
+        orderService,
+        addressService,
+        authProvider,
+        cartProvider,
+      ), // 移除 loadInitialData()，因為在構造函數中已經調用了 _initializeCheckoutData
       child: Scaffold(
         backgroundColor: primaryCS.surface,
         appBar: AppBar(
-          title: const Text(''),
+          title: const Text('結帳'),
           backgroundColor: primaryCS.primary,
+          foregroundColor: primaryCS.onPrimary,
           elevation: 0,
           shape: const FullBottomConcaveAppBarShape(
-            curveHeight: 25, // AppBar 底部凹陷曲線的高度
-            topCornerRadius: 15, // AppBar 頂部圓角 (可選)
+            curveHeight: 25,
+            topCornerRadius: 15,
           ),
         ),
         body: Consumer<CheckoutProvider>(
@@ -55,7 +52,7 @@ class CheckoutScreen extends StatelessWidget {
                 provider.availableAddresses.isEmpty) {
               return const Center(child: CircularProgressIndicator());
             }
-            // 初始加載地址失敗且沒有地址時顯示錯誤
+
             if (provider.checkoutError != null &&
                 provider.availableAddresses.isEmpty &&
                 !provider.isLoadingAddresses) {
@@ -74,19 +71,16 @@ class CheckoutScreen extends StatelessWidget {
             }
 
             return Stack(
-              // 使用 Stack 以便將底部總結固定在最下方
               children: [
                 SingleChildScrollView(
                   padding: const EdgeInsets.only(
-                    top: 16.0, // 內容區域頂部留白
-                    bottom:
-                        _kBottomSummaryHeightEstimate +
-                        16.0, // 為底部固定區域預留空間 + 額外間距
+                    top: 16.0,
+                    bottom: _kBottomSummaryHeightEstimate + 16.0,
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: <Widget>[
-                      // --- 統一錯誤提示 (非初始加載地址錯誤) ---
+                      // 統一錯誤提示
                       if (provider.checkoutError != null &&
                           provider.checkoutError!.isNotEmpty &&
                           (provider.availableAddresses.isNotEmpty ||
@@ -106,7 +100,7 @@ class CheckoutScreen extends StatelessWidget {
                           ),
                         ),
 
-                      // --- 1. 配送地址 ---
+                      // 1. 配送地址
                       _buildSectionContainer(
                         context: context,
                         title: "配送地址",
@@ -117,41 +111,37 @@ class CheckoutScreen extends StatelessWidget {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(content: Text("跳轉到地址管理頁面 (TODO)")),
                             );
-                            // Navigator.push(context, MaterialPageRoute(builder: (_) => ManageAddressScreen()));
                           },
                         ),
-                        child:
-                            provider.selectedAddress != null
-                                ? _buildAddressInfo(
-                                  context,
-                                  provider.selectedAddress!,
-                                  provider,
-                                )
-                                : provider.availableAddresses.isEmpty &&
-                                    !provider.isLoadingAddresses
-                                ? const Padding(
-                                  // 如果沒有地址且不在加載中
-                                  padding: EdgeInsets.symmetric(vertical: 8.0),
-                                  child: Text("請添加配送地址"),
-                                )
-                                : const Padding(
-                                  // 如果有地址但未選擇，或仍在加載
-                                  padding: EdgeInsets.symmetric(vertical: 8.0),
-                                  child: Text("請選擇或添加配送地址"),
-                                ),
+                        child: provider.selectedAddress != null
+                            ? _buildAddressInfo(
+                          context,
+                          provider.selectedAddress!,
+                          provider,
+                        )
+                            : provider.availableAddresses.isEmpty &&
+                            !provider.isLoadingAddresses
+                            ? const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 8.0),
+                          child: Text("請添加配送地址"),
+                        )
+                            : const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 8.0),
+                          child: Text("請選擇或添加配送地址"),
+                        ),
                       ),
 
-                      // --- 2. 配送方式 (使用 BottomConvexArcWidget) ---
+                      // 2. 配送方式
                       _buildShippingSection(context, provider),
 
-                      // --- 3. 購物車商品摘要 ---
+                      // 3. 購物車商品摘要
                       _buildSectionContainer(
                         context: context,
                         title: "商品摘要",
                         child: _buildCartSummary(context, provider),
                       ),
 
-                      // --- 4. 優惠券 ---
+                      // 4. 優惠券
                       _buildSectionContainer(
                         context: context,
                         title: "優惠券",
@@ -159,7 +149,7 @@ class CheckoutScreen extends StatelessWidget {
                         child: _buildCouponSection(context, provider),
                       ),
 
-                      // --- 5. 支付方式 (暫時簡化) ---
+                      // 5. 支付方式
                       _buildSectionContainer(
                         context: context,
                         title: "支付方式",
@@ -169,20 +159,17 @@ class CheckoutScreen extends StatelessWidget {
                           title: const Text("貨到付款"),
                           trailing: Radio<bool>(
                             value: true,
-                            groupValue: true, // 假設總是選中，實際應用中應由 provider 控制
-                            onChanged: (bool? value) {
-                              /* 暫不處理支付方式選擇 */
-                            },
+                            groupValue: true,
+                            onChanged: (bool? value) {},
                           ),
                         ),
                       ),
-                      // 底部額外間距
                       const SizedBox(height: 16),
                     ],
                   ),
                 ),
 
-                // --- 底部固定區域：訂單總結和下單按鈕 ---
+                // 底部固定區域
                 Positioned(
                   left: 0,
                   right: 0,
@@ -196,8 +183,6 @@ class CheckoutScreen extends StatelessWidget {
       ),
     );
   }
-
-  // --- 輔助構建方法 ---
 
   Widget _buildSectionContainer({
     required BuildContext context,
@@ -251,10 +236,10 @@ class CheckoutScreen extends StatelessWidget {
   }
 
   Widget _buildAddressInfo(
-    BuildContext context,
-    Address address,
-    CheckoutProvider provider,
-  ) {
+      BuildContext context,
+      Address address,
+      CheckoutProvider provider,
+      ) {
     return ListTile(
       contentPadding: EdgeInsets.zero,
       title: Text(
@@ -270,17 +255,14 @@ class CheckoutScreen extends StatelessWidget {
   }
 
   Widget _buildShippingSection(
-    BuildContext context,
-    CheckoutProvider provider,
-  ) {
-    const double shippingOptionsListHeight = 160.0; // 配送選項列表的高度，可以根據需要調整
+      BuildContext context,
+      CheckoutProvider provider,
+      ) {
+    const double shippingOptionsListHeight = 160.0;
 
     return Container(
-
       margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-      // 與 _buildSectionContainer 類似的外邊距
       padding: const EdgeInsets.fromLTRB(16.0, 12.0, 16.0, 16.0),
-      // 與 _buildSectionContainer 類似的內邊距
       color: primaryCS.tertiary,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -306,31 +288,31 @@ class CheckoutScreen extends StatelessWidget {
               ? const Text("請先選擇配送地址。")
               : provider.isLoadingShippingOptions
               ? const Center(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 8.0),
-                  child: Text("正在加載配送方式...", style: TextStyle(fontSize: 13)),
-                ),
-              )
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 8.0),
+              child: Text("正在加載配送方式...", style: TextStyle(fontSize: 13)),
+            ),
+          )
               : provider.shippingOptions.isEmpty
               ? const Center(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 8.0),
-                  child: Text("此地址無可用配送方式。", style: TextStyle(fontSize: 13)),
-                ),
-              )
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 8.0),
+              child: Text("此地址無可用配送方式。", style: TextStyle(fontSize: 13)),
+            ),
+          )
               : SizedBox(
-                height: shippingOptionsListHeight,
-                child: _buildShippingOptionListWidget(context, provider),
-              ),
+            height: shippingOptionsListHeight,
+            child: _buildShippingOptionListWidget(context, provider),
+          ),
         ],
       ),
     );
   }
 
   Widget _buildShippingOptionListWidget(
-    BuildContext context,
-    CheckoutProvider provider,
-  ) {
+      BuildContext context,
+      CheckoutProvider provider,
+      ) {
     return ListView.builder(
       itemCount: provider.shippingOptions.length,
       itemBuilder: (context, index) {
@@ -341,19 +323,17 @@ class CheckoutScreen extends StatelessWidget {
             style: const TextStyle(fontWeight: FontWeight.w500),
           ),
           subtitle: Text(
-            "${option.description} (\$${option.cost.toStringAsFixed(0)})",
+            "${option.description} (NT\$${option.cost.toStringAsFixed(0)})",
             style: const TextStyle(fontSize: 13),
           ),
           value: option,
           groupValue: provider.selectedShippingOption,
-          onChanged:
-              option.isEnabled
-                  ? (ShippingOption? value) {
-                    if (value != null) provider.selectShippingOption(value);
-                  }
-                  : null,
-          activeColor:
-              option.isEnabled ? Theme.of(context).primaryColor : Colors.grey,
+          onChanged: option.isEnabled
+              ? (ShippingOption? value) {
+            if (value != null) provider.selectShippingOption(value);
+          }
+              : null,
+          activeColor: option.isEnabled ? Theme.of(context).primaryColor : Colors.grey,
           dense: true,
           contentPadding: const EdgeInsets.symmetric(horizontal: 4.0),
         );
@@ -362,7 +342,6 @@ class CheckoutScreen extends StatelessWidget {
   }
 
   Widget _buildCartSummary(BuildContext context, CheckoutProvider provider) {
-    // 【【修改處】】 從 provider 獲取購物車項目，而不是創建模擬數據
     final List<CartItem> items = provider.checkoutItems;
 
     if (items.isEmpty) {
@@ -371,39 +350,37 @@ class CheckoutScreen extends StatelessWidget {
         child: Text("您的購物車是空的。"),
       );
     }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ...items
-            .map(
+        ...items.map(
               (item) => Padding(
-                padding: const EdgeInsets.only(bottom: 6.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        "${item.productName} x ${item.quantity}",
-                        style: const TextStyle(fontSize: 14),
-                      ),
-                    ),
-                    // 【【修改處】】 使用 item.productPrice
-                    Text(
-                      "\$${(item.productPrice * item.quantity).toStringAsFixed(2)}",
-                      style: const TextStyle(fontSize: 14),
-                    ),
-                  ],
+            padding: const EdgeInsets.only(bottom: 6.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    "${item.product.name} x ${item.quantity}",
+                    style: const TextStyle(fontSize: 14),
+                  ),
                 ),
-              ),
-            )
-            .toList(),
+                Text(
+                  "NT\$${(item.product.price * item.quantity).toStringAsFixed(0)}",
+                  style: const TextStyle(fontSize: 14),
+                ),
+              ],
+            ),
+          ),
+        ),
         const Divider(height: 16),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text("商品小計:", style: TextStyle(fontWeight: FontWeight.bold)),
             Text(
-              "\$${provider.itemsSubtotal.toStringAsFixed(2)}",
+              "NT\$${provider.itemsSubtotal.toStringAsFixed(0)}",
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
           ],
@@ -413,15 +390,9 @@ class CheckoutScreen extends StatelessWidget {
   }
 
   Widget _buildCouponSection(BuildContext context, CheckoutProvider provider) {
-    // TextEditingController 最好與 State 綁定生命週期，但由於這裡是 StatelessWidget 的輔助方法，
-    // 每次 build 都會重新創建。如果 CheckoutScreen 變為 StatefulWidget，
-    // 應將 controller 移至 State 並在 dispose 中處理。
-    // 為了保持與原代碼相似，暫時這樣處理。
-    // 為了能響應 provider.lastAppliedCouponCode 的變化，我們在 TextField 中使用它
     final TextEditingController couponController = TextEditingController(
       text: provider.lastAppliedCouponCode ?? '',
     );
-    // 將光標移至文本末尾
     couponController.selection = TextSelection.fromPosition(
       TextPosition(offset: couponController.text.length),
     );
@@ -438,42 +409,37 @@ class CheckoutScreen extends StatelessWidget {
               vertical: 12,
             ),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-            suffixIcon:
-                provider.isApplyingCoupon
-                    ? const Padding(
-                      padding: EdgeInsets.all(10.0),
-                      child: SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    )
-                    : IconButton(
-                      icon: const Icon(Icons.local_offer_outlined, size: 20),
-                      onPressed: () {
-                        FocusScope.of(context).unfocus();
-                        // 【【修改處】】 使用 provider.checkoutItems，並檢查是否為空
-                        if (provider.checkoutItems.isNotEmpty) {
-                          provider.applyCoupon(
-                            couponController.text,
-                          );
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("購物車是空的，無法套用優惠券。")),
-                          );
-                        }
-                      },
-                    ),
+            suffixIcon: provider.isApplyingCoupon
+                ? const Padding(
+              padding: EdgeInsets.all(10.0),
+              child: SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            )
+                : IconButton(
+              icon: const Icon(Icons.local_offer_outlined, size: 20),
+              onPressed: () {
+                FocusScope.of(context).unfocus();
+                if (provider.checkoutItems.isNotEmpty) {
+                  provider.applyCoupon(couponController.text);
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("購物車是空的，無法套用優惠券。")),
+                  );
+                }
+              },
+            ),
           ),
           onSubmitted: (value) {
             FocusScope.of(context).unfocus();
-            // 【【修改處】】 使用 provider.checkoutItems，並檢查是否為空
             if (provider.checkoutItems.isNotEmpty) {
               provider.applyCoupon(value);
             } else {
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(const SnackBar(content: Text("購物車是空的，無法套用優惠券。")));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("購物車是空的，無法套用優惠券。")),
+              );
             }
           },
         ),
@@ -486,11 +452,10 @@ class CheckoutScreen extends StatelessWidget {
               provider.discountInfo!.message!,
               style: TextStyle(
                 fontSize: 13,
-                color:
-                    provider.discountInfo!.discountAmount > 0 ||
-                            provider.discountInfo!.isFreeShipping
-                        ? Colors.green.shade700
-                        : Theme.of(context).colorScheme.error,
+                color: provider.discountInfo!.discountAmount > 0 ||
+                    provider.discountInfo!.isFreeShipping
+                    ? Colors.green.shade700
+                    : Theme.of(context).colorScheme.error,
               ),
               textAlign: TextAlign.center,
             ),
@@ -500,9 +465,9 @@ class CheckoutScreen extends StatelessWidget {
   }
 
   Widget _buildBottomSummaryAndButton(
-    BuildContext context,
-    CheckoutProvider provider,
-  ) {
+      BuildContext context,
+      CheckoutProvider provider,
+      ) {
     final bottomSafePadding = MediaQuery.of(context).padding.bottom;
     return Material(
       elevation: 8.0,
@@ -523,7 +488,7 @@ class CheckoutScreen extends StatelessWidget {
               children: [
                 const Text("商品小計:", style: TextStyle(fontSize: 14)),
                 Text(
-                  "\$${provider.itemsSubtotal.toStringAsFixed(2)}",
+                  "NT\$${provider.itemsSubtotal.toStringAsFixed(0)}",
                   style: const TextStyle(fontSize: 14),
                 ),
               ],
@@ -534,7 +499,7 @@ class CheckoutScreen extends StatelessWidget {
               children: [
                 const Text("運費:", style: TextStyle(fontSize: 14)),
                 Text(
-                  "\$${provider.shippingCost.toStringAsFixed(2)}",
+                  "NT\$${provider.shippingCost.toStringAsFixed(0)}",
                   style: const TextStyle(fontSize: 14),
                 ),
               ],
@@ -545,7 +510,6 @@ class CheckoutScreen extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Flexible(
-                    // 避免優惠券名稱過長導致溢出
                     child: Text(
                       "優惠券 (${provider.discountInfo?.appliedCouponCode ?? ''}):",
                       style: TextStyle(
@@ -556,7 +520,7 @@ class CheckoutScreen extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    "-\$${provider.discountAmount.toStringAsFixed(2)}",
+                    "-NT\$${provider.discountAmount.toStringAsFixed(0)}",
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.green.shade700,
@@ -574,7 +538,7 @@ class CheckoutScreen extends StatelessWidget {
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 Text(
-                  "\$${provider.totalAmount.toStringAsFixed(2)}",
+                  "NT\$${provider.totalAmount.toStringAsFixed(0)}",
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -597,52 +561,44 @@ class CheckoutScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              onPressed:
-                  provider.isPlacingOrder ||
-                          provider.checkoutItems.isEmpty || // 如果購物車是空的，也禁用
-                          provider.selectedAddress == null ||
-                          provider.selectedShippingOption == null
-                      ? null
-                      : () async {
-                        bool success = await provider.placeOrder();
-                        if (success && context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              backgroundColor: Colors.green,
-                              content: Text(
-                                "訂單已創建！ID: ${provider.createdOrder?.orderId ?? 'N/A'}",
-                              ),
-                            ),
-                          );
-                          // 通常結帳成功後會導航到訂單成功頁面或訂單列表頁面
-                          // Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => OrderSuccessScreen(order: provider.createdOrder!)), (route) => route.isFirst);
-                          Navigator.of(
-                            context,
-                          ).popUntil((route) => route.isFirst); // 簡單返回到第一個頁面
-                        } else if (!success &&
-                            context.mounted &&
-                            provider.checkoutError != null) {
-                          // 錯誤信息已在頂部顯示，這裡可以只用一個簡短提示
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              backgroundColor:
-                                  Theme.of(context).colorScheme.error,
-                              content: Text("下單失敗: ${provider.checkoutError}"),
-                            ),
-                          );
-                        }
-                      },
-              child:
-                  provider.isPlacingOrder
-                      ? const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2.5,
-                        ),
-                      )
-                      : const Text("提交訂單"),
+              onPressed: provider.isPlacingOrder ||
+                  provider.checkoutItems.isEmpty ||
+                  provider.selectedAddress == null ||
+                  provider.selectedShippingOption == null
+                  ? null
+                  : () async {
+                final order = await provider.placeOrder();
+                if (order != null && context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      backgroundColor: Colors.green,
+                      content: Text(
+                        "訂單已創建！ID: ${order.orderId ?? 'N/A'}",
+                      ),
+                    ),
+                  );
+                  Navigator.of(context).popUntil((route) => route.isFirst);
+                } else if (order == null &&
+                    context.mounted &&
+                    provider.checkoutError != null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      backgroundColor: Theme.of(context).colorScheme.error,
+                      content: Text("下單失敗: ${provider.checkoutError}"),
+                    ),
+                  );
+                }
+              },
+              child: provider.isPlacingOrder
+                  ? const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2.5,
+                ),
+              )
+                  : const Text("提交訂單"),
             ),
           ],
         ),

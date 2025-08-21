@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../models/product/product.dart';
-import '../../models/user/user.dart'; // 假設您需要用戶信息來獲取其商品
-import './upload.dart'; // 確保路徑正確 (相對於此文件)
+import '../../models/user/user.dart';
+import './upload.dart';
 import '../../widgets/FullBottomConcaveAppBarShape.dart';
 
 class ProductManagementScreen extends StatefulWidget {
-  final User currentUser; // 假設需要當前用戶來獲取其商品
+  final User currentUser;
 
   const ProductManagementScreen({super.key, required this.currentUser});
 
@@ -14,7 +14,7 @@ class ProductManagementScreen extends StatefulWidget {
 }
 
 class _ProductManagementScreenState extends State<ProductManagementScreen> {
-  List<Product> _sellerProducts = []; // 用於存儲賣家的商品列表
+  List<Product> _sellerProducts = [];
   bool _isLoading = true;
 
   @override
@@ -23,49 +23,45 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
     _fetchSellerProducts();
   }
 
-  // 模擬從後端獲取賣家商品數據
   Future<void> _fetchSellerProducts() async {
     setState(() {
       _isLoading = true;
     });
-    // TODO: 替換為真實的 API 調用以獲取 widget.currentUser 的商品
-    await Future.delayed(const Duration(seconds: 1)); // 模擬網絡延遲
 
-    // --- 模擬數據 ---
+    await Future.delayed(const Duration(seconds: 1));
+
+    // 根據你的 Product 模型創建模擬資料
     _sellerProducts = List.generate(
       5,
           (index) => Product(
-        id: 'prod_id_${widget.currentUser.id.substring(0, 3)}_$index',
+        id: index + 1,
         name: '我的商品 ${index + 1}',
         description: '這是商品 ${index + 1} 的詳細描述。它非常棒，值得擁有！',
         price: (index + 1) * 199.99 + 50,
         originalPrice: (index + 1) * 299.99 + 100,
+        categoryId: index + 1,
+        category: index % 2 == 0 ? '電子產品' : '家居用品',
+        stockQuantity: 10 + index * 5,
+        status: index == 3 ? 'sold_out' : (index % 2 == 0 ? 'available' : 'unavailable'),
         imageUrls: [
           'https://picsum.photos/seed/${index + 1}/200/200',
           'https://picsum.photos/seed/a${index + 1}/200/200'
         ],
-        category: index % 2 == 0 ? '電子產品' : '家居用品',
-        categoryId: index + 1,
-        stockQuantity: 10 + index * 5,
-        isSold: index == 3,
-        // 初始狀態：偶數索引 'available', 奇數索引 'unavailable', 如果已售出則 'sold_out'
-        status: index == 3
-            ? 'sold_out'
-            : (index % 2 == 0 ? 'available' : 'unavailable'),
         createdAt: DateTime.now().subtract(Duration(days: index)),
         updatedAt: DateTime.now().subtract(Duration(hours: index)),
-        seller: widget.currentUser,
+        sellerId: widget.currentUser.id,
+        salesCount: index * 5,
+        averageRating: index % 2 == 0 ? 4.5 - index * 0.1 : null,
+        reviewCount: index * 3,
         tags: [
           index % 3 == 0 ? '全新' : (index % 3 == 1 ? '近全新' : '良好'),
           index % 2 == 0 ? '一般商品' : '限時特價',
         ],
-        salesCount: index * 5,
-        averageRating: index % 2 == 0 ? 4.5 - index * 0.1 : null,
-        reviewCount: index * 3,
+        // 可選參數設為預設值
+        seller: null,
         shippingInfo: null,
       ),
     );
-    // --- 模擬數據結束 ---
 
     if (mounted) {
       setState(() {
@@ -79,7 +75,7 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
       context,
       MaterialPageRoute(
         builder: (context) => ProductUploadPage(
-          seller: widget.currentUser,
+          sellerId: widget.currentUser.id,
           productToEdit: productToEdit,
         ),
       ),
@@ -112,13 +108,13 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
     );
 
     if (confirmDelete == true) {
-      // TODO: 調用 API 刪除後端商品數據
-      print('API CALL: Deleting product ${product.id}');
+      debugPrint('API CALL: Deleting product ${product.id}');
       await Future.delayed(const Duration(milliseconds: 500));
-      setState(() {
-        _sellerProducts.removeWhere((p) => p.id == product.id);
-      });
+
       if (mounted) {
+        setState(() {
+          _sellerProducts.removeWhere((p) => p.id == product.id);
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('商品 "${product.name}" 已刪除'),
@@ -129,16 +125,16 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
     }
   }
 
-  // --- 新增：切換商品上下架狀態的方法 ---
   Future<void> _toggleProductAvailability(BuildContext context, Product product) async {
-    // 檢查商品是否已售罄，售罄商品不能直接上下架 (可能需要補貨)
     if (product.status == 'sold_out') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('商品 "${product.name}" 已售罄，無法直接操作上下架。請先補貨。'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('商品 "${product.name}" 已售罄，無法直接操作上下架。請先補貨。'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
       return;
     }
 
@@ -168,20 +164,17 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
     );
 
     if (confirmToggle == true) {
-      // TODO: 調用 API 更新後端商品狀態
-      print('API CALL: Setting product ${product.id} status to $newStatus');
-      await Future.delayed(const Duration(milliseconds: 300)); // 模擬 API 調用
-
-      // 更新本地列表中的商品狀態
-      setState(() {
-        final index = _sellerProducts.indexWhere((p) => p.id == product.id);
-        if (index != -1) {
-          // 創建一個新的 Product 實例來更新狀態，以確保 UI 響應
-          _sellerProducts[index] = _sellerProducts[index].copyWith(status: newStatus);
-        }
-      });
+      debugPrint('API CALL: Setting product ${product.id} status to $newStatus');
+      await Future.delayed(const Duration(milliseconds: 300));
 
       if (mounted) {
+        setState(() {
+          final index = _sellerProducts.indexWhere((p) => p.id == product.id);
+          if (index != -1) {
+            _sellerProducts[index] = _sellerProducts[index].copyWith(status: newStatus);
+          }
+        });
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('商品 "${product.name}" 已$actionText'),
@@ -191,7 +184,6 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
       }
     }
   }
-  // --- 新增方法結束 ---
 
   @override
   Widget build(BuildContext context) {
@@ -199,12 +191,11 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
     final colorScheme = theme.colorScheme;
 
     return Scaffold(
-
       appBar: AppBar(
         shape: FullBottomConcaveAppBarShape(curveHeight: 20.0),
         title: const Text(''),
-        backgroundColor: colorScheme.primary, // 使用 ColorScheme
-        foregroundColor: colorScheme.onPrimary, // 使用 ColorScheme
+        backgroundColor: colorScheme.primary,
+        foregroundColor: colorScheme.onPrimary,
         elevation: 2.0,
         centerTitle: true,
       ),
@@ -212,7 +203,6 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
           ? const Center(child: CircularProgressIndicator())
           : _sellerProducts.isEmpty
           ? Center(
-        // ... (空狀態 UI 不變)
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -245,7 +235,7 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
           final product = _sellerProducts[index];
           bool isAvailable = product.status == 'available';
           bool isSoldOut = product.status == 'sold_out';
-          bool isDelisted = product.status == 'unavailable'; // 或其他代表下架的狀態
+          bool isDelisted = product.status == 'unavailable';
 
           String displayStatus;
           Color statusColor;
@@ -253,10 +243,9 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
           if (isSoldOut) {
             displayStatus = '已售罄';
             statusColor = Colors.redAccent;
-          } else if (product.isSold) { // isSold 應該依賴於 status 或獨立邏輯
-            displayStatus = '已售出 (但仍有庫存)'; // 假設 isSold 標記一個成功的銷售，但如果庫存還在，可能狀態不是 sold_out
+          } else if (product.isSold) {
+            displayStatus = '已售出';
             statusColor = Colors.orange[700]!;
-            // 如果 isSold 真的意味著商品不再可銷售，那麼 status 應該是 sold_out
           } else if (isAvailable) {
             displayStatus = '銷售中';
             statusColor = Colors.green;
@@ -264,10 +253,9 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
             displayStatus = '已下架';
             statusColor = Colors.grey[600]!;
           } else {
-            displayStatus = product.status ?? '未知狀態'; // 處理其他可能的狀態
+            displayStatus = product.status.isNotEmpty ? product.status : '未知狀態';
             statusColor = Colors.black54;
           }
-
 
           return Card(
             elevation: 3.0,
@@ -275,7 +263,6 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
             child: ListTile(
               leading: Container(
-                // ... (leading 不變)
                 width: 70,
                 height: 70,
                 decoration: BoxDecoration(
@@ -317,11 +304,10 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // --- 上下架按鈕 ---
-                  if (!isSoldOut) // 如果已售罄，不顯示上下架按鈕 (或者顯示為 "補貨")
+                  if (!isSoldOut)
                     IconButton(
                       icon: Icon(
-                        isAvailable ? Icons.visibility_off_outlined : Icons.visibility_outlined, // 根據狀態切換圖標
+                        isAvailable ? Icons.visibility_off_outlined : Icons.visibility_outlined,
                         color: isAvailable ? Colors.orangeAccent[700] : Colors.green[700],
                       ),
                       tooltip: isAvailable ? '下架商品' : '重新上架',
@@ -346,15 +332,17 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
                 ],
               ),
               onTap: () {
-                if (!isDelisted) { // 如果已下架，點擊列表項可能不進行編輯操作，或者給出提示
+                if (!isDelisted) {
                   _navigateAndUpsertProduct(productToEdit: product);
                 } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('商品 "${product.name}" 已下架，如需編輯請先重新上架。'),
-                      backgroundColor: Colors.blueGrey,
-                    ),
-                  );
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('商品 "${product.name}" 已下架，如需編輯請先重新上架。'),
+                        backgroundColor: Colors.blueGrey,
+                      ),
+                    );
+                  }
                 }
               },
             ),
@@ -374,39 +362,3 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
     );
   }
 }
-
-// 假設您的 Product 模型有一個 copyWith 方法，類似這樣：
-// extension ProductCopyWith on Product {
-//   Product copyWith({
-//     String? id,
-//     String? name,
-//     // ... 其他屬性
-//     String? status,
-//     // ... 其他屬性
-//   }) {
-//     return Product(
-//       id: id ?? this.id,
-//       name: name ?? this.name,
-//       // ...
-//       status: status ?? this.status,
-//       // ...
-//       // 確保所有 Product 的構造函數參數都被包含
-//       description: this.description,
-//       price: this.price,
-//       originalPrice: this.originalPrice,
-//       imageUrls: this.imageUrls,
-//       category: this.category,
-//       categoryId: this.categoryId,
-//       stockQuantity: this.stockQuantity,
-//       isSold: this.isSold,
-//       createdAt: this.createdAt,
-//       updatedAt: this.updatedAt,
-//       seller: this.seller,
-//       tags: this.tags,
-//       salesCount: this.salesCount,
-//       averageRating: this.averageRating,
-//       reviewCount: this.reviewCount,
-//       shippingInfo: this.shippingInfo,
-//     );
-//   }
-// }

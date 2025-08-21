@@ -5,15 +5,14 @@ import 'package:provider/provider.dart';
 // --- 核心依賴 ---
 import '../models/product/product.dart';
 import '../providers/product_provider.dart';
-import '../providers/cart_provider.dart'; // 【【新增】】為了加入購物車功能
-import '../providers/wishlist_provider.dart'; // 【【新增】】為了收藏功能
+import '../providers/cart_provider.dart';
+import '../providers/wishlist_provider.dart';
 
 // --- 頁面導航 ---
-import 'user/public_profile.dart'; // 賣家個人資料頁
-import 'user/cart.dart';           // 購物車頁面
+import 'user/public_profile.dart';
+import 'user/cart.dart';
 
 class ProductScreen extends StatefulWidget {
-  // --- 來自你的版本：接收 productId，確保資料永遠是最新 ---
   final int productId;
   const ProductScreen({super.key, required this.productId});
 
@@ -26,78 +25,97 @@ class _ProductScreenState extends State<ProductScreen> {
   @override
   void initState() {
     super.initState();
-    // --- 來自你的版本：讓頁面自己負責獲取資料 ---
-    // 使用 addPostFrameCallback 確保 Provider 已經準備好
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // 透過 Provider 從後端獲取最新的、完整的商品資料
-      Provider.of<ProductProvider>(context, listen: false).fetchProductById(widget.productId);
+      if (mounted) {
+        Provider.of<ProductProvider>(context, listen: false).fetchProductById(widget.productId);
+      }
     });
   }
 
-  // --- 來自組員版本的功能，並與 Provider 整合 ---
   /// 處理加入購物車的邏輯
-  void _addToCart(BuildContext context, Product product) {
-    // 透過 context.read<T>() 取得 Provider 實例並呼叫其方法
-    final cartProvider = context.read<CartProvider>();
-    // 假設一次只加入一個
-    cartProvider.addItem(product, 1).then((_) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${product.name} 已加入購物車'),
-          action: SnackBarAction(
-            label: '查看購物車',
-            onPressed: () {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => const CartPage()));
-            },
+  void _addToCart(Product product) async {
+    try {
+      final cartProvider = context.read<CartProvider>();
+      await cartProvider.addItem(product, 1);
+
+      if (mounted) {
+        final scaffoldMessenger = ScaffoldMessenger.of(context);
+        final navigator = Navigator.of(context);
+
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Text('${product.name} 已加入購物車'),
+            action: SnackBarAction(
+              label: '查看購物車',
+              onPressed: () {
+                navigator.push(MaterialPageRoute(builder: (context) => const CartPage()));
+              },
+            ),
           ),
-        ),
-      );
-    }).catchError((error) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('加入失敗: $error'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    });
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('加入失敗: $error'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   /// 處理收藏/取消收藏的邏輯
-  void _toggleFavorite(BuildContext context, Product product) {
-    final wishlistProvider = context.read<WishlistProvider>();
-    final isCurrentlyInWishlist = wishlistProvider.isProductInWishlist(product);
+  void _toggleFavorite(Product product) async {
+    try {
+      final wishlistProvider = context.read<WishlistProvider>();
+      final isCurrentlyInWishlist = wishlistProvider.isProductInWishlist(product);
 
-    if (isCurrentlyInWishlist) {
-      wishlistProvider.removeFromWishlist(product.id).then((_) {
+      if (isCurrentlyInWishlist) {
+        await wishlistProvider.removeFromWishlist(product.id);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('${product.name} 已從收藏移除')),
+          );
+        }
+      } else {
+        await wishlistProvider.addToWishlist(product);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('${product.name} 已加入收藏')),
+          );
+        }
+      }
+    } catch (error) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${product.name} 已從收藏移除')),
+          SnackBar(
+              content: Text('操作失敗: $error'),
+              backgroundColor: Colors.red
+          ),
         );
-      }).catchError((error) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('移除失敗: $error'), backgroundColor: Colors.red),
-        );
-      });
-    } else {
-      wishlistProvider.addToWishlist(product).then((_) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${product.name} 已加入收藏')),
-        );
-      }).catchError((error) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('收藏失敗: $error'), backgroundColor: Colors.red),
-        );
-      });
+      }
+    }
+  }
+
+  void _navigateToSellerProfile(int sellerId) {
+    if (mounted) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          // 修正：將 int 轉換為 String
+          builder: (context) => PublicUserProfilePage(userId: sellerId.toString()),
+        ),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // --- 使用 Consumer 來根據 Provider 狀態建立 UI ---
-      body: Consumer2<ProductProvider, WishlistProvider>( // 同時監聽兩個 Provider
+      body: Consumer2<ProductProvider, WishlistProvider>(
         builder: (context, productProvider, wishlistProvider, child) {
 
-          // --- 來自組員版本的狀態處理 UI ---
           if (productProvider.isDetailLoading) {
             return const Center(child: CircularProgressIndicator());
           }
@@ -120,9 +138,7 @@ class _ProductScreenState extends State<ProductScreen> {
             return const Center(child: Text('找不到商品資料'));
           }
 
-          // 如果成功獲取資料，則建立商品詳情 UI
           final product = productProvider.selectedProduct!;
-          // 檢查當前商品是否在收藏清單中
           final isFavorite = wishlistProvider.isProductInWishlist(product);
 
           return CustomScrollView(
@@ -135,19 +151,17 @@ class _ProductScreenState extends State<ProductScreen> {
           );
         },
       ),
-      // --- 來自組員版本的底部按鈕邏輯 ---
       bottomNavigationBar: Consumer<ProductProvider>(
         builder: (context, provider, child) {
           final product = provider.selectedProduct;
-          if (product == null) return const SizedBox.shrink(); // 如果沒有商品，不顯示按鈕
+          if (product == null) return const SizedBox.shrink();
 
           return Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: ElevatedButton.icon(
               icon: const Icon(Icons.add_shopping_cart),
               label: const Text('加入購物車'),
-              // 如果商品已售罄 (isSold getter)，禁用按鈕
-              onPressed: product.isSold ? null : () => _addToCart(context, product),
+              onPressed: product.isSold ? null : () => _addToCart(product),
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 15),
                 textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -159,8 +173,6 @@ class _ProductScreenState extends State<ProductScreen> {
       ),
     );
   }
-
-  // --- UI 元件 (主要採用組員版本的美化設計) ---
 
   SliverAppBar _buildSliverAppBar(Product product, bool isFavorite) {
     return SliverAppBar(
@@ -186,7 +198,7 @@ class _ProductScreenState extends State<ProductScreen> {
             isFavorite ? Icons.favorite : Icons.favorite_border,
             color: isFavorite ? Colors.red : Colors.white,
           ),
-          onPressed: () => _toggleFavorite(context, product),
+          onPressed: () => _toggleFavorite(product),
         ),
       ],
     );
@@ -207,6 +219,7 @@ class _ProductScreenState extends State<ProductScreen> {
           ),
           const SizedBox(height: 20),
 
+          // 修正：根據 Product 模型顯示賣家資訊
           if (product.seller != null)
             Card(
               child: ListTile(
@@ -220,14 +233,19 @@ class _ProductScreenState extends State<ProductScreen> {
                 ),
                 title: Text(product.seller!.username),
                 trailing: const Icon(Icons.arrow_forward_ios),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => PublicUserProfilePage(userId: product.seller!.id),
-                    ),
-                  );
-                },
+                onTap: () => _navigateToSellerProfile(product.seller!.id),
+              ),
+            )
+          else
+          // 如果沒有 seller 資訊，顯示 sellerId
+            Card(
+              child: ListTile(
+                leading: const CircleAvatar(
+                  child: Icon(Icons.person),
+                ),
+                title: Text('賣家 ID: ${product.sellerId}'),
+                trailing: const Icon(Icons.arrow_forward_ios),
+                onTap: () => _navigateToSellerProfile(product.sellerId),
               ),
             ),
           const SizedBox(height: 20),
@@ -238,8 +256,23 @@ class _ProductScreenState extends State<ProductScreen> {
           const SizedBox(height: 20),
 
           Text('庫存: ${product.stockQuantity}', style: Theme.of(context).textTheme.bodyMedium),
+          const SizedBox(height: 10),
+          Text('狀態: ${_getStatusText(product.status)}', style: Theme.of(context).textTheme.bodyMedium),
         ],
       ),
     );
+  }
+
+  String _getStatusText(String status) {
+    switch (status) {
+      case 'available':
+        return '販售中';
+      case 'unavailable':
+        return '已下架';
+      case 'sold_out':
+        return '已售罄';
+      default:
+        return '未知狀態';
+    }
   }
 }

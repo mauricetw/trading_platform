@@ -4,14 +4,10 @@ import 'package:provider/provider.dart';
 import '../../providers/wishlist_provider.dart';
 import '../../models/product/product.dart';
 import '../../models/user/wishlist_item.dart';
-
 import '../../widgets/FullBottomConcaveAppBarShape.dart';
 
-// 假設您有一個 ProductCard Widget，如果沒有，我們會內聯創建列表項
-// import '../../widgets/product_card.dart'; // 例如
-
 class WishlistScreen extends StatefulWidget {
-  static const routeName = '/wishlist'; // 用於路由導航
+  static const routeName = '/wishlist';
 
   const WishlistScreen({super.key});
 
@@ -24,30 +20,23 @@ class _WishlistScreenState extends State<WishlistScreen> {
   void initState() {
     super.initState();
     // 進入頁面時，如果狀態是 initial 或 error，嘗試獲取最新的願望清單
-    // 使用 WidgetsBinding.instance.addPostFrameCallback 確保 Provider 已準備好
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final wishlistProvider = Provider.of<WishlistProvider>(context, listen: false);
-      // 只有在用戶已登錄 (wishlistProvider 內部會通過 _currentUserId 間接判斷)
-      // 且數據尚未加載或加載出錯時才主動獲取
+      // 只有在用戶已登錄且數據尚未加載或加載出錯時才主動獲取
       if (wishlistProvider.status == WishlistStatus.initial ||
-          (wishlistProvider.status == WishlistStatus.error && wishlistProvider.wishlistItems.isEmpty)) {
-        // 如果是錯誤狀態但列表不為空，可能是上次加載失敗但仍有舊數據，
-        // 這種情況下用戶可能需要手動刷新。
-        // 或者，您也可以決定只要是 error 就重新 fetch。
+          (wishlistProvider.status == WishlistStatus.error && wishlistProvider.items.isEmpty)) {
         wishlistProvider.fetchWishlistItems();
       }
     });
   }
 
   Future<void> _refreshWishlist(BuildContext context) async {
-    // 包裹在 try-catch 中不是必須的，因為 Provider 內部會處理錯誤並更新狀態
-    // 但如果想在這裡做特定的 UI 反饋也可以
     await Provider.of<WishlistProvider>(context, listen: false)
         .fetchWishlistItems(forceRefresh: true);
   }
 
   void _showUndoSnackBar(BuildContext context, Product product, WishlistItem removedItem) {
-    ScaffoldMessenger.of(context).hideCurrentSnackBar(); // 隱藏可能存在的舊 SnackBar
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('${product.name} 已從願望清單移除'),
@@ -55,21 +44,17 @@ class _WishlistScreenState extends State<WishlistScreen> {
         action: SnackBarAction(
           label: '撤銷',
           onPressed: () {
-            // 注意: WishlistProvider 的 addToWishlist 期望一個 Product 對象
-            // 這裡我們直接調用它，它會處理與後端的交互
-            // 如果您的 addToWishlist 內部會檢查是否已存在，那麼重複添加應該沒問題
-            // 或者您可以有一個更底層的 "reAddItem(WishlistItem item)" 方法
-            context.read<WishlistProvider>().addToWishlist(product);
+            // 重新添加到願望清單
+            Provider.of<WishlistProvider>(context, listen: false).addToWishlist(product);
           },
         ),
       ),
     );
   }
 
-
   @override
   Widget build(BuildContext context) {
-    final wishlistProvider = Provider.of<WishlistProvider>(context); // 使用 watch/of 獲取狀態
+    final wishlistProvider = Provider.of<WishlistProvider>(context);
 
     Widget content;
 
@@ -135,12 +120,8 @@ class _WishlistScreenState extends State<WishlistScreen> {
                 ElevatedButton(
                   child: const Text('去逛逛'),
                   onPressed: () {
-                    // 導航到您的主市場頁面或分類頁面
                     if (Navigator.canPop(context)) {
-                      Navigator.pop(context); // 返回上一頁
-                    } else {
-                      // 如果不能 pop，可能需要一個到主頁的硬編碼路由
-                      // Navigator.pushReplacementNamed(context, '/main_market');
+                      Navigator.pop(context);
                     }
                   },
                 ),
@@ -150,8 +131,8 @@ class _WishlistScreenState extends State<WishlistScreen> {
         );
         break;
       case WishlistStatus.loaded:
-        final wishlistData = wishlistProvider.wishlistItems; // List<WishlistItem>
-        if (wishlistData.isEmpty) { // 理論上 status 應該是 empty，但作為雙重檢查
+        final wishlistData = wishlistProvider.items;
+        if (wishlistData.isEmpty) {
           content = Center(
             child: Padding(
               padding: const EdgeInsets.all(16.0),
@@ -183,19 +164,17 @@ class _WishlistScreenState extends State<WishlistScreen> {
               ),
             ),
           );
-          break; // 跳出 switch
+          break;
         }
         content = RefreshIndicator(
           onRefresh: () => _refreshWishlist(context),
           child: ListView.builder(
-            padding: const EdgeInsets.all(8.0), // 給列表一些邊距
+            padding: const EdgeInsets.all(8.0),
             itemCount: wishlistData.length,
             itemBuilder: (ctx, index) {
               final wishlistItem = wishlistData[index];
-              final product = wishlistItem.product; // 直接從 WishlistItem 獲取 Product
+              final product = wishlistItem.product;
 
-              // 這裡您可以使用自定義的 ProductCard Widget，
-              // 或者如下所示直接構建列表項
               return Card(
                 margin: const EdgeInsets.symmetric(vertical: 6.0, horizontal: 4.0),
                 elevation: 2,
@@ -207,7 +186,7 @@ class _WishlistScreenState extends State<WishlistScreen> {
                         ? ClipRRect(
                       borderRadius: BorderRadius.circular(4.0),
                       child: Image.network(
-                        product.imageUrls.first, // 假設取第一張圖
+                        product.imageUrls.first,
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) =>
                         const Icon(Icons.image_not_supported, size: 40, color: Colors.grey),
@@ -239,7 +218,7 @@ class _WishlistScreenState extends State<WishlistScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                   subtitle: Text(
-                    product.price.toStringAsFixed(2),
+                    'NT\$ ${product.price.toStringAsFixed(0)}',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                       color: Theme.of(context).colorScheme.primary,
                       fontWeight: FontWeight.bold,
@@ -268,31 +247,34 @@ class _WishlistScreenState extends State<WishlistScreen> {
                         ),
                       );
                       if (confirmed == true) {
-                        // 保留下被移除的 item 和 product 以便撤銷
-                        final removedItemSnapshot = wishlistItem; // 使用其 ID
+                        // 保留快照以便撤銷
+                        final removedItemSnapshot = wishlistItem;
                         final productSnapshot = product;
 
-                        final success = await wishlistProvider
-                            .removeFromWishlistById(removedItemSnapshot.id); // 使用 WishlistItem ID 移除
+                        try {
+                          // 使用 productId 移除
+                          await wishlistProvider.removeFromWishlist(product.id);
 
-                        if (success && mounted) { // 檢查 widget 是否還掛載
-                          _showUndoSnackBar(context, productSnapshot, removedItemSnapshot);
-                        } else if (!success && mounted) {
-                          ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('移除 "${productSnapshot.name}" 失敗: ${wishlistProvider.errorMessage}'),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
+                          if (mounted) {
+                            _showUndoSnackBar(context, productSnapshot, removedItemSnapshot);
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('移除 "${productSnapshot.name}" 失敗: ${wishlistProvider.errorMessage}'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
                         }
                       }
                     },
                   ),
                   onTap: () {
                     // TODO: 導航到商品詳情頁面
-                    // Navigator.pushNamed(context, ProductDetailScreen.routeName, arguments: product.id);
-                    print('Tapped on product: ${product.name}');
+                    debugPrint('Tapped on product: ${product.name}');
                   },
                 ),
               );
@@ -304,19 +286,11 @@ class _WishlistScreenState extends State<WishlistScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(''),
+        title: const Text('我的收藏'),
         centerTitle: true,
-        shape: FullBottomConcaveAppBarShape(curveHeight: 25.0 ),
+        shape: FullBottomConcaveAppBarShape(curveHeight: 25.0),
         backgroundColor: primaryCS.primary,
-        // 可以考慮添加一個 "清空願望清單" 的按鈕，如果需要
-        // actions: [
-        //   if (wishlistProvider.status == WishlistStatus.loaded && wishlistProvider.wishlistItems.isNotEmpty)
-        //     IconButton(
-        //       icon: const Icon(Icons.delete_sweep_outlined),
-        //       tooltip: '清空願望清單',
-        //       onPressed: () { /* TODO: 實現清空邏輯 */ },
-        //     ),
-        // ],
+        foregroundColor: primaryCS.onPrimary,
       ),
       body: content,
     );

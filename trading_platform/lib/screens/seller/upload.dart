@@ -2,18 +2,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-// 確保這些模型的導入路徑是正確的
-import '../../models/user/user.dart';
+// 修正：移除未使用的 User 導入
 import '../../models/product/product.dart';
 // import 'package:image_picker/image_picker.dart'; // 取消註釋以使用 image_picker
 
 class ProductUploadPage extends StatefulWidget {
-  final User seller; // 當前賣家信息
+  // 修正：改為接受 sellerId 而不是 seller 物件
+  final int sellerId; // 賣家 ID
   final Product? productToEdit; // 要編輯的商品 (如果為 null，則是新增模式)
 
   const ProductUploadPage({
     super.key,
-    required this.seller,
+    required this.sellerId,
     this.productToEdit,
   });
 
@@ -127,9 +127,11 @@ class _ProductUploadPageState extends State<ProductUploadPage> {
   // TODO: 實現真實的圖片選擇邏輯 (例如使用 image_picker)
   Future<void> _selectImage() async {
     if (_selectedImages.length >= 5) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('最多只能選擇 5 張圖片')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('最多只能選擇 5 張圖片')),
+        );
+      }
       return;
     }
     // final picker = ImagePicker();
@@ -146,7 +148,7 @@ class _ProductUploadPageState extends State<ProductUploadPage> {
     // }
     setState(() {
       // 模擬：實際應為選擇的本地文件路徑或上傳後的 URL
-      _selectedImages.add('placeholder_image_path_${DateTime.now().millisecondsSinceEpoch}.jpg');
+      _selectedImages.add('https://picsum.photos/seed/${DateTime.now().millisecondsSinceEpoch}/200');
     });
   }
 
@@ -159,12 +161,14 @@ class _ProductUploadPageState extends State<ProductUploadPage> {
   // --- 預覽功能 ---
   void _previewProduct() {
     if (!_formKey.currentState!.validate()) { // 觸發表單驗證
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('請修正表單中的錯誤'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('請修正表單中的錯誤'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
       return;
     }
     // 表單驗證通過後再顯示預覽
@@ -191,14 +195,22 @@ class _ProductUploadPageState extends State<ProductUploadPage> {
               // 可以添加圖片預覽
               if (_selectedImages.isNotEmpty) ...[
                 const SizedBox(height: 8),
-                Text('圖片預覽:', style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text('圖片預覽:', style: TextStyle(fontWeight: FontWeight.bold)),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
                   children: _selectedImages.map((imgSrc) {
                     // 假設 imgSrc 可能是網絡 URL 或本地模擬路徑
                     // 實際應用中，本地圖片需要用 FileImage，網絡圖片用 NetworkImage
-                    return SizedBox(width: 60, height: 60, child: Image.network(imgSrc, fit: BoxFit.cover, errorBuilder: (c,e,s) => Icon(Icons.broken_image))); // 簡易網絡圖片預覽
+                    return SizedBox(
+                        width: 60,
+                        height: 60,
+                        child: Image.network(
+                            imgSrc,
+                            fit: BoxFit.cover,
+                            errorBuilder: (c,e,s) => const Icon(Icons.broken_image)
+                        )
+                    );
                   }).toList(),
                 )
               ]
@@ -218,23 +230,27 @@ class _ProductUploadPageState extends State<ProductUploadPage> {
   // --- 完成上傳/更新 ---
   Future<void> _completeUpload() async {
     if (!_formKey.currentState!.validate()) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('請修正表單中的錯誤後再提交'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('請修正表單中的錯誤後再提交'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
       return;
     }
     _formKey.currentState!.save();
 
     if (_selectedImages.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('請至少上傳一張商品圖片'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('請至少上傳一張商品圖片'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
       return;
     }
 
@@ -245,24 +261,6 @@ class _ProductUploadPageState extends State<ProductUploadPage> {
     // TODO: 這裡需要真實的圖片上傳邏輯
     // 假設 _selectedImages 經過處理後已經是有效的圖片 URL 列表
     List<String> finalImageUrls = List.from(_selectedImages);
-    // 例如:
-    // List<String> finalImageUrls = [];
-    // for (String imagePathOrUrl in _selectedImages) {
-    //   if (isLocalPath(imagePathOrUrl)) { // 判斷是否為本地路徑
-    //     String? uploadedUrl = await uploadImageToServer(imagePathOrUrl);
-    //     if (uploadedUrl != null) {
-    //       finalImageUrls.add(uploadedUrl);
-    //     } else {
-    //       // 處理上傳失敗
-    //       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('圖片 $imagePathOrUrl 上傳失敗')));
-    //       setState(() => _isLoading = false);
-    //       return;
-    //     }
-    //   } else { // 假定已经是 URL (编辑模式下的旧图)
-    //     finalImageUrls.add(imagePathOrUrl);
-    //   }
-    // }
-
 
     // 準備 Product 對象
     final String productName = _nameController.text;
@@ -272,40 +270,41 @@ class _ProductUploadPageState extends State<ProductUploadPage> {
     final String description = _descriptionController.text;
     final String categoryName = _selectedCategory;
     // 根據 categoryName 獲取 categoryId，這裡假設 _categories 的索引+1 就是 id
-    final int categoryId = _categories.indexOf(categoryName) +1;
-
+    final int categoryId = _categories.indexOf(categoryName) + 1;
 
     // 根據UI選擇構建 tags 列表或其他特定字段
     List<String> tags = [];
     if (_selectedCondition.isNotEmpty) tags.add(_selectedCondition);
     if (_selectedType.isNotEmpty) tags.add(_selectedType);
 
+    // 修正：根據實際的 Product 模型創建對象
     Product productData = Product(
-      id: _isEditMode ? widget.productToEdit!.id : DateTime.now().millisecondsSinceEpoch.toString(), // 或由後端生成ID
+      id: _isEditMode ? widget.productToEdit!.id : DateTime.now().millisecondsSinceEpoch, // 使用 int ID
       name: productName,
       description: description,
       price: productPrice,
-      // originalPrice: originalPrice,
+      originalPrice: null, // 如果不需要原價
       categoryId: categoryId,
       stockQuantity: quantity,
       imageUrls: finalImageUrls,
       category: categoryName,
-      status: _isEditMode ? widget.productToEdit!.status : 'available', // 或根據 _selectedCondition 映射
+      status: _isEditMode ? widget.productToEdit!.status : 'available',
       createdAt: _isEditMode ? widget.productToEdit!.createdAt : DateTime.now(),
       updatedAt: DateTime.now(),
-      seller: widget.seller,
-      isSold: _isEditMode ? widget.productToEdit!.isSold : false,
-      tags: tags.isNotEmpty ? tags : null, // 如果沒有tag則為null
+      sellerId: widget.sellerId, // 使用 sellerId
+      seller: null, // 不設置 seller 物件，讓後端處理
+      tags: tags.isNotEmpty ? tags : null,
       salesCount: _isEditMode ? widget.productToEdit!.salesCount : 0,
       averageRating: _isEditMode ? widget.productToEdit!.averageRating : null,
       reviewCount: _isEditMode ? widget.productToEdit!.reviewCount : 0,
-      shippingInfo: _isEditMode ? widget.productToEdit!.shippingInfo : null, // 根據需要處理
+      shippingInfo: _isEditMode ? widget.productToEdit!.shippingInfo : null,
+      isFavorite: false, // 新商品預設不是最愛
     );
 
     // --- 模擬 API 調用 ---
-    print('--- ${_isEditMode ? "更新" : "上傳"}商品 ---');
-    print('賣家: ${widget.seller.username} (ID: ${widget.seller.id})');
-    print('商品數據: ${productData.toJson()}'); // 確保 Product 有 toJson()
+    debugPrint('--- ${_isEditMode ? "更新" : "上傳"}商品 ---');
+    debugPrint('賣家 ID: ${widget.sellerId}');
+    debugPrint('商品數據: ${productData.toJson()}'); // 確保 Product 有 toJson()
 
     bool success = false;
     try {
@@ -318,31 +317,33 @@ class _ProductUploadPageState extends State<ProductUploadPage> {
       await Future.delayed(const Duration(seconds: 2)); // 模擬網絡延遲
       success = true; // 假設成功
     } catch (e) {
-      print('上傳/更新商品失敗: $e');
+      debugPrint('上傳/更新商品失敗: $e');
       success = false;
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
 
-    if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('商品${_isEditMode ? "更新" : "上傳"}成功！'),
-          backgroundColor: Colors.green,
-        ),
-      );
-      if (mounted) {
+    if (mounted) {
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('商品${_isEditMode ? "更新" : "上傳"}成功！'),
+            backgroundColor: Colors.green,
+          ),
+        );
         Navigator.pop(context, true); // 返回 true 表示操作成功，通知前一頁刷新
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('商品${_isEditMode ? "更新" : "上傳"}失敗，請稍後再試。'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('商品${_isEditMode ? "更新" : "上傳"}失敗，請稍後再試。'),
-          backgroundColor: Colors.red,
-        ),
-      );
     }
   }
 
@@ -552,7 +553,7 @@ class _ProductUploadPageState extends State<ProductUploadPage> {
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: Colors.grey[300]!),
           boxShadow: [
-            BoxShadow(color: Colors.grey.withOpacity(0.1), spreadRadius: 1, blurRadius: 3)
+            BoxShadow(color: Colors.grey.withValues(alpha: 0.1), spreadRadius: 1, blurRadius: 3)
           ]
       ),
       child: TextFormField(
@@ -627,7 +628,7 @@ class _ProductUploadPageState extends State<ProductUploadPage> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: Colors.grey[300]!),
-          boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.1), spreadRadius: 1, blurRadius: 3)]
+          boxShadow: [BoxShadow(color: Colors.grey.withValues(alpha: 0.1), spreadRadius: 1, blurRadius: 3)]
       ),
       child: DropdownButtonFormField<T>(
         value: value,

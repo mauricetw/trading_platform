@@ -2,14 +2,17 @@
 import 'package:flutter/material.dart';
 import 'search.dart';
 import 'announcement.dart';
-import 'user/profile.dart'; // 確保 profile.dart 位於 user/ 資料夾下
+import 'user/profile.dart';
 import 'chatlist/chat_list.dart';
 import 'home_page.dart';
 import '../widgets/market_search_bar.dart';
-import '../theme/app_theme.dart'; // 【【錯誤 2 修正】】引入主題設定檔
+import '../theme/app_theme.dart';
+import '../models/user/user.dart'; // User 模型的導入
 
 class MainMarket extends StatefulWidget {
-  const MainMarket({super.key});
+  final User currentUser; // User 類型參數
+
+  const MainMarket({super.key, required this.currentUser});
 
   @override
   State<MainMarket> createState() => _MainMarketState();
@@ -20,13 +23,12 @@ class _MainMarketState extends State<MainMarket> {
   int _currentIndex = 0;
   final PageController _pageController = PageController(initialPage: 0);
 
-  // --- 【【錯誤 1 修正】】 ---
-  // Profile() 現在是無參數的，它會自己從 AuthProvider 獲取使用者資料。
-  final List<Widget> _pages = const [
-    HomePage(),
-    ChatListScreen(),
-    AnnouncementListScreen(),
-    Profile(), // 不再需要傳入 currentUser
+  // 使用 getter 來動態生成 pages，確保能獲取到 currentUser
+  List<Widget> get _pages => [
+    const HomePage(),
+    const ChatListScreen(),
+    const AnnouncementListScreen(),
+    Profile(currentUser: widget.currentUser), // 傳入 User 類型的 currentUser 參數
   ];
 
   @override
@@ -64,10 +66,7 @@ class _MainMarketState extends State<MainMarket> {
 
   @override
   Widget build(BuildContext context) {
-    // --- 【【錯誤 1 修正】】移除不再需要的 dummyUser ---
-
-    // 從主題中獲取顏色配置
-    final primaryCS = Theme.of(context).extension<MyThemesExtension>()!;
+    // 直接使用 app_theme.dart 中定義的 primaryCS
     bool showMarketSearchBar = _currentIndex == 0;
 
     return Scaffold(
@@ -89,18 +88,18 @@ class _MainMarketState extends State<MainMarket> {
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          // 使用主題中的顏色來定義漸層
+          // 使用 app_theme.dart 中定義的 primaryCS
           gradient: LinearGradient(
             colors: [
               primaryCS.primary,
-              primaryCS.primary.withOpacity(0.9)
+              primaryCS.primary.withValues(alpha: 0.9) // 使用 withValues 替代已棄用的 withOpacity
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           boxShadow: [
             BoxShadow(
-              color: primaryCS.shadow?.withOpacity(0.1) ?? Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 10,
               offset: const Offset(0, -2),
             ),
@@ -111,7 +110,6 @@ class _MainMarketState extends State<MainMarket> {
           onTap: _onItemTapped,
           type: BottomNavigationBarType.fixed,
           backgroundColor: Colors.transparent,
-          // 使用主題中的顏色來設定項目顏色
           selectedItemColor: primaryCS.secondary,
           unselectedItemColor: primaryCS.onSecondary,
           selectedFontSize: 12,

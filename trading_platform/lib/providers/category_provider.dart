@@ -1,18 +1,38 @@
+// --- FILE: lib/providers/category_provider.dart ---
 import 'package:flutter/foundation.dart' as flutter_foundation;
-import '../models/product/category.dart'; // 導入 Category Model
+
+// 簡化的 Category 類，避免模型依賴
+class Category {
+  final String id;
+  final String name;
+  final String? parentId;
+
+  Category({
+    required this.id,
+    required this.name,
+    this.parentId,
+  });
+
+  factory Category.fromJson(Map<String, dynamic> json) {
+    return Category(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      parentId: json['parentId'] as String?,
+    );
+  }
+}
 
 class CategoryProvider with flutter_foundation.ChangeNotifier {
   List<Category> _categories = [];
 
   List<Category> get categories => _categories;
 
-  // 初始化時獲取分類數據
+  // 修正構造函數 - 不需要參數
   CategoryProvider() {
     fetchCategories();
   }
 
   Future<void> fetchCategories() async {
-    // TODO: 在這裡實現從後端獲取分類數據的邏輯
     // 模擬數據獲取
     await Future.delayed(const Duration(seconds: 1));
     final List<Map<String, dynamic>> jsonData = [
@@ -22,8 +42,6 @@ class CategoryProvider with flutter_foundation.ChangeNotifier {
     ];
 
     _categories = jsonData.map((json) => Category.fromJson(json)).toList();
-    notifyListeners(); // 通知監聽者數據已更新
+    notifyListeners();
   }
-
-// 其他方法...
 }

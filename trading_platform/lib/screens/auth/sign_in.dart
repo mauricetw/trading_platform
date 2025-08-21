@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:first_flutter_project/services/api_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:first_flutter_project/screens/main_market.dart';
+import 'package:first_flutter_project/models/user/user.dart'; // 添加 User 模型導入
 
 void main() {
   runApp(const MyApp());
@@ -78,24 +79,55 @@ class _SignInPageState extends State<SignInPage> {
         String token = data["token"] ?? "No token";
 
         // 移除生產環境的 print 語句
-        // print("Login Successful! Token: $token");
+        // debugPrint("Login Successful! Token: $token");
 
-        final String id = data["id"];
-        // print(id);
+        final userId = data["id"];
+        // debugPrint(userId.toString());
 
         // 儲存 Token
         SharedPreferences prefs = await SharedPreferences.getInstance();
         await prefs.setString('token', token);
+
+        // 創建用戶對象 - 從API響應中獲取用戶資料
+        final User currentUser = User(
+          id: userId is String ? int.tryParse(userId) ?? 0 : userId as int, // 處理可能的類型轉換
+          username: data["username"] ?? identifier, // 使用API返回的用戶名，如果沒有則使用輸入的標識符
+          email: data["email"] ?? "${identifier}@example.com", // 使用API返回的郵箱，如果沒有則生成一個
+          registeredAt: DateTime.now(), // 如果API沒有返回，使用當前時間
+          isVerified: data["is_verified"] ?? false,
+          roles: data["roles"] != null ? List<String>.from(data["roles"]) : ['user'],
+          isSeller: data["is_seller"] ?? false,
+          productCount: data["product_count"] ?? 0,
+          // 其他可選字段
+          phoneNumber: data["phone_number"],
+          avatarUrl: data["avatar_url"],
+          lastLoginAt: DateTime.now(),
+          bio: data["bio"],
+          schoolName: data["school_name"],
+          sellerName: data["seller_name"],
+          sellerDescription: data["seller_description"],
+          sellerRating: data["seller_rating"]?.toDouble(),
+          buyerRating: data["buyer_rating"]?.toDouble(),
+          favoriteProductIds: data["favorite_product_ids"] != null
+              ? List<String>.from(data["favorite_product_ids"])
+              : [],
+          publicDisplayName: data["public_display_name"],
+          publicBio: data["public_bio"],
+          publicCoverPhotoUrl: data["public_cover_photo_url"],
+          isSchoolPublic: data["is_school_public"] ?? false,
+        );
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text("Login Successful!")),
           );
 
-          // 跳轉到主頁面，使用pushReplacement避免用戶按返回鍵回到登入頁面
+          // 跳轉到主頁面，傳入當前用戶
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (context) => const MainMarket()),
+            MaterialPageRoute(
+              builder: (context) => MainMarket(currentUser: currentUser), // 傳入用戶對象
+            ),
           );
         }
       } else {
@@ -114,7 +146,7 @@ class _SignInPageState extends State<SignInPage> {
         }
       }
     } catch (e) {
-      // print("Login failed: $e");
+      // debugPrint("Login failed: $e");
       if (mounted) {
         setState(() {
           _serverError = "登入失敗，請稍後再試";

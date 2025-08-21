@@ -2,9 +2,10 @@ import 'package:first_flutter_project/screens/settings/setting.dart';
 import 'package:flutter/material.dart';
 import '../../models/user/user.dart';
 import 'public_profile.dart';
-import 'cart.dart';
-import 'orderlist.dart';
-import 'wishlist.dart';
+// 使用完整路徑導入，避免相對路徑問題
+import 'package:first_flutter_project/screens/user/cart.dart';
+import 'package:first_flutter_project/screens/user/orderlist.dart';
+import 'package:first_flutter_project/screens/user/wishlist.dart';
 import '../seller/product_management.dart';
 import '../seller/order_page.dart';
 import '../seller/shipping_setting_page.dart';
@@ -160,8 +161,7 @@ class Profile extends StatelessWidget {
                                     fontSize: 20,
                                     textAlign: TextAlign.center,
                                   ),
-                                  if ((user.schoolName != null && user.schoolName!.isNotEmpty) &&
-                                      userLocation.isNotEmpty)
+                                  if (userSchool.isNotEmpty && userLocation.isNotEmpty)
                                     const SizedBox(height: 5),
                                   if (userLocation.isNotEmpty)
                                     _buildInfoText(
@@ -199,7 +199,7 @@ class Profile extends StatelessWidget {
                         ),
                         shadows: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.25),
+                            color: Colors.black.withValues(alpha: 0.25),
                             blurRadius: 10,
                             offset: const Offset(0, 5),
                           ),
@@ -217,7 +217,7 @@ class Profile extends StatelessWidget {
                         children: [
                           CircleAvatar(
                             radius: avatarRadius,
-                            backgroundColor: primaryCS.surfaceContainerHighest.withOpacity(0.8),
+                            backgroundColor: primaryCS.surfaceContainerHighest.withValues(alpha: 0.8),
                             backgroundImage: (user.avatarUrl != null && user.avatarUrl!.isNotEmpty)
                                 ? NetworkImage(user.avatarUrl!)
                                 : null,
@@ -230,36 +230,28 @@ class Profile extends StatelessWidget {
                                 : null,
                           ),
                           const SizedBox(height: 12),
-                          // --- MODIFIED SECTION START ---
                           InkWell(
                             onTap: () {
-                              print('Username/ID row tapped. User ID: ${user.id}');
-                              if (user.id != null && user.id!.isNotEmpty) {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => PublicUserProfilePage(userId: user.id!), // 假設 PublicUserProfilePage 已創建
-                                  ),
-                                );
-                              } else {
-                                print("User ID is null or empty, cannot navigate.");
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('用戶ID無效，無法導航')),
-                                );
-                              }
+                              debugPrint('Username/ID row tapped. User ID: ${user.id}');
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => PublicUserProfilePage(userId: user.id.toString()),
+                                ),
+                              );
                             },
-                            splashColor: primaryCS.onPrimary.withOpacity(0.12),
-                            highlightColor: primaryCS.onPrimary.withOpacity(0.08),
-                            borderRadius: BorderRadius.circular(8.0), // 給水波紋效果一個圓角
+                            splashColor: primaryCS.onPrimary.withValues(alpha: 0.12),
+                            highlightColor: primaryCS.onPrimary.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(8.0),
                             child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0), // 調整內邊距
+                              padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
                               child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center, // 外部 Row 居中
-                                mainAxisSize: MainAxisSize.min, // 使外部 Row 根據內容收縮
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Flexible( // 讓用戶名和ID部分可以被壓縮
+                                  Flexible(
                                     child: Row(
-                                      mainAxisSize: MainAxisSize.min, // 內部 Row 根據內容收縮
+                                      mainAxisSize: MainAxisSize.min,
                                       mainAxisAlignment: MainAxisAlignment.center,
                                       children: [
                                         Flexible(
@@ -282,7 +274,7 @@ class Profile extends StatelessWidget {
                                         Flexible(
                                           child: _buildInfoText(
                                             context,
-                                            "ID: ${user.id ?? 'N/A'}",
+                                            "ID: ${user.id}",
                                             baseStyle: textTheme.bodyMedium?.copyWith(fontSize: 20),
                                             color: primaryCS.onPrimary,
                                             textAlign: TextAlign.center,
@@ -291,7 +283,7 @@ class Profile extends StatelessWidget {
                                       ],
                                     ),
                                   ),
-                                  const SizedBox(width: 8), // 用戶名/ID 與箭頭之間的間距
+                                  const SizedBox(width: 8),
                                   Icon(
                                     Icons.arrow_forward_ios,
                                     size: 18,
@@ -301,20 +293,18 @@ class Profile extends StatelessWidget {
                               ),
                             ),
                           ),
-                          // --- MODIFIED SECTION END ---
                         ],
                       ),
                     ),
                   ],
                 ),
-                // --- 下方按鈕區 ---
+                // 下方按鈕區
                 Container(
                   color: primaryCS.surface,
                   padding: const EdgeInsets.fromLTRB(20.0, 0.0, 20.0, 30.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-
                       Padding(
                         padding: const EdgeInsets.only(bottom: 12.0),
                         child: Text(
@@ -332,26 +322,32 @@ class Profile extends StatelessWidget {
                             context: context,
                             label: '收藏',
                             icon: Icons.favorite_border,
-                            onPressed: () { Navigator.push(context, MaterialPageRoute(builder: (context) => const WishlistScreen())); },
+                            onPressed: () {
+                              Navigator.push(context, MaterialPageRoute(builder: (context) => const WishlistScreen()));
+                            },
                           ),
                           const SizedBox(width: 15),
                           _buildStyledButton(
                             context: context,
                             label: '購物車',
                             icon: Icons.shopping_cart_outlined,
-                            onPressed: () { Navigator.push(context, MaterialPageRoute(builder: (context) => const CartPage())); },
+                            onPressed: () {
+                              Navigator.push(context, MaterialPageRoute(builder: (context) => const CartPage()));
+                            },
                           ),
                           const SizedBox(width: 15),
                           _buildStyledButton(
                             context: context,
                             label: '訂單資訊',
                             icon: Icons.receipt_long_outlined,
-                            onPressed: () { Navigator.push(context, MaterialPageRoute(builder: (context) => OrderListScreen())); },
+                            onPressed: () {
+                              Navigator.push(context, MaterialPageRoute(builder: (context) => const OrderListScreen()));
+                            },
                           ),
                         ],
                       ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 24.0),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 24.0),
                       ),
                       Padding(
                         padding: const EdgeInsets.only(bottom: 12.0),
@@ -371,7 +367,7 @@ class Profile extends StatelessWidget {
                             label: '商品管理',
                             icon: Icons.inventory_2_outlined,
                             onPressed: () {
-                              print('導航到：商品管理');
+                              debugPrint('導航到：商品管理');
                               Navigator.push(context, MaterialPageRoute(builder: (context) => ProductManagementScreen(currentUser: currentUser)));
                             },
                           ),
@@ -381,7 +377,7 @@ class Profile extends StatelessWidget {
                             label: '訂單管理',
                             icon: Icons.article_outlined,
                             onPressed: () {
-                              print('導航到：訂單管理');
+                              debugPrint('導航到：訂單管理');
                               Navigator.push(context, MaterialPageRoute(builder: (context) => const SellerOrderPage()));
                             },
                           ),
@@ -391,7 +387,7 @@ class Profile extends StatelessWidget {
                             label: '運送設定',
                             icon: Icons.local_shipping_outlined,
                             onPressed: () {
-                              print('導航到：運送設定');
+                              debugPrint('導航到：運送設定');
                               Navigator.push(context, MaterialPageRoute(builder: (context) => const ShippingSettingsPage()));
                             },
                           ),
@@ -429,27 +425,3 @@ class Profile extends StatelessWidget {
     );
   }
 }
-
-// 假設的 PublicUserProfilePage 頁面 (你需要創建這個文件和類)
-// lib/screens/user/public_user_profile_page.dart
-/*
-import 'package:flutter/material.dart';
-
-class PublicUserProfilePage extends StatelessWidget {
-  final String userId;
-
-  const PublicUserProfilePage({Key? key, required this.userId}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('用戶資料 (ID: $userId)'),
-      ),
-      body: Center(
-        child: Text('這是用戶 $userId 的公開個人資料頁面。'),
-      ),
-    );
-  }
-}
-*/
