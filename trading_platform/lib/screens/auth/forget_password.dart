@@ -1,11 +1,10 @@
-// --- FILE: lib/screens/auth/forget_password.dart ---
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import 'reset_password_confirm.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
-  const ForgotPasswordPage({Key? key}) : super(key: key);
+  const ForgotPasswordPage({super.key});
 
   @override
   State<ForgotPasswordPage> createState() => _ForgotPasswordPageState();
@@ -33,7 +32,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     final email = _emailController.text.trim();
     try {
       await Provider.of<AuthProvider>(context, listen: false).forgotPassword(email);
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('驗證碼已寄出，請檢查您的信箱。'), backgroundColor: Colors.green),
@@ -107,7 +106,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                     },
                   ),
                   const SizedBox(height: 40),
-                  
+
                   // 發送按鈕
                   Center(
                     child: SizedBox(

@@ -1,4 +1,3 @@
-// --- FILE: lib/screens/auth/reset_password_confirm.dart ---
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
@@ -6,7 +5,7 @@ import 'reset_password.dart';
 
 class VerifyResetCodePage extends StatefulWidget {
   final String email;
-  const VerifyResetCodePage({Key? key, required this.email}) : super(key: key);
+  const VerifyResetCodePage({super.key, required this.email});
 
   @override
   State<VerifyResetCodePage> createState() => _VerifyResetCodePageState();
@@ -30,7 +29,7 @@ class _VerifyResetCodePageState extends State<VerifyResetCodePage> {
     try {
       final resetToken = await Provider.of<AuthProvider>(context, listen: false)
           .verifyResetCode(widget.email, _codeController.text.trim());
-      
+
       if (mounted) {
         Navigator.pushReplacement(
           context,

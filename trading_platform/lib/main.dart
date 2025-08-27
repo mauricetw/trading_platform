@@ -32,7 +32,7 @@ import 'theme/app_theme.dart';
 void main() {
   try {
     final ApiClient apiClient = ApiClient();
-    final AuthService authService = AuthService(apiClient);
+    final AuthService authService = AuthService(); // 不再需要傳入 apiClient
     final UserService userService = UserService(apiClient);
     final ProductService productService = ProductService(apiClient);
     final CartService cartService = CartService(apiClient);
@@ -82,7 +82,7 @@ void main() {
       ),
     );
   } catch (e) {
-    print('Error in main: $e');
+    debugPrint('Error in main: $e');
     runApp(
       MaterialApp(
         home: Scaffold(
@@ -108,7 +108,7 @@ class MyApp extends StatelessWidget {
       themeMode: ThemeMode.system,
       home: const SplashScreen(),
       routes: {
-        '/login': (context) => const LoginScreen(),
+        '/login': (context) => const LoginMainPage(),
         '/home': (context) {
           // 從 AuthProvider 獲取 currentUser
           final authProvider = Provider.of<AuthProvider>(context, listen: false);

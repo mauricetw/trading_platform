@@ -1,10 +1,9 @@
-// --- FILE: lib/screens/auth/login_main.dart ---
 import 'package:flutter/material.dart';
 import 'sign_up.dart';
 import 'sign_in.dart';
 
 class LoginMainPage extends StatelessWidget {
-  const LoginMainPage({Key? key}) : super(key: key);
+  const LoginMainPage({super.key});
 
   @override
   Widget build(BuildContext context) {

@@ -1,11 +1,10 @@
-// --- FILE: lib/screens/auth/reset_password.dart ---
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 
 class ResetPasswordPage extends StatefulWidget {
   final String token;
-  const ResetPasswordPage({Key? key, required this.token}) : super(key: key);
+  const ResetPasswordPage({super.key, required this.token});
 
   @override
   State<ResetPasswordPage> createState() => _ResetPasswordPageState();
@@ -31,7 +30,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     try {
       await Provider.of<AuthProvider>(context, listen: false)
           .resetPassword(widget.token, _newPasswordController.text.trim());
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('密碼重設成功！請重新登入。'), backgroundColor: Colors.green),

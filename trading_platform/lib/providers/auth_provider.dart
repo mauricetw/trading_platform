@@ -1,4 +1,3 @@
-// --- FILE: lib/providers/auth_provider.dart ---
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -9,7 +8,7 @@ import '../services/auth_service.dart'; // 引入 AuthService
 import '../services/user_service.dart'; // 引入 UserService
 
 class AuthProvider with ChangeNotifier {
-  // --- 依賴注入：不再依賴舊的 ApiService，而是依賴職責單一的 Service ---
+  // --- 依賴注入 ---
   final AuthService _authService;
   final UserService _userService;
   final ApiClient _apiClient; // 用於設定 token
@@ -22,7 +21,7 @@ class AuthProvider with ChangeNotifier {
   String? get token => _token;
   bool get isLoggedIn => _token != null && _currentUser != null;
 
-  // 建構函式，接收傳入的 services
+  // 建構函式，AuthService 現在不需要 ApiClient
   AuthProvider(this._authService, this._userService, this._apiClient);
 
   // --- 登入 ---
@@ -48,6 +47,37 @@ class AuthProvider with ChangeNotifier {
       // 呼叫 AuthService 的方法
       final authResponse = await _authService.register(username, email, password, code);
       await _handleAuthSuccess(authResponse);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // --- 忘記密碼 ---
+  Future<void> forgotPassword(String email) async {
+    try {
+      // 呼叫 AuthService 的 forgotPassword 方法
+      // 注意：AuthService.forgotPassword 返回 String，但我們在 UI 層不需要使用這個訊息
+      await _authService.forgotPassword(email);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // --- 驗證重設密碼驗證碼 ---
+  Future<String> verifyResetCode(String email, String code) async {
+    try {
+      // 呼叫 AuthService 的 verifyCode 方法，返回重設密碼的 token
+      return await _authService.verifyCode(email, code);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // --- 重設密碼 ---
+  Future<void> resetPassword(String token, String newPassword) async {
+    try {
+      // 呼叫 AuthService 的 resetPassword 方法
+      await _authService.resetPassword(token, newPassword);
     } catch (e) {
       rethrow;
     }
