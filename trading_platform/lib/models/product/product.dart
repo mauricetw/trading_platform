@@ -3,12 +3,29 @@
 import 'package:json_annotation/json_annotation.dart';
 import '../order/shipping_info.dart';
 
-// 這行會將此檔案與下面第二步將自動產生的檔案連結起來。
 part 'product.g.dart';
 
-// --- SellerInfo 模型 ---
-// 保留這個獨立、輕量的 SellerInfo 模型，用於商品列表中的賣家資訊。
-// 使用 json_serializable 以保持一致性。
+// --- Helper Functions (放在 Product class 外部) ---
+// 這個函式會將後端回傳的 Category 物件轉換為前端需要的 String (分類名稱)
+String _categoryNameFromObject(Map<String, dynamic> category) {
+  return category['name'] as String;
+}
+
+// 這個函式會將後端回傳的 Category 物件轉換為前端需要的 int (分類 ID)
+int _categoryIdFromObject(Map<String, dynamic> category) {
+  return category['id'] as int;
+}
+
+// 這個函式會將後端回傳的 images 物件列表，轉換為前端需要的 String 列表
+List<String> _imageUrlsFromImagesList(List<dynamic> images) {
+  if (images is! List) return [];
+  return images
+      .map((image) => image['image_url'] as String)
+      .toList();
+}
+
+
+// --- SellerInfo 模型 (維持不變) ---
 @JsonSerializable(fieldRename: FieldRename.snake)
 class SellerInfo {
   final int id;
@@ -21,29 +38,34 @@ class SellerInfo {
     this.avatarUrl,
   });
 
-  // fromJson 和 toJson 將由程式碼產生器自動建立。
   factory SellerInfo.fromJson(Map<String, dynamic> json) => _$SellerInfoFromJson(json);
   Map<String, dynamic> toJson() => _$SellerInfoToJson(this);
 }
 
 
-// --- Product 模型 ---
-// @JsonSerializable 告訴產生器要為這個類別建立程式碼。
-// fieldRename: FieldRename.snake 會自動將 Dart 的駝峰式命名 (例如 originalPrice)
-// 轉換為 JSON 的蛇形命名 (例如 original_price)，與我們的後端完全匹配。
+// --- Product 模型 (已修正) ---
 @JsonSerializable(fieldRename: FieldRename.snake, explicitToJson: true)
 class Product {
-  // --- 欄位與後端完全對齊 ---
   final int id;
   final String name;
   final String description;
   final double price;
   final double? originalPrice;
+
+  // --- 關鍵修改：使用 @JsonKey 進行自定義解析 ---
+  @JsonKey(name: 'category', fromJson: _categoryIdFromObject)
   final int categoryId;
+
+  @JsonKey(name: 'category', fromJson: _categoryNameFromObject)
   final String category;
+
   final int stockQuantity;
   final String status;
+
+  // --- 關鍵修改：使用 @JsonKey 進行自定義解析 ---
+  @JsonKey(name: 'images', fromJson: _imageUrlsFromImagesList)
   final List<String> imageUrls;
+
   final int salesCount;
   final double? averageRating;
   final int reviewCount;
@@ -54,12 +76,9 @@ class Product {
   final SellerInfo? seller;
   final ShippingInformation? shippingInfo;
 
-  // --- 前端邏輯欄位 ---
-  // 這些欄位不是來自 JSON，所以我們告訴產生器在序列化時忽略它們。
   @JsonKey(includeFromJson: false, includeToJson: false)
   final bool isFavorite;
 
-  // isSold 是一個 getter，產生器會自動忽略它。
   bool get isSold => stockQuantity == 0 || status == 'sold';
 
   Product({
@@ -85,12 +104,9 @@ class Product {
     this.isFavorite = false,
   });
 
-  // --- 由程式碼產生器實現的方法 ---
-  // fromJson 和 toJson 方法現在會在 product.g.dart 中自動產生
   factory Product.fromJson(Map<String, dynamic> json) => _$ProductFromJson(json);
   Map<String, dynamic> toJson() => _$ProductToJson(this);
 
-  // copyWith 方法對於狀態管理仍然非常有用，所以保留它。
   Product copyWith({
     int? id,
     String? name,
