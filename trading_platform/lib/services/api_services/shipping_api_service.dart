@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:math'; // For random ID generation
 import 'package:http/http.dart' as http; // 可以暫時註釋掉，如果只用模擬數據
-import '../models/user/shipping_option.dart'; // 確保路徑正確
+import '../../models/user/shipping_option.dart'; // 確保路徑正確
 
 class ShippingApiService {
   // --- 模擬數據開關 ---

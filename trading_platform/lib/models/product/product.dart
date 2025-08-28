@@ -1,9 +1,6 @@
-// --- FILE: lib/models/product/product.dart ---
-
 import 'package:json_annotation/json_annotation.dart';
 import '../order/shipping_info.dart';
 
-// 這行會將此檔案與下面第二步將自動產生的檔案連結起來。
 part 'product.g.dart';
 
 // --- SellerInfo 模型 ---

@@ -41,11 +41,20 @@ void main() {
     final OrderService orderService = OrderService();
     final AddressService addressService = AddressService();
 
+    // ←←← 這個開關控制是否繞過登入（上線時記得改為 false）
+    const bool kBypassLogin = true;
+
     runApp(
       MultiProvider(
         providers: [
           ChangeNotifierProvider(
-            create: (_) => AuthProvider(authService, userService, apiClient),
+            create: (_) {
+              final ap = AuthProvider(authService, userService, apiClient);
+              if (kBypassLogin) {
+                ap.mockLoginForDev(); // ★ 直接假登入
+              }
+              return ap;
+            },
           ),
           ChangeNotifierProvider(
             create: (_) => ProductProvider(productService),
@@ -110,16 +119,14 @@ class MyApp extends StatelessWidget {
       routes: {
         '/login': (context) => const LoginMainPage(),
         '/home': (context) {
-          // 從 AuthProvider 獲取 currentUser
           final authProvider = Provider.of<AuthProvider>(context, listen: false);
           final currentUser = authProvider.currentUser;
 
           if (currentUser != null) {
             return MainMarket(currentUser: currentUser);
           } else {
-            // 如果沒有登入用戶，跳轉到登入頁面
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              Navigator.of(context).pushReplacementNamed('/login');
+              Navigator.of(context).pushReplacementNamed('/login'); // ← 沒登入就去 /login
             });
             return const Scaffold(
               body: Center(child: CircularProgressIndicator()),

@@ -1,4 +1,3 @@
-// 引入你的 User 模型，請確保路徑正確
 import '../user/user.dart';
 
 // 這個模型對應後端回傳的 token 物件

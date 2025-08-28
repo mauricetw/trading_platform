@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // For TextInputFormatter
 import '../models/user/shipping_option.dart';
-import '../services/shipping_api_service.dart';
+import '../services/api_services/shipping_api_service.dart';
 
 class UpsertShippingOptionDialog extends StatefulWidget {
   final ShippingApiService apiService;

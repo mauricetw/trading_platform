@@ -3,9 +3,9 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../models/user/user.dart';
 import '../models/auth/auth_response.dart';
-import '../services/api_client.dart'; // 引入 ApiClient
-import '../services/auth_service.dart'; // 引入 AuthService
-import '../services/user_service.dart'; // 引入 UserService
+import '../services/api_client.dart';
+import '../services/auth_service.dart';
+import '../services/user_service.dart';
 
 class AuthProvider with ChangeNotifier {
   // --- 依賴注入 ---
@@ -20,9 +20,53 @@ class AuthProvider with ChangeNotifier {
   User? get currentUser => _currentUser;
   String? get token => _token;
   bool get isLoggedIn => _token != null && _currentUser != null;
+  ApiClient get apiClient => _apiClient;
 
   // 建構函式，AuthService 現在不需要 ApiClient
   AuthProvider(this._authService, this._userService, this._apiClient);
+
+  // ===== DEV ONLY: 一鍵假登入，繞過後端 =====
+  Future<void> mockLoginForDev({int userId = 999}) async {
+    // 構造一個最小可用的 User（依你的 User model 必填欄位）
+    final fakeUser = User(
+      id: userId,
+      username: 'dev_user_$userId',
+      email: 'dev$userId@example.com',
+      registeredAt: DateTime.now().subtract(const Duration(days: 30)),
+      isVerified: true,
+      roles: const ['user'],
+      isSeller: false,
+      productCount: 0,
+      // 可選欄位先不給或給個簡單值
+      phoneNumber: null,
+      avatarUrl: null,
+      lastLoginAt: DateTime.now(),
+      bio: '這是開發用假帳號',
+      schoolName: 'Dev 大學',
+      sellerName: null,
+      sellerDescription: null,
+      sellerRating: null,
+      buyerRating: null,
+      favoriteProductIds: const [],
+      publicDisplayName: 'Dev 用戶',
+      publicBio: '僅供開發測試',
+      publicCoverPhotoUrl: null,
+      isSchoolPublic: true,
+    );
+
+    // 依你的 AuthResponse / Token 結構建立假回應
+    final fakeAuthResponse = AuthResponse(
+      token: Token(
+        accessToken: 'dev-access-token-123', // 任意字串
+        tokenType: 'bearer',
+      ),
+      user: fakeUser,
+    );
+
+    // 用同一套成功處理邏輯：會自動設好 ApiClient token、寫入 secure storage、notifyListeners
+    await _handleAuthSuccess(fakeAuthResponse);
+  }
+
 
   // --- 登入 ---
   Future<void> login(String identifier, String password) async {
@@ -148,3 +192,4 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 }
+

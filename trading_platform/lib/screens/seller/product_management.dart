@@ -1,8 +1,12 @@
+// --- FILE: lib/screens/user/product_management.dart ---
 import 'package:flutter/material.dart';
+
 import '../../models/product/product.dart';
 import '../../models/user/user.dart';
 import './upload.dart';
 import '../../widgets/FullBottomConcaveAppBarShape.dart';
+
+import 'package:first_flutter_project/mock/mock.dart';
 
 class ProductManagementScreen extends StatefulWidget {
   final User currentUser;
@@ -24,49 +28,19 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
   }
 
   Future<void> _fetchSellerProducts() async {
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
-    await Future.delayed(const Duration(seconds: 1));
-
-    // 根據你的 Product 模型創建模擬資料
-    _sellerProducts = List.generate(
-      5,
-          (index) => Product(
-        id: index + 1,
-        name: '我的商品 ${index + 1}',
-        description: '這是商品 ${index + 1} 的詳細描述。它非常棒，值得擁有！',
-        price: (index + 1) * 199.99 + 50,
-        originalPrice: (index + 1) * 299.99 + 100,
-        categoryId: index + 1,
-        category: index % 2 == 0 ? '電子產品' : '家居用品',
-        stockQuantity: 10 + index * 5,
-        status: index == 3 ? 'sold_out' : (index % 2 == 0 ? 'available' : 'unavailable'),
-        imageUrls: [
-          'https://picsum.photos/seed/${index + 1}/200/200',
-          'https://picsum.photos/seed/a${index + 1}/200/200'
-        ],
-        createdAt: DateTime.now().subtract(Duration(days: index)),
-        updatedAt: DateTime.now().subtract(Duration(hours: index)),
-        sellerId: widget.currentUser.id,
-        salesCount: index * 5,
-        averageRating: index % 2 == 0 ? 4.5 - index * 0.1 : null,
-        reviewCount: index * 3,
-        tags: [
-          index % 3 == 0 ? '全新' : (index % 3 == 1 ? '近全新' : '良好'),
-          index % 2 == 0 ? '一般商品' : '限時特價',
-        ],
-        // 可選參數設為預設值
-        seller: null,
-        shippingInfo: null,
-      ),
-    );
-
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-      });
+    try {
+      // ✅ 改用統一的 mock 產生器（無延遲）
+      _sellerProducts = buildMockProductsForUser(
+        widget.currentUser.id.toString(),
+        count: 8,
+      );
+    } catch (e) {
+      debugPrint('載入模擬商品錯誤: $e');
+      _sellerProducts = [];
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -88,53 +62,46 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
   Future<void> _deleteProduct(BuildContext context, Product product) async {
     final bool? confirmDelete = await showDialog<bool>(
       context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          title: const Text('確認刪除'),
-          content: Text('您確定要刪除商品 "${product.name}" 嗎？此操作無法撤銷。'),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('取消'),
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-            ),
-            TextButton(
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
-              child: const Text('刪除'),
-              onPressed: () => Navigator.of(dialogContext).pop(true),
-            ),
-          ],
-        );
-      },
+      builder: (BuildContext dialogContext) => AlertDialog(
+        title: const Text('確認刪除'),
+        content: Text('您確定要刪除商品「${product.name}」嗎？此操作無法撤銷。'),
+        actions: <Widget>[
+          TextButton(
+            child: const Text('取消'),
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('刪除'),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+          ),
+        ],
+      ),
     );
 
-    if (confirmDelete == true) {
-      debugPrint('API CALL: Deleting product ${product.id}');
-      await Future.delayed(const Duration(milliseconds: 500));
-
-      if (mounted) {
-        setState(() {
-          _sellerProducts.removeWhere((p) => p.id == product.id);
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('商品 "${product.name}" 已刪除'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
+    if (confirmDelete == true && mounted) {
+      setState(() {
+        _sellerProducts.removeWhere((p) => p.id == product.id);
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('商品「${product.name}」已刪除'),
+          backgroundColor: Colors.green,
+        ),
+      );
     }
   }
 
   Future<void> _toggleProductAvailability(BuildContext context, Product product) async {
+    // sold_out 視為不可直接上下架
     if (product.status == 'sold_out') {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('商品 "${product.name}" 已售罄，無法直接操作上下架。請先補貨。'),
-            backgroundColor: Colors.orange,
-          ),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('商品「${product.name}」已售罄，無法直接操作上下架，請先補貨。'),
+          backgroundColor: Colors.orange,
+        ),
+      );
       return;
     }
 
@@ -142,47 +109,20 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
     final String actionText = isCurrentlyAvailable ? '下架' : '重新上架';
     final String newStatus = isCurrentlyAvailable ? 'unavailable' : 'available';
 
-    final bool? confirmToggle = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          title: Text('確認$actionText'),
-          content: Text('您確定要將商品 "${product.name}" $actionText嗎？'),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('取消'),
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-            ),
-            TextButton(
-              style: TextButton.styleFrom(foregroundColor: isCurrentlyAvailable ? Colors.orange : Colors.green),
-              child: Text(actionText),
-              onPressed: () => Navigator.of(dialogContext).pop(true),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (confirmToggle == true) {
-      debugPrint('API CALL: Setting product ${product.id} status to $newStatus');
-      await Future.delayed(const Duration(milliseconds: 300));
-
-      if (mounted) {
-        setState(() {
-          final index = _sellerProducts.indexWhere((p) => p.id == product.id);
-          if (index != -1) {
-            _sellerProducts[index] = _sellerProducts[index].copyWith(status: newStatus);
-          }
-        });
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('商品 "${product.name}" 已$actionText'),
-            backgroundColor: Colors.green,
-          ),
-        );
+    if (!mounted) return;
+    setState(() {
+      final index = _sellerProducts.indexWhere((p) => p.id == product.id);
+      if (index != -1) {
+        _sellerProducts[index] = _sellerProducts[index].copyWith(status: newStatus);
       }
-    }
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('商品「${product.name}」已$actionText'),
+        backgroundColor: Colors.green,
+      ),
+    );
   }
 
   @override
@@ -193,7 +133,7 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
     return Scaffold(
       appBar: AppBar(
         shape: FullBottomConcaveAppBarShape(curveHeight: 20.0),
-        title: const Text(''),
+        title: const Text('商品管理'),
         backgroundColor: colorScheme.primary,
         foregroundColor: colorScheme.onPrimary,
         elevation: 2.0,
@@ -208,10 +148,7 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
           children: [
             Icon(Icons.storefront_outlined, size: 80, color: Colors.grey[400]),
             const SizedBox(height: 16),
-            Text(
-              '您還沒有上架任何商品',
-              style: TextStyle(fontSize: 18, color: Colors.grey[600]),
-            ),
+            Text('您還沒有上架任何商品', style: TextStyle(fontSize: 18, color: Colors.grey[600])),
             const SizedBox(height: 20),
             ElevatedButton.icon(
               icon: const Icon(Icons.add_shopping_cart),
@@ -221,10 +158,8 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
                 foregroundColor: colorScheme.onSecondary,
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               ),
-              onPressed: () {
-                _navigateAndUpsertProduct();
-              },
-            )
+              onPressed: () => _navigateAndUpsertProduct(),
+            ),
           ],
         ),
       )
@@ -233,9 +168,9 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
         itemCount: _sellerProducts.length,
         itemBuilder: (context, index) {
           final product = _sellerProducts[index];
-          bool isAvailable = product.status == 'available';
-          bool isSoldOut = product.status == 'sold_out';
-          bool isDelisted = product.status == 'unavailable';
+          final isAvailable = product.status == 'available';
+          final isSoldOut = product.status == 'sold_out';
+          final isDelisted = product.status == 'unavailable';
 
           String displayStatus;
           Color statusColor;
@@ -276,7 +211,7 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
                   color: product.imageUrls.isEmpty ? Colors.grey[200] : null,
                 ),
                 child: product.imageUrls.isEmpty
-                    ? Icon(Icons.inventory_2_outlined, color: Colors.grey[400], size: 30,)
+                    ? const Icon(Icons.inventory_2_outlined, color: Colors.grey, size: 30)
                     : null,
               ),
               title: Text(
@@ -295,9 +230,7 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
                   Text('庫存: ${product.stockQuantity}'),
                   Text(
                     displayStatus,
-                    style: TextStyle(
-                        color: statusColor,
-                        fontStyle: FontStyle.italic),
+                    style: TextStyle(color: statusColor, fontStyle: FontStyle.italic),
                   ),
                 ],
               ),
@@ -311,48 +244,26 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> {
                         color: isAvailable ? Colors.orangeAccent[700] : Colors.green[700],
                       ),
                       tooltip: isAvailable ? '下架商品' : '重新上架',
-                      onPressed: () {
-                        _toggleProductAvailability(context, product);
-                      },
+                      onPressed: () => _toggleProductAvailability(context, product),
                     ),
                   IconButton(
                     icon: Icon(Icons.edit_outlined, color: colorScheme.secondary),
                     tooltip: '編輯商品',
-                    onPressed: () {
-                      _navigateAndUpsertProduct(productToEdit: product);
-                    },
+                    onPressed: () => _navigateAndUpsertProduct(productToEdit: product),
                   ),
                   IconButton(
-                    icon: Icon(Icons.delete_outline, color: Colors.redAccent[700]),
+                    icon: const Icon(Icons.delete_outline, color: Colors.red),
                     tooltip: '刪除商品',
-                    onPressed: () {
-                      _deleteProduct(context, product);
-                    },
+                    onPressed: () => _deleteProduct(context, product),
                   ),
                 ],
               ),
-              onTap: () {
-                if (!isDelisted) {
-                  _navigateAndUpsertProduct(productToEdit: product);
-                } else {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('商品 "${product.name}" 已下架，如需編輯請先重新上架。'),
-                        backgroundColor: Colors.blueGrey,
-                      ),
-                    );
-                  }
-                }
-              },
             ),
           );
         },
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          _navigateAndUpsertProduct();
-        },
+        onPressed: () => _navigateAndUpsertProduct(),
         tooltip: '上架新商品',
         icon: const Icon(Icons.add_shopping_cart_outlined),
         label: const Text('上架商品'),

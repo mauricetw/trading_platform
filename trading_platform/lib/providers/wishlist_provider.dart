@@ -1,23 +1,25 @@
-// --- FILE: lib/providers/wishlist_provider.dart ---
 import 'package:flutter/foundation.dart';
+import '../models/user/wishlist_item.dart';
+import '../services/wishlist_service.dart';
 import 'auth_provider.dart';
+import '../config/api_config.dart';
 
 enum WishlistStatus { initial, loading, loaded, empty, error }
 
 class WishlistProvider with ChangeNotifier {
+  final WishlistService _wishlistService;
   AuthProvider? _authProvider;
 
-  List<dynamic> _items = [];
+  List<WishlistItem> _items = [];
   WishlistStatus _status = WishlistStatus.initial;
   String _errorMessage = '';
 
-  List<dynamic> get items => [..._items];
+  List<WishlistItem> get items => [..._items];
   WishlistStatus get status => _status;
   String get errorMessage => _errorMessage;
   bool get isLoading => _status == WishlistStatus.loading;
 
-  WishlistProvider(dynamic wishlistService, AuthProvider? authProvider)
-      : _authProvider = authProvider {
+  WishlistProvider(this._wishlistService, this._authProvider) {
     _updateDependencies();
   }
 
@@ -47,8 +49,8 @@ class WishlistProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      await Future.delayed(const Duration(milliseconds: 500));
-      _items = [];
+      final fetchedItems = await _wishlistService.getMyWishlist();
+      _items = fetchedItems;
       _status = _items.isEmpty ? WishlistStatus.empty : WishlistStatus.loaded;
     } catch (e) {
       _errorMessage = "獲取收藏清單失敗: $e";
@@ -58,11 +60,13 @@ class WishlistProvider with ChangeNotifier {
     }
   }
 
-  Future<void> addToWishlist(dynamic product) async {
+  Future<void> addToWishlist(int productId) async {
     if (!(_authProvider?.isLoggedIn ?? false)) return;
 
     try {
-      _items.add(product);
+      final newItem = await _wishlistService.addItem(productId);
+      _items.add(newItem);
+      _status = WishlistStatus.loaded;
       notifyListeners();
     } catch (e) {
       _errorMessage = "加入收藏失敗: $e";
@@ -73,7 +77,9 @@ class WishlistProvider with ChangeNotifier {
 
   Future<void> removeFromWishlist(int productId) async {
     try {
-      _items.removeWhere((item) => item.id == productId);
+      await _wishlistService.removeItemByProductId(productId);
+      _items.removeWhere((item) => item.productId == productId);
+      _status = _items.isEmpty ? WishlistStatus.empty : WishlistStatus.loaded;
       notifyListeners();
     } catch (e) {
       _errorMessage = "移除收藏失敗: $e";
@@ -82,7 +88,13 @@ class WishlistProvider with ChangeNotifier {
     }
   }
 
-  bool isProductInWishlist(dynamic product) {
-    return _items.any((item) => item.id == product.id);
+  void clearWishlist() {
+    _items = [];
+    _status = WishlistStatus.empty;
+    notifyListeners();
+  }
+
+  bool isProductInWishlist(int productId) {
+    return _items.any((item) => item.productId == productId);
   }
 }

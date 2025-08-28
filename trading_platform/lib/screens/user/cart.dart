@@ -1,4 +1,5 @@
-// 請將此內容完全替換到你的 lib/screens/user/cart.dart 檔案中
+// --- FILE: lib/screens/user/cart.dart ---
+// 完整替換本檔
 
 import 'package:first_flutter_project/theme/app_theme.dart';
 import 'package:flutter/material.dart';
@@ -21,12 +22,13 @@ class _CartPageState extends State<CartPage> {
   @override
   void initState() {
     super.initState();
+    // 首次進入頁面時，如果購物車是空的，嘗試載入（由 Provider 負責：可連真實 API 或 mock）
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final cartProvider = Provider.of<CartProvider>(context, listen: false);
       if (cartProvider.items.isEmpty && !cartProvider.isLoading) {
-        debugPrint("CartPage: Cart is empty and not loading, attempting to fetch user cart.");
+        debugPrint("CartPage: empty on init -> fetchUserCart()");
         cartProvider.fetchUserCart().catchError((error) {
-          debugPrint("CartPage: Error fetching cart on init (silently): $error");
+          debugPrint("CartPage: fetchUserCart error (silently): $error");
         });
       }
     });
@@ -67,9 +69,7 @@ class _CartPageState extends State<CartPage> {
         actions: <Widget>[
           TextButton(
             child: const Text('取消'),
-            onPressed: () {
-              Navigator.of(ctx).pop();
-            },
+            onPressed: () => Navigator.of(ctx).pop(),
           ),
           TextButton(
             child: const Text('確定清空', style: TextStyle(color: Colors.red)),
@@ -154,6 +154,7 @@ class _CartPageState extends State<CartPage> {
             child: InkWell(
               borderRadius: BorderRadius.circular(8),
               onTap: () {
+                // 導向最新 Product 詳情（用 id int）
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -182,15 +183,15 @@ class _CartPageState extends State<CartPage> {
                       height: 80,
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(8.0),
-                        child: item.product.imageUrls.isNotEmpty
+                        child: (item.product.imageUrls.isNotEmpty &&
+                            item.product.imageUrls.first.isNotEmpty)
                             ? Image.network(
                           item.product.imageUrls.first,
                           fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) =>
-                              Container(
-                                  color: Colors.grey[200],
-                                  child: const Icon(Icons.broken_image_outlined, size: 40, color: Colors.grey)
-                              ),
+                          errorBuilder: (context, error, stackTrace) => Container(
+                            color: Colors.grey[200],
+                            child: const Icon(Icons.broken_image_outlined, size: 40, color: Colors.grey),
+                          ),
                         )
                             : Container(
                           decoration: BoxDecoration(
@@ -202,7 +203,7 @@ class _CartPageState extends State<CartPage> {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    // 商品信息和操作
+                    // 商品文字與操作
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -218,9 +219,9 @@ class _CartPageState extends State<CartPage> {
                           Text(
                             '價格: NT\$${item.product.price.toStringAsFixed(0)}',
                             style: TextStyle(
-                                fontSize: 14,
-                                color: Theme.of(context).primaryColorDark,
-                                fontWeight: FontWeight.w500
+                              fontSize: 14,
+                              color: Theme.of(context).primaryColorDark,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -233,19 +234,26 @@ class _CartPageState extends State<CartPage> {
                                 icon: Icons.remove_circle_outline,
                                 onPressed: item.quantity > 1
                                     ? () => cartProvider.decrementQuantity(item.productId)
-                                    : () => _confirmRemoveItem(context, cartProvider, item, "確認移除", "數量減至0將移除商品，確定嗎？"),
+                                    : () => _confirmRemoveItem(
+                                  context,
+                                  cartProvider,
+                                  item,
+                                  "確認移除",
+                                  "數量減至 0 將移除商品，確定嗎？",
+                                ),
                                 tooltip: item.quantity > 1 ? '減少數量' : '移除商品',
                               ),
                               Padding(
                                 padding: const EdgeInsets.symmetric(horizontal: 10.0),
-                                child: Text('${item.quantity}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                child: Text(
+                                  '${item.quantity}',
+                                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                ),
                               ),
                               _buildQuantityButton(
                                 context,
                                 icon: Icons.add_circle_outline,
-                                onPressed: () {
-                                  cartProvider.incrementQuantity(item.productId);
-                                },
+                                onPressed: () => cartProvider.incrementQuantity(item.productId),
                                 tooltip: '增加數量',
                               ),
                             ],
@@ -259,9 +267,7 @@ class _CartPageState extends State<CartPage> {
                       tooltip: '移除商品',
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
-                      onPressed: () {
-                        _confirmRemoveItem(context, cartProvider, item);
-                      },
+                      onPressed: () => _confirmRemoveItem(context, cartProvider, item),
                     ),
                   ],
                 ),
@@ -273,7 +279,12 @@ class _CartPageState extends State<CartPage> {
     );
   }
 
-  Widget _buildQuantityButton(BuildContext context, {required IconData icon, required VoidCallback onPressed, required String tooltip}) {
+  Widget _buildQuantityButton(
+      BuildContext context, {
+        required IconData icon,
+        required VoidCallback onPressed,
+        required String tooltip,
+      }) {
     return SizedBox(
       width: 32,
       height: 32,
@@ -286,18 +297,22 @@ class _CartPageState extends State<CartPage> {
     );
   }
 
-  void _confirmRemoveItem(BuildContext context, CartProvider cartProvider, CartItem item, [String title = '移除商品', String? content]) {
+  void _confirmRemoveItem(
+      BuildContext context,
+      CartProvider cartProvider,
+      CartItem item, [
+        String title = '移除商品',
+        String? content,
+      ]) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(title),
-        content: Text(content ?? '您確定要從購物車移除 "${item.product.name}" 嗎？'),
+        content: Text(content ?? '您確定要從購物車移除「${item.product.name}」嗎？'),
         actions: <Widget>[
           TextButton(
             child: const Text('取消'),
-            onPressed: () {
-              Navigator.of(ctx).pop();
-            },
+            onPressed: () => Navigator.of(ctx).pop(),
           ),
           TextButton(
             child: const Text('確定移除', style: TextStyle(color: Colors.red)),
@@ -308,7 +323,7 @@ class _CartPageState extends State<CartPage> {
               ScaffoldMessenger.of(context).hideCurrentSnackBar();
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('已移除 "${item.product.name}"'),
+                  content: Text('已移除「${item.product.name}」'),
                   duration: const Duration(seconds: 4),
                   action: SnackBarAction(
                     label: '撤銷',
@@ -317,8 +332,8 @@ class _CartPageState extends State<CartPage> {
                       final int originalQuantity = item.quantity;
                       final bool originalIsSelected = item.isSelected;
 
-                      // 重新創建 Product 對象用於撤銷
-                      final productToRestore = Product(
+                      // 依照最新 Product 模型重建一個 Product（避免參照被移除後出錯）
+                      final restored = Product(
                         id: item.product.id,
                         name: item.product.name,
                         description: item.product.description,
@@ -328,30 +343,31 @@ class _CartPageState extends State<CartPage> {
                         category: item.product.category,
                         stockQuantity: item.product.stockQuantity,
                         status: item.product.status,
-                        imageUrls: item.product.imageUrls,
+                        imageUrls: List<String>.from(item.product.imageUrls),
                         createdAt: item.product.createdAt,
                         updatedAt: item.product.updatedAt,
                         salesCount: item.product.salesCount,
                         averageRating: item.product.averageRating,
                         reviewCount: item.product.reviewCount,
-                        tags: item.product.tags,
+                        tags: item.product.tags == null
+                            ? null
+                            : List<String>.from(item.product.tags!),
                         sellerId: item.product.sellerId,
-                        seller: item.product.seller,
+                        seller: item.product.seller, // SellerInfo? 可直接帶回
                         shippingInfo: item.product.shippingInfo,
                         isFavorite: item.product.isFavorite,
                       );
 
-                      // 重新添加商品到購物車
-                      cartProvider.addItem(
-                        productToRestore,
-                        originalQuantity,
-                      );
-                      // 如果原來是選中狀態，重新選中
+                      // 重新加入購物車
+                      cartProvider.addItem(restored, originalQuantity);
+
+                      // 回復選取狀態
                       if (originalIsSelected) {
                         cartProvider.toggleItemSelected(item.productId, true);
                       }
+
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('已撤銷移除 "${item.product.name}"')),
+                        SnackBar(content: Text('已撤銷移除「${item.product.name}」')),
                       );
                     },
                   ),
@@ -375,7 +391,7 @@ class _CartPageState extends State<CartPage> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: <Widget>[
-            // 全選區域
+            // 全選
             InkWell(
               onTap: () {
                 final newValue = !cartProvider.isAllSelected;
@@ -399,7 +415,7 @@ class _CartPageState extends State<CartPage> {
               ),
             ),
 
-            // 合計金額
+            // 合計
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12.0),
@@ -418,9 +434,10 @@ class _CartPageState extends State<CartPage> {
                       child: Text(
                         'NT\$${cartProvider.totalSelectedAmount.toStringAsFixed(0)}',
                         style: TextStyle(
-                            fontSize: 18.0,
-                            fontWeight: FontWeight.bold,
-                            color: themeColors.primary),
+                          fontSize: 18.0,
+                          fontWeight: FontWeight.bold,
+                          color: themeColors.primary,
+                        ),
                         maxLines: 1,
                       ),
                     ),
@@ -429,7 +446,7 @@ class _CartPageState extends State<CartPage> {
               ),
             ),
 
-            // 結算按鈕
+            // 結算
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: cartProvider.selectedItemCount > 0 ? themeColors.primary : Colors.grey[400],
@@ -440,9 +457,8 @@ class _CartPageState extends State<CartPage> {
               ),
               onPressed: cartProvider.selectedItemCount > 0
                   ? () {
-                final selectedItemsToCheckout = cartProvider.items
-                    .where((item) => item.isSelected)
-                    .toList();
+                final selectedItemsToCheckout =
+                cartProvider.items.where((item) => item.isSelected).toList();
                 if (selectedItemsToCheckout.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('請至少選擇一件商品進行結算')),

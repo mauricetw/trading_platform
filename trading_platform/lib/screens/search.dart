@@ -1,12 +1,12 @@
-// --- FILE: lib/screens/search.dart ---
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 
 import '../models/product/product.dart';
 import '../providers/product_provider.dart';
-import '../widgets/filter_options.dart'; // 確保 FilterOptionsWidget 路徑正確
-import 'home_page.dart'; // 我們將重用 HomePage 中的 _ProductCard Widget
+import '../widgets/filter_options.dart';
+import 'product.dart';
 
 class SearchPage extends StatefulWidget {
   final String? searchText;
@@ -20,28 +20,21 @@ class SearchPage extends StatefulWidget {
 class _SearchPageState extends State<SearchPage> {
   final TextEditingController _searchController = TextEditingController();
   Timer? _debounce;
-  // 本地狀態，用於管理篩選條件
-  // 注意：這裡的篩選是純 UI 狀態，最終會傳遞給 Provider
+
+  // 本地狀態：目前篩選條件（含分類名稱 List<String>）
   FilterOptions _activeFilters = const FilterOptions();
 
   @override
   void initState() {
     super.initState();
-
     final productProvider = Provider.of<ProductProvider>(context, listen: false);
 
     if (widget.searchText != null && widget.searchText!.trim().isNotEmpty) {
       _searchController.text = widget.searchText!;
-      // 頁面載入時，如果帶有初始搜尋文字，立即執行一次搜尋
-      // 注意：目前 ProductProvider.fetchProducts 不支援搜尋參數
-      // 這裡先載入所有產品，然後在本地進行篩選
       productProvider.fetchProducts();
     } else {
-      // 載入所有產品
       productProvider.fetchProducts();
     }
-
-    // 監聽文字框的變化以實現防抖搜尋
     _searchController.addListener(_onSearchChanged);
   }
 
@@ -53,38 +46,38 @@ class _SearchPageState extends State<SearchPage> {
     super.dispose();
   }
 
-  /// 當搜尋框文字改變時觸發，使用 Timer 實現防抖
   void _onSearchChanged() {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
-    _debounce = Timer(const Duration(milliseconds: 500), () {
-      _performSearch();
-    });
+    _debounce = Timer(const Duration(milliseconds: 500), _performSearch);
   }
 
-  /// 執行搜尋的核心方法
   Future<void> _performSearch() async {
     final provider = context.read<ProductProvider>();
-    // 移除未使用的變數 queryText
 
-    // 從篩選器中獲取 categoryId
-    final categoryName = _activeFilters.categories.isNotEmpty ? _activeFilters.categories.first : null;
-    final categoryId = _getCategoryIdByName(categoryName);
+    // 取第一個分類名稱（你的 FilterOptions.categories 是 List<String>）
+    final String? categoryName =
+    _activeFilters.categories.isNotEmpty ? _activeFilters.categories.first : null;
 
-    // 根據 ProductProvider 的實際能力調整
-    // 目前只支援按分類篩選，搜尋功能需要在本地實現
+    // 對照表：分類名稱 -> 分類 ID（與 HomePage 的 CategoryUI 一致）
+    const Map<String, int> kCategoryNameToId = {
+      '書籍文具': 1,
+      '電子產品': 2,
+      '服裝配件': 3,
+      '家居用品': 4,
+      '美容保健': 5,
+      '運動戶外': 6,
+    };
+
+    final int? categoryId = categoryName != null ? kCategoryNameToId[categoryName] : null;
+
+    // 目前 Provider 僅支援按分類篩選；搜尋文字在 UI 端本地過濾
     if (categoryId != null) {
-      // 按分類篩選
       provider.filterByCategory(categoryId);
     } else {
-      // 載入所有產品（清除分類篩選）
-      provider.fetchProducts();
+      provider.fetchProducts(); // 清除分類篩選
     }
-
-    // 注意：文字搜尋目前在 UI 層進行本地篩選
-    // 如果需要後端搜尋，需要擴展 ProductProvider 和 ProductService
   }
 
-  /// 顯示篩選器 BottomSheet
   void _showFilterOptions() async {
     final selectedFilters = await showModalBottomSheet<FilterOptions>(
       context: context,
@@ -101,7 +94,6 @@ class _SearchPageState extends State<SearchPage> {
       setState(() {
         _activeFilters = selectedFilters;
       });
-      // 套用篩選後，立即重新執行搜尋
       _performSearch();
     }
   }
@@ -124,30 +116,31 @@ class _SearchPageState extends State<SearchPage> {
       ),
       body: Column(
         children: <Widget>[
-          _buildActiveFiltersDisplay(), // 顯示當前激活的篩選條件
+          _buildActiveFiltersDisplay(),
           Expanded(
-            // 使用 Consumer 來監聽 Provider 的狀態變化並重建 UI
             child: Consumer<ProductProvider>(
               builder: (context, provider, child) {
-                if (provider.isListLoading) {
+                if (provider.isListLoading && provider.products.isEmpty) {
                   return const Center(child: CircularProgressIndicator());
                 }
                 if (provider.listError != null) {
                   return Center(child: Text('發生錯誤: ${provider.listError}'));
                 }
                 if (provider.products.isEmpty) {
-                  // 檢查是否正在載入或有錯誤
-                  if (provider.isListLoading) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-
-                  // 根據是否有搜尋詞或篩選條件，顯示不同的提示
-                  final bool hasInput = _searchController.text.trim().isNotEmpty || _activeFilters.categories.isNotEmpty;
+                  final bool hasInput =
+                      _searchController.text.trim().isNotEmpty ||
+                          _activeFilters.categories.isNotEmpty;
                   return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(hasInput ? Icons.sentiment_dissatisfied_outlined : Icons.search_off_outlined, size: 60, color: Colors.grey),
+                        Icon(
+                          hasInput
+                              ? Icons.sentiment_dissatisfied_outlined
+                              : Icons.search_off_outlined,
+                          size: 60,
+                          color: Colors.grey,
+                        ),
                         const SizedBox(height: 16),
                         Text(
                           hasInput ? '找不到符合條件的商品' : '輸入關鍵詞開始搜尋',
@@ -159,14 +152,16 @@ class _SearchPageState extends State<SearchPage> {
                   );
                 }
 
-                // 檢查搜尋結果是否為空
-                final filteredProducts = _filterProductsBySearch(provider.products);
-                if (filteredProducts.isEmpty && _searchController.text.trim().isNotEmpty) {
+                // 本地文字搜尋（名稱/描述/分類/標籤）
+                final results = _filterProductsBySearch(provider.products);
+
+                if (results.isEmpty && _searchController.text.trim().isNotEmpty) {
                   return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.sentiment_dissatisfied_outlined, size: 60, color: Colors.grey),
+                        const Icon(Icons.sentiment_dissatisfied_outlined,
+                            size: 60, color: Colors.grey),
                         const SizedBox(height: 16),
                         Text(
                           '找不到符合 "${_searchController.text.trim()}" 的商品',
@@ -177,8 +172,8 @@ class _SearchPageState extends State<SearchPage> {
                     ),
                   );
                 }
-                // 如果有資料，則顯示結果列表（包含本地搜尋篩選）
-                return _buildResultsList(_filterProductsBySearch(provider.products));
+
+                return _buildResultsList(results);
               },
             ),
           ),
@@ -187,26 +182,19 @@ class _SearchPageState extends State<SearchPage> {
     );
   }
 
-  // 新增：本地搜尋篩選方法
   List<Product> _filterProductsBySearch(List<Product> allProducts) {
-    final queryText = _searchController.text.trim().toLowerCase();
+    final q = _searchController.text.trim().toLowerCase();
+    if (q.isEmpty) return allProducts;
 
-    if (queryText.isEmpty) {
-      return allProducts;
-    }
-
-    return allProducts.where((product) {
-      // 在產品名稱、描述、分類中搜尋
-      return product.name.toLowerCase().contains(queryText) ||
-          product.description.toLowerCase().contains(queryText) ||
-          product.category.toLowerCase().contains(queryText) ||
-          // 修正：完整的 null 檢查
-          (product.tags != null && product.tags!.isNotEmpty &&
-              product.tags!.any((tag) => tag.toLowerCase().contains(queryText)));
+    return allProducts.where((p) {
+      final inName = p.name.toLowerCase().contains(q);
+      final inDesc = p.description.toLowerCase().contains(q);
+      final inCat = p.category.toLowerCase().contains(q);
+      final inTags = p.tags != null &&
+          p.tags!.any((t) => t.toLowerCase().contains(q));
+      return inName || inDesc || inCat || inTags;
     }).toList();
   }
-
-  // --- UI 元件 (主要採用組員版本的美化設計) ---
 
   Widget _buildSearchBar() {
     return TextField(
@@ -217,7 +205,7 @@ class _SearchPageState extends State<SearchPage> {
         border: InputBorder.none,
         hintStyle: TextStyle(color: Colors.grey[600]),
       ),
-      onSubmitted: (value) {
+      onSubmitted: (_) {
         _debounce?.cancel();
         _performSearch();
       },
@@ -233,139 +221,243 @@ class _SearchPageState extends State<SearchPage> {
       child: Wrap(
         spacing: 8.0,
         runSpacing: 4.0,
-        children: _activeFilters.categories.map((categoryName) => Chip(
-          label: Text(categoryName),
-          onDeleted: () {
-            setState(() {
-              final updatedCategories = List<String>.from(_activeFilters.categories)..remove(categoryName);
-              _activeFilters = _activeFilters.copyWith(categories: updatedCategories);
-            });
-            _performSearch();
-          },
-        )).toList(),
+        children: _activeFilters.categories
+            .map(
+              (name) => Chip(
+            label: Text(name),
+            onDeleted: () {
+              setState(() {
+                final updated =
+                List<String>.from(_activeFilters.categories)..remove(name);
+                _activeFilters = _activeFilters.copyWith(categories: updated);
+              });
+              _performSearch();
+            },
+          ),
+        )
+            .toList(),
       ),
     );
   }
 
   Widget _buildResultsList(List<Product> results) {
-    // 修正：如果 _ProductsGrid 不存在，創建一個簡單的網格佈局
     return SingleChildScrollView(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: ProductsGrid(products: results), // 移除底線前綴，使用公開的 widget
+        child: _SearchProductsGrid(products: results),
       ),
     );
   }
-
-  // 輔助函式，根據分類名稱找到對應的 ID
-  int? _getCategoryIdByName(String? name) {
-    if (name == null) return null;
-    try {
-      // _categories 來自 home_page.dart，為了方便我們在這裡重新定義
-      final categories = [
-        Category(id: 1, name: '書籍文具', icon: '📚', count: 0),
-        Category(id: 2, name: '電子產品', icon: '📱', count: 0),
-        Category(id: 3, name: '服裝配件', icon: '👕', count: 0),
-        Category(id: 4, name: '家居用品', icon: '🏠', count: 0),
-        Category(id: 5, name: '美容保健', icon: '💄', count: 0),
-        Category(id: 6, name: '運動戶外', icon: '⚽', count: 0),
-      ];
-      return categories.firstWhere((c) => c.name == name).id;
-    } catch (e) {
-      return null;
-    }
-  }
 }
 
-// 如果 home_page.dart 中的 _ProductsGrid 是私有的，需要創建一個公開版本
-class ProductsGrid extends StatelessWidget {
-  final List<Product> products;
+// =====================
+// 公開的結果 Grid / Card
+// =====================
 
-  const ProductsGrid({super.key, required this.products});
+class _SearchProductsGrid extends StatelessWidget {
+  final List<Product> products;
+  const _SearchProductsGrid({required this.products});
 
   @override
   Widget build(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    final crossAxisCount = width < 360 ? 1 : (width < 700 ? 2 : 3);
+
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 0.7,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: crossAxisCount,
+        childAspectRatio: 0.74,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
       ),
       itemCount: products.length,
-      itemBuilder: (context, index) {
-        return ProductCard(product: products[index]); // 使用公開的 ProductCard
-      },
+      itemBuilder: (context, i) => _SearchProductCard(product: products[i]),
     );
   }
 }
 
-// 如果 home_page.dart 中的 ProductCard 是私有的，需要創建一個公開版本
-class ProductCard extends StatelessWidget {
+class _SearchProductCard extends StatelessWidget {
   final Product product;
+  const _SearchProductCard({required this.product});
 
-  const ProductCard({super.key, required this.product});
+  String _formatPrice(double price) {
+    final f = NumberFormat.currency(locale: 'zh_TW', symbol: 'NT\$', decimalDigits: 0);
+    return f.format(price);
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 商品圖片
-          Expanded(
-            flex: 3,
-            child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-              child: product.imageUrls.isNotEmpty
-                  ? Image.network(
-                product.imageUrls.first,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    color: Colors.grey[300],
-                    child: const Icon(Icons.image_not_supported, size: 50),
-                  );
-                },
-              )
-                  : Container(
-                color: Colors.grey[300],
-                child: const Icon(Icons.image, size: 50),
-              ),
-            ),
+    final scheme = Theme.of(context).colorScheme;
+    final provider = context.read<ProductProvider>();
+    final imageUrl =
+    (product.imageUrls.isNotEmpty && product.imageUrls.first.isNotEmpty)
+        ? product.imageUrls.first
+        : 'https://via.placeholder.com/300x250/E0E0E0/000000?Text=No+Image';
+
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          // ✅ 關鍵：帶 initialProduct，且把 product.id 直接傳「int」
+          builder: (_) => ProductScreen(
+            productId: product.id,
+            initialProduct: product,
           ),
-          // 商品資訊
-          Expanded(
-            flex: 2,
-            child: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        ),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          color: scheme.surface,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 圖片
+            Expanded(
+              flex: 3,
+              child: Stack(
+                alignment: Alignment.topRight,
                 children: [
-                  Text(
-                    product.name,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+                  ClipRRect(
+                    borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(12)),
+                    child: Image.network(
+                      imageUrl,
+                      width: double.infinity,
+                      height: double.infinity,
+                      fit: BoxFit.cover,
+                      errorBuilder: (c, e, s) => Container(
+                        color: Colors.grey[200],
+                        child: const Center(
+                          child: Icon(Icons.broken_image,
+                              size: 40, color: Colors.grey),
+                        ),
+                      ),
+                      loadingBuilder: (c, child, p) => p == null
+                          ? child
+                          : Center(
+                        child: CircularProgressIndicator(
+                          value: p.expectedTotalBytes != null
+                              ? p.cumulativeBytesLoaded /
+                              p.expectedTotalBytes!
+                              : null,
+                        ),
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'NT\${product.price.toStringAsFixed(0)}',
-                    style: TextStyle(
-                      color: Theme.of(context).primaryColor,
-                      fontWeight: FontWeight.w600,
+                  if (product.isSold)
+                    Positioned(
+                      top: 8,
+                      left: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.redAccent.withOpacity(0.9),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Text(
+                          'SOLD',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                  // 收藏
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: GestureDetector(
+                      onTap: () {
+                        provider.toggleFavoriteStatus(product.id);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(product.isFavorite
+                                ? '已取消收藏'
+                                : '已加入收藏 ❤️'),
+                            duration: const Duration(seconds: 1),
+                          ),
+                        );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.3),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          product.isFavorite
+                              ? Icons.favorite
+                              : Icons.favorite_border,
+                          color: product.isFavorite
+                              ? Colors.redAccent
+                              : Colors.white,
+                          size: 18,
+                        ),
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
-          ),
-        ],
+            // 文案
+            Expanded(
+              flex: 2,
+              child: Padding(
+                padding: const EdgeInsets.all(10),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      product.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          height: 1.2),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _formatPrice(product.price),
+                          style: TextStyle(
+                            color: Theme.of(context).primaryColor,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        if (product.originalPrice != null &&
+                            product.originalPrice! > product.price)
+                          Text(
+                            _formatPrice(product.originalPrice!),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey[600],
+                              decoration: TextDecoration.lineThrough,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

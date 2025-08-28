@@ -1,5 +1,6 @@
 // --- FILE: lib/providers/cart_provider.dart ---
 import 'package:flutter/foundation.dart';
+import '../config/api_config.dart'; // ✅ 新增：讀 useMock
 import '../models/user/cart_item.dart';
 import '../models/product/product.dart';
 import '../services/cart_service.dart';
@@ -34,19 +35,18 @@ class CartProvider with ChangeNotifier {
     return _items.values.every((item) => item.isSelected);
   }
 
-  // 建構函式
   CartProvider(this._cartService, this._authProvider) {
     _updateDependencies();
   }
 
-  // 由 ProxyProvider 呼叫
   void update(AuthProvider newAuthProvider) {
     _authProvider = newAuthProvider;
     _updateDependencies();
   }
 
   void _updateDependencies() {
-    if (_authProvider?.isLoggedIn ?? false) {
+    // ✅ Mock 模式不用登入也可以載入購物車
+    if (APIConfig.useMock || (_authProvider?.isLoggedIn ?? false)) {
       fetchUserCart();
     } else {
       _items = {};
@@ -57,7 +57,8 @@ class CartProvider with ChangeNotifier {
   // --- 核心業務邏輯 ---
 
   Future<void> fetchUserCart({bool forceRefresh = false}) async {
-    if (!(_authProvider?.isLoggedIn ?? false)) return;
+    // ✅ Mock 模式放行；真實模式才檢查登入
+    if (!APIConfig.useMock && !(_authProvider?.isLoggedIn ?? false)) return;
     if (_isLoading && !forceRefresh) return;
 
     _isLoading = true;
@@ -76,7 +77,8 @@ class CartProvider with ChangeNotifier {
   }
 
   Future<void> addItem(Product product, int quantityToAdd) async {
-    if (!(_authProvider?.isLoggedIn ?? false)) {
+    // ✅ Mock 模式放行；真實模式才檢查登入
+    if (!APIConfig.useMock && !(_authProvider?.isLoggedIn ?? false)) {
       _error = "請先登入";
       notifyListeners();
       return;
@@ -162,12 +164,11 @@ class CartProvider with ChangeNotifier {
     }
   }
 
-  // --- 【【【錯誤修正：新增這個方法】】】 ---
-  /// 清除所有已選中的商品 (通常在下單成功後呼叫)
+  /// 清除所有已選中的商品（下單成功後）
   Future<void> clearSelectedItems() async {
-    if (!(_authProvider?.isLoggedIn ?? false)) return;
+    // ✅ Mock 模式放行；真實模式才檢查登入
+    if (!APIConfig.useMock && !(_authProvider?.isLoggedIn ?? false)) return;
 
-    // 1. 找出所有被選中的商品 ID
     final selectedIds = _items.values
         .where((item) => item.isSelected)
         .map((item) => item.productId)
@@ -175,19 +176,13 @@ class CartProvider with ChangeNotifier {
 
     if (selectedIds.isEmpty) return;
 
-    // 2. 樂觀更新：先在 UI 上移除
     final backupItems = Map.of(_items);
     _items.removeWhere((key, value) => value.isSelected);
     notifyListeners();
 
     try {
-      // 3. 呼叫後端 API 逐一刪除
-      // 注意：更高效的做法是提供一個可以批量刪除的後端 API
-      await Future.wait(
-          selectedIds.map((id) => _cartService.removeItemFromCart(id))
-      );
+      await Future.wait(selectedIds.map((id) => _cartService.removeItemFromCart(id)));
     } catch (e) {
-      // 4. 如果 API 失敗，回滾 UI
       _items = backupItems;
       _error = "清除已選商品失敗: $e";
       notifyListeners();
@@ -195,7 +190,7 @@ class CartProvider with ChangeNotifier {
     }
   }
 
-  // --- 純前端 UI 狀態操作 ---
+  // --- UI 狀態 ---
   void toggleItemSelected(int productId, bool isSelected) {
     if (!_items.containsKey(productId)) return;
     _items[productId]!.isSelected = isSelected;
@@ -209,11 +204,4 @@ class CartProvider with ChangeNotifier {
     }
     notifyListeners();
   }
-
-// --- 後端同步方法 (TODOs) ---
-// Future<void> saveCartItemToBackend(CartItem item) async { ... }
-// Future<void> removeCartItemFromBackend(String productId) async { ... }
-// Future<void> updateCartItemQuantityInBackend(String productId, int newQuantity) async { ... }
-// Future<void> clearCartInBackend(String userId) async { ... }
 }
-

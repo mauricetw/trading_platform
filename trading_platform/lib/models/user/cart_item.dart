@@ -1,4 +1,3 @@
-// --- FILE: lib/models/user/cart_item.dart ---
 import 'package:json_annotation/json_annotation.dart';
 import '../product/product.dart';
 
