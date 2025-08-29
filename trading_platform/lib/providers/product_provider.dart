@@ -1,59 +1,67 @@
-// --- FILE: lib/providers/product_provider.dart ---
+// --- FILE: lib/providers/product_provider.dart (修正版) ---
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import '../models/product/product.dart';
-import '../services/product_service.dart'; // 1. 引入職責單一的 ProductService
+import '../models/product/category.dart'; // 假設您有一個 Category 模型
+import '../services/product_service.dart';
+import '../services/upload_service.dart'; // 引入新的上傳服務
 
 class ProductProvider with ChangeNotifier {
-  final ProductService _productService; // 2. 依賴 ProductService 而不是 ApiService
+  final ProductService _productService;
+  final UploadService _uploadService; // 依賴 UploadService
 
-  // --- 公開商品列表相關狀態 ---
+  // --- 狀態 ---
   List<Product> _products = [];
   bool _isListLoading = false;
   String? _listError;
   int? _selectedCategoryId;
 
-  // --- 賣家專屬商品列表相關狀態 ---
   List<Product> _sellerProducts = [];
   bool _isSellerListLoading = false;
   String? _sellerListError;
 
-  // --- 商品詳情相關狀態 ---
-  Product? _selectedProduct;
-  bool _isDetailLoading = false;
-  String? _detailError;
+  List<Category> _categories = []; // 新增：儲存商品分類
+  bool _areCategoriesLoading = false;
 
   // --- Getters ---
   List<Product> get products => _products;
   bool get isListLoading => _isListLoading;
-  String? get listError => _listError;
   int? get selectedCategoryId => _selectedCategoryId;
 
   List<Product> get sellerProducts => _sellerProducts;
   bool get isSellerListLoading => _isSellerListLoading;
-  String? get sellerListError => _sellerListError;
+  
+  List<Category> get categories => _categories;
+  bool get areCategoriesLoading => _areCategoriesLoading;
 
-  Product? get selectedProduct => _selectedProduct;
-  bool get isDetailLoading => _isDetailLoading;
-  String? get detailError => _detailError;
-
-  // 3. 建構函式，接收傳入的 ProductService
-  ProductProvider(this._productService) {
-    fetchProducts(); // Provider 被建立時，自動獲取第一頁商品
+  ProductProvider(this._productService, this._uploadService) {
+    // Provider 被建立時，自動獲取初始資料
+    fetchProducts();
+    fetchCategories();
   }
 
-  // --- 核心業務邏輯 (已全部改為呼叫 _productService) ---
+  // --- 核心業務邏輯 ---
+
+  Future<void> fetchCategories() async {
+    _areCategoriesLoading = true;
+    notifyListeners();
+    try {
+      _categories = await _productService.getCategories();
+    } catch (e) {
+      // 處理錯誤
+      print("Failed to fetch categories: $e");
+    } finally {
+      _areCategoriesLoading = false;
+      notifyListeners();
+    }
+  }
 
   Future<void> fetchProducts({int? categoryId}) async {
     _isListLoading = true;
     _listError = null;
     notifyListeners();
-
     try {
-      // 呼叫 ProductService 的方法
-      final fetchedProducts = await _productService.getProducts(
-        categoryId: _selectedCategoryId,
-        // TODO: 未來可以加入搜尋和分頁參數
-      );
+      final fetchedProducts = await _productService.getProducts(categoryId: _selectedCategoryId);
       _products = fetchedProducts;
     } catch (e) {
       _listError = e.toString();
@@ -64,36 +72,14 @@ class ProductProvider with ChangeNotifier {
   }
 
   void filterByCategory(int categoryId) {
-    if (_selectedCategoryId == categoryId) {
-      _selectedCategoryId = null;
-    } else {
-      _selectedCategoryId = categoryId;
-    }
-    // 呼叫 fetchProducts 進行後端篩選
+    _selectedCategoryId = (_selectedCategoryId == categoryId) ? null : categoryId;
     fetchProducts(categoryId: _selectedCategoryId);
-  }
-
-  Future<void> fetchProductById(int productId) async {
-    _isDetailLoading = true;
-    _detailError = null;
-    _selectedProduct = null;
-    notifyListeners();
-
-    try {
-      _selectedProduct = await _productService.getProductById(productId);
-    } catch (e) {
-      _detailError = e.toString();
-    } finally {
-      _isDetailLoading = false;
-      notifyListeners();
-    }
   }
 
   Future<void> fetchSellerProducts() async {
     _isSellerListLoading = true;
     _sellerListError = null;
     notifyListeners();
-
     try {
       _sellerProducts = await _productService.getMyProducts();
     } catch (e) {
@@ -104,58 +90,66 @@ class ProductProvider with ChangeNotifier {
     }
   }
 
+  // --- 新增：上傳圖片的專屬方法 ---
+  Future<String> uploadProductImage(File imageFile) async {
+    try {
+      // 呼叫 UploadService 來處理上傳
+      final imageUrl = await _uploadService.uploadImage(imageFile);
+      return imageUrl;
+    } catch (e) {
+      rethrow; // 向上拋出錯誤，讓 UI 層處理
+    }
+  }
+
   Future<void> addProduct(Map<String, dynamic> productData) async {
     try {
       final newProduct = await _productService.createProduct(productData);
-      // 樂觀更新：上架成功後，在本地列表最前面插入新商品
       _sellerProducts.insert(0, newProduct);
-      _products.insert(0, newProduct);
+      // 可選：也可以更新公開商品列表
+      // _products.insert(0, newProduct);
       notifyListeners();
     } catch (e) {
-      // 向上拋出錯誤，讓 UI 層可以顯示 SnackBar
+      rethrow;
+    }
+  }
+
+  Future<void> updateProduct(int productId, Map<String, dynamic> productData) async {
+    try {
+      final updatedProduct = await _productService.updateProduct(productId, productData);
+      // 更新賣家商品列表
+      final sellerIndex = _sellerProducts.indexWhere((p) => p.id == productId);
+      if (sellerIndex != -1) {
+        _sellerProducts[sellerIndex] = updatedProduct;
+      }
+      // 更新公開商品列表
+      final publicIndex = _products.indexWhere((p) => p.id == productId);
+      if (publicIndex != -1) {
+        _products[publicIndex] = updatedProduct;
+      }
+      notifyListeners();
+    } catch (e) {
       rethrow;
     }
   }
 
   Future<void> deleteProduct(int productId) async {
-    // 樂觀更新：先在 UI 上移除
+    // 樂觀更新
     final originalSellerIndex = _sellerProducts.indexWhere((p) => p.id == productId);
-    final originalPublicIndex = _products.indexWhere((p) => p.id == productId);
     Product? backupSellerProduct;
-    Product? backupPublicProduct;
-
     if (originalSellerIndex != -1) {
       backupSellerProduct = _sellerProducts.removeAt(originalSellerIndex);
-    }
-    if (originalPublicIndex != -1) {
-      backupPublicProduct = _products.removeAt(originalPublicIndex);
     }
     notifyListeners();
 
     try {
       await _productService.deleteProduct(productId);
     } catch (e) {
-      // 如果 API 失敗，將剛剛移除的項目加回來 (回滾)
+      // 回滾
       if (backupSellerProduct != null && originalSellerIndex != -1) {
         _sellerProducts.insert(originalSellerIndex, backupSellerProduct);
       }
-      if (backupPublicProduct != null && originalPublicIndex != -1) {
-        _products.insert(originalPublicIndex, backupPublicProduct);
-      }
       notifyListeners();
       rethrow;
-    }
-  }
-
-  // 純前端 UI 狀態操作
-  void toggleFavoriteStatus(int productId) {
-    final index = _products.indexWhere((p) => p.id == productId);
-    if (index != -1) {
-      final oldProduct = _products[index];
-      final newProduct = oldProduct.copyWith(isFavorite: !oldProduct.isFavorite);
-      _products[index] = newProduct;
-      notifyListeners();
-      // TODO: 呼叫 WishlistService 將收藏狀態同步到後端
     }
   }
 }
