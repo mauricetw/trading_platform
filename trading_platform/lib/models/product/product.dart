@@ -1,34 +1,14 @@
-// --- FILE: lib/models/product/product.dart ---
-
+// --- FILE: lib/models/product/product.dart (最終修正版) ---
 import 'package:json_annotation/json_annotation.dart';
-import '../order/shipping_info.dart';
+import '../order/shipping_info.dart'; // 1. 保留 shipping_info 的引用
 
 part 'product.g.dart';
-
-// --- Helper Functions (放在 Product class 外部) ---
-// 這個函式會將後端回傳的 Category 物件轉換為前端需要的 String (分類名稱)
-String _categoryNameFromObject(Map<String, dynamic> category) {
-  return category['name'] as String;
-}
-
-// 這個函式會將後端回傳的 Category 物件轉換為前端需要的 int (分類 ID)
-int _categoryIdFromObject(Map<String, dynamic> category) {
-  return category['id'] as int;
-}
-
-// 這個函式會將後端回傳的 images 物件列表，轉換為前端需要的 String 列表
-List<String> _imageUrlsFromImagesList(List<dynamic> images) {
-  if (images is! List) return [];
-  return images
-      .map((image) => image['image_url'] as String)
-      .toList();
-}
-
 
 // --- SellerInfo 模型 (維持不變) ---
 @JsonSerializable(fieldRename: FieldRename.snake)
 class SellerInfo {
   final int id;
+  @JsonKey(name: 'nickname')
   final String username;
   final String? avatarUrl;
 
@@ -43,29 +23,28 @@ class SellerInfo {
 }
 
 
-// --- Product 模型 (已修正) ---
-@JsonSerializable(fieldRename: FieldRename.snake, explicitToJson: true)
+// --- Product 模型 ---
+@JsonSerializable(
+    fieldRename: FieldRename.snake,
+    explicitToJson: true,
+    createFactory: false // 我們將手動處理 fromJson
+)
 class Product {
   final int id;
   final String name;
-  final String description;
+  final String? description;
   final double price;
   final double? originalPrice;
 
-  // --- 關鍵修改：使用 @JsonKey 進行自定義解析 ---
-  @JsonKey(name: 'category', fromJson: _categoryIdFromObject)
   final int categoryId;
 
-  @JsonKey(name: 'category', fromJson: _categoryNameFromObject)
-  final String category;
+  @JsonKey(includeToJson: false) // 在 toJson 時忽略此欄位，避免衝突
+  final String categoryName;
+
+  final List<String> imageUrls;
 
   final int stockQuantity;
   final String status;
-
-  // --- 關鍵修改：使用 @JsonKey 進行自定義解析 ---
-  @JsonKey(name: 'images', fromJson: _imageUrlsFromImagesList)
-  final List<String> imageUrls;
-
   final int salesCount;
   final double? averageRating;
   final int reviewCount;
@@ -74,21 +53,23 @@ class Product {
   final DateTime updatedAt;
   final int sellerId;
   final SellerInfo? seller;
+
+  // 2. 保留 shippingInfo 欄位
   final ShippingInformation? shippingInfo;
 
   @JsonKey(includeFromJson: false, includeToJson: false)
-  final bool isFavorite;
+  bool isFavorite;
 
   bool get isSold => stockQuantity == 0 || status == 'sold';
 
   Product({
     required this.id,
     required this.name,
-    required this.description,
+    this.description,
     required this.price,
     this.originalPrice,
     required this.categoryId,
-    required this.category,
+    required this.categoryName,
     required this.stockQuantity,
     required this.imageUrls,
     required this.status,
@@ -100,13 +81,54 @@ class Product {
     this.tags,
     required this.sellerId,
     this.seller,
-    this.shippingInfo,
+    this.shippingInfo, // 3. 在建構函式中加入
     this.isFavorite = false,
   });
 
-  factory Product.fromJson(Map<String, dynamic> json) => _$ProductFromJson(json);
+  // 手動處理 fromJson 以解決 category 和 images 的結構不匹配問題
+  factory Product.fromJson(Map<String, dynamic> json) {
+    final categoryData = json['category'] as Map<String, dynamic>? ?? {};
+    final imagesData = json['images'] as List<dynamic>? ?? [];
+
+    return Product(
+      id: json['id'] as int,
+      name: json['name'] as String,
+      description: json['description'] as String?,
+      price: (json['price'] as num).toDouble(),
+      originalPrice: (json['original_price'] as num?)?.toDouble(),
+
+      categoryId: categoryData['id'] as int? ?? 0,
+      categoryName: categoryData['name'] as String? ?? '未分類',
+      imageUrls: imagesData
+          .map((img) => (img as Map<String, dynamic>)['image_url'] as String)
+          .toList(),
+
+      stockQuantity: json['stock_quantity'] as int,
+      status: json['status'] as String,
+      salesCount: json['sales_count'] as int? ?? 0,
+      averageRating: (json['average_rating'] as num?)?.toDouble(),
+      reviewCount: json['review_count'] as int? ?? 0,
+      tags: (json['tags'] as List<dynamic>?)?.map((e) => e as String).toList(),
+      createdAt: DateTime.parse(json['created_at'] as String),
+      updatedAt: DateTime.parse(json['updated_at'] as String),
+      sellerId: json['seller_id'] as int,
+      seller: json['seller'] == null
+          ? null
+          : SellerInfo.fromJson(json['seller'] as Map<String, dynamic>),
+
+      // 4. 在 fromJson 中處理 shippingInfo
+      shippingInfo: json['shipping_info'] == null
+          ? null
+          : ShippingInformation.fromJson(json['shipping_info'] as Map<String, dynamic>),
+
+      isFavorite: json['is_favorite'] as bool? ?? false,
+    );
+  }
+
+  // toJson 方法由產生器自動處理
   Map<String, dynamic> toJson() => _$ProductToJson(this);
 
+  // copyWith 方法
   Product copyWith({
     int? id,
     String? name,
@@ -114,7 +136,7 @@ class Product {
     double? price,
     double? originalPrice,
     int? categoryId,
-    String? category,
+    String? categoryName,
     int? stockQuantity,
     String? status,
     List<String>? imageUrls,
@@ -126,7 +148,7 @@ class Product {
     List<String>? tags,
     int? sellerId,
     SellerInfo? seller,
-    ShippingInformation? shippingInfo,
+    ShippingInformation? shippingInfo, // 5. 在 copyWith 中加入
     bool? isFavorite,
   }) {
     return Product(
@@ -136,7 +158,7 @@ class Product {
       price: price ?? this.price,
       originalPrice: originalPrice ?? this.originalPrice,
       categoryId: categoryId ?? this.categoryId,
-      category: category ?? this.category,
+      categoryName: categoryName ?? this.categoryName,
       stockQuantity: stockQuantity ?? this.stockQuantity,
       status: status ?? this.status,
       imageUrls: imageUrls ?? this.imageUrls,
@@ -153,3 +175,4 @@ class Product {
     );
   }
 }
+

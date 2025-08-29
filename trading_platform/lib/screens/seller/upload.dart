@@ -1,19 +1,18 @@
-// lib/screens/seller/upload.dart (或您的文件名)
+// --- FILE: lib/screens/seller/upload.dart (UI 還原 + 邏輯串接最終版) ---
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
-// 修正：移除未使用的 User 導入
+import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
 import '../../models/product/product.dart';
-// import 'package:image_picker/image_picker.dart'; // 取消註釋以使用 image_picker
+import '../../models/product/category.dart';
+import '../../providers/product_provider.dart';
 
 class ProductUploadPage extends StatefulWidget {
-  // 修正：改為接受 sellerId 而不是 seller 物件
-  final int sellerId; // 賣家 ID
-  final Product? productToEdit; // 要編輯的商品 (如果為 null，則是新增模式)
+  final Product? productToEdit;
 
   const ProductUploadPage({
     super.key,
-    required this.sellerId,
     this.productToEdit,
   });
 
@@ -22,77 +21,70 @@ class ProductUploadPage extends StatefulWidget {
 }
 
 class _ProductUploadPageState extends State<ProductUploadPage> {
-  final GlobalKey<FormState> _formKey = GlobalKey<FormState>(); // 用於表單驗證
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
   late TextEditingController _nameController;
   late TextEditingController _quantityController;
   late TextEditingController _descriptionController;
   late TextEditingController _priceController;
-  // late TextEditingController _originalPriceController; // 如果需要原價
+  late TextEditingController _originalPriceController;
 
-  List<String> _selectedImages = []; // 存儲圖片路徑或 URL
-  String _selectedCategory = '';
+  final List<XFile> _imageFiles = [];
+  final List<String> _imageUrls = [];
+
+  int? _selectedCategoryId;
   String _selectedCondition = '';
   String _selectedType = '';
 
-  // 選項列表
-  final List<String> _categories = [
-    '書籍文具', '電子產品', '服裝配件', '家居用品', '美容保健', '運動戶外', '其他'
-  ];
-  final List<String> _conditions = [
-    '全新', '近全新', '良好', '普通', '需要維修'
-  ];
-  final List<String> _types = [
-    '一般商品', '限時特價', '二手商品', '收藏品', '手作商品'
-  ];
+  final List<String> _conditions = ['全新', '近全新', '良好', '普通', '需要維修'];
+  final List<String> _types = ['一般商品', '限時特價', '二手商品', '收藏品', '手作商品'];
 
-  bool _isLoading = false; // 用於表示是否正在上傳
-
+  bool _isLoading = false;
   bool get _isEditMode => widget.productToEdit != null;
 
   @override
   void initState() {
     super.initState();
-
     _nameController = TextEditingController();
     _quantityController = TextEditingController();
     _descriptionController = TextEditingController();
     _priceController = TextEditingController();
-    // _originalPriceController = TextEditingController();
+    _originalPriceController = TextEditingController();
 
+    // 如果是編輯模式，用傳入的商品資料初始化表單
     if (_isEditMode && widget.productToEdit != null) {
       final product = widget.productToEdit!;
       _nameController.text = product.name;
-      _descriptionController.text = product.description;
-      _priceController.text = product.price.toStringAsFixed(0); // 假設價格無小數
-      // _originalPriceController.text = product.originalPrice?.toStringAsFixed(0) ?? '';
+      _descriptionController.text = product.description ?? '';
+      _priceController.text = product.price.toStringAsFixed(0);
+      _originalPriceController.text = product.originalPrice?.toStringAsFixed(0) ?? '';
       _quantityController.text = product.stockQuantity.toString();
-      _selectedImages = List.from(product.imageUrls); // 複製圖片 URL 列表
+      _imageUrls.addAll(product.imageUrls);
+      _selectedCategoryId = product.categoryId;
 
-      if (_categories.contains(product.category)) {
-        _selectedCategory = product.category;
-      }
-
-      // 處理 condition 和 type (假設它們存儲在 tags 中)
       if (product.tags != null) {
         for (String tag in product.tags!) {
-          if (_conditions.contains(tag) && _selectedCondition.isEmpty) { // 只取第一個匹配的
-            _selectedCondition = tag;
-          }
-          if (_types.contains(tag) && _selectedType.isEmpty) { // 只取第一個匹配的
-            _selectedType = tag;
-          }
+          if (_conditions.contains(tag)) _selectedCondition = tag;
+          if (_types.contains(tag)) _selectedType = tag;
         }
       }
     }
   }
 
-  // --- 響應式 UI 輔助方法 ---
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _quantityController.dispose();
+    _descriptionController.dispose();
+    _priceController.dispose();
+    _originalPriceController.dispose();
+    super.dispose();
+  }
+
+  // --- 響應式 UI 輔助方法 (已還原) ---
   double _getResponsiveFontSize(BuildContext context, double baseSize) {
-    // ... (您的實現)
     final screenWidth = MediaQuery.of(context).size.width;
     double scaleFactor = 1.0;
-
     if (screenWidth < 360) {
       scaleFactor = 0.85;
     } else if (screenWidth < 600) {
@@ -106,7 +98,6 @@ class _ProductUploadPageState extends State<ProductUploadPage> {
   }
 
   double _getResponsiveSpacing(BuildContext context, double baseSpacing) {
-    // ... (您的實現)
     final screenWidth = MediaQuery.of(context).size.width;
     if (screenWidth < 360) return baseSpacing * 0.8;
     if (screenWidth < 600) return baseSpacing;
@@ -115,7 +106,6 @@ class _ProductUploadPageState extends State<ProductUploadPage> {
   }
 
   double _getResponsivePadding(BuildContext context) {
-    // ... (您的實現)
     final screenWidth = MediaQuery.of(context).size.width;
     if (screenWidth < 360) return 12.0;
     if (screenWidth < 600) return 16.0;
@@ -123,238 +113,88 @@ class _ProductUploadPageState extends State<ProductUploadPage> {
     return 24.0;
   }
 
-  // --- 圖片處理 ---
-  // TODO: 實現真實的圖片選擇邏輯 (例如使用 image_picker)
+  // --- 圖片處理 (已串接 Provider) ---
   Future<void> _selectImage() async {
-    if (_selectedImages.length >= 5) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('最多只能選擇 5 張圖片')),
-        );
-      }
+    if (_imageFiles.length + _imageUrls.length >= 5) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('最多只能選擇 5 張圖片')));
       return;
     }
-    // final picker = ImagePicker();
-    // final XFile? image = await picker.pickImage(source: ImageSource.gallery);
-    // if (image != null) {
-    //   // TODO: 在這裡，您可能需要先將圖片上傳到服務器，然後獲取 URL
-    //   // String imageUrl = await uploadImageToServer(image.path);
-    //   // setState(() {
-    //   //   _selectedImages.add(imageUrl);
-    //   // });
-    //   setState(() {
-    //      _selectedImages.add('https://picsum.photos/seed/${_selectedImages.length + DateTime.now().millisecond}/200'); // 模擬添加網絡圖片
-    //   });
-    // }
+    final picker = ImagePicker();
+    final List<XFile> images = await picker.pickMultiImage(imageQuality: 80);
+    if (images.isNotEmpty) {
+      setState(() {
+        _imageFiles.addAll(images);
+      });
+    }
+  }
+
+  void _removeLocalImage(int index) {
     setState(() {
-      // 模擬：實際應為選擇的本地文件路徑或上傳後的 URL
-      _selectedImages.add('https://picsum.photos/seed/${DateTime.now().millisecondsSinceEpoch}/200');
+      _imageFiles.removeAt(index);
     });
   }
 
-  void _removeImage(int index) {
+  void _removeUrlImage(int index) {
     setState(() {
-      _selectedImages.removeAt(index);
+      _imageUrls.removeAt(index);
     });
   }
 
-  // --- 預覽功能 ---
-  void _previewProduct() {
-    if (!_formKey.currentState!.validate()) { // 觸發表單驗證
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('請修正表單中的錯誤'),
-            backgroundColor: Colors.orange,
-          ),
-        );
-      }
-      return;
-    }
-    // 表單驗證通過後再顯示預覽
-    _formKey.currentState!.save(); // 觸發 onSaved 回調 (如果有的話)
-
-    // ... (您的預覽對話框邏輯，可以使用當前 controller 的值)
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('商品預覽'),
-        content: SingleChildScrollView( // 如果內容過多，允許滾動
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('商品名稱: ${_nameController.text}'),
-              Text('價格: NT\$${_priceController.text}'),
-              Text('數量: ${_quantityController.text.isEmpty ? "未設定" : _quantityController.text}'),
-              Text('類別: ${_selectedCategory.isEmpty ? "未選擇" : _selectedCategory}'),
-              Text('商品狀態: ${_selectedCondition.isEmpty ? "未選擇" : _selectedCondition}'),
-              Text('商品類型: ${_selectedType.isEmpty ? "未選擇" : _selectedType}'),
-              Text('描述: ${_descriptionController.text.isEmpty ? "未填寫" : _descriptionController.text}'),
-              Text('圖片數量: ${_selectedImages.length}'),
-              // 可以添加圖片預覽
-              if (_selectedImages.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                const Text('圖片預覽:', style: TextStyle(fontWeight: FontWeight.bold)),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: _selectedImages.map((imgSrc) {
-                    // 假設 imgSrc 可能是網絡 URL 或本地模擬路徑
-                    // 實際應用中，本地圖片需要用 FileImage，網絡圖片用 NetworkImage
-                    return SizedBox(
-                        width: 60,
-                        height: 60,
-                        child: Image.network(
-                            imgSrc,
-                            fit: BoxFit.cover,
-                            errorBuilder: (c,e,s) => const Icon(Icons.broken_image)
-                        )
-                    );
-                  }).toList(),
-                )
-              ]
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('關閉'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // --- 完成上傳/更新 ---
+  // --- 完成上傳/更新 (已串接 Provider) ---
   Future<void> _completeUpload() async {
     if (!_formKey.currentState!.validate()) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('請修正表單中的錯誤後再提交'),
-            backgroundColor: Colors.orange,
-          ),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('請修正表單中的錯誤後再提交'), backgroundColor: Colors.orange));
       return;
     }
-    _formKey.currentState!.save();
-
-    if (_selectedImages.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('請至少上傳一張商品圖片'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+    if (_imageFiles.isEmpty && _imageUrls.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('請至少上傳一張商品圖片'), backgroundColor: Colors.red));
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() { _isLoading = true; });
 
-    // TODO: 這裡需要真實的圖片上傳邏輯
-    // 假設 _selectedImages 經過處理後已經是有效的圖片 URL 列表
-    List<String> finalImageUrls = List.from(_selectedImages);
-
-    // 準備 Product 對象
-    final String productName = _nameController.text;
-    final double productPrice = double.tryParse(_priceController.text) ?? 0.0;
-    // final double? originalPrice = double.tryParse(_originalPriceController.text);
-    final int quantity = int.tryParse(_quantityController.text) ?? 1; // 默認為1件
-    final String description = _descriptionController.text;
-    final String categoryName = _selectedCategory;
-    // 根據 categoryName 獲取 categoryId，這裡假設 _categories 的索引+1 就是 id
-    final int categoryId = _categories.indexOf(categoryName) + 1;
-
-    // 根據UI選擇構建 tags 列表或其他特定字段
-    List<String> tags = [];
-    if (_selectedCondition.isNotEmpty) tags.add(_selectedCondition);
-    if (_selectedType.isNotEmpty) tags.add(_selectedType);
-
-    // 修正：根據實際的 Product 模型創建對象
-    Product productData = Product(
-      id: _isEditMode ? widget.productToEdit!.id : DateTime.now().millisecondsSinceEpoch, // 使用 int ID
-      name: productName,
-      description: description,
-      price: productPrice,
-      originalPrice: null, // 如果不需要原價
-      categoryId: categoryId,
-      stockQuantity: quantity,
-      imageUrls: finalImageUrls,
-      category: categoryName,
-      status: _isEditMode ? widget.productToEdit!.status : 'available',
-      createdAt: _isEditMode ? widget.productToEdit!.createdAt : DateTime.now(),
-      updatedAt: DateTime.now(),
-      sellerId: widget.sellerId, // 使用 sellerId
-      seller: null, // 不設置 seller 物件，讓後端處理
-      tags: tags.isNotEmpty ? tags : null,
-      salesCount: _isEditMode ? widget.productToEdit!.salesCount : 0,
-      averageRating: _isEditMode ? widget.productToEdit!.averageRating : null,
-      reviewCount: _isEditMode ? widget.productToEdit!.reviewCount : 0,
-      shippingInfo: _isEditMode ? widget.productToEdit!.shippingInfo : null,
-      isFavorite: false, // 新商品預設不是最愛
-    );
-
-    // --- 模擬 API 調用 ---
-    debugPrint('--- ${_isEditMode ? "更新" : "上傳"}商品 ---');
-    debugPrint('賣家 ID: ${widget.sellerId}');
-    debugPrint('商品數據: ${productData.toJson()}'); // 確保 Product 有 toJson()
-
-    bool success = false;
     try {
-      // TODO: 在此處進行真實的 API 調用
-      // if (_isEditMode) {
-      //   success = await ApiService.updateProduct(productData);
-      // } else {
-      //   success = await ApiService.createProduct(productData);
-      // }
-      await Future.delayed(const Duration(seconds: 2)); // 模擬網絡延遲
-      success = true; // 假設成功
+      final productProvider = context.read<ProductProvider>();
+
+      List<String> newImageUrls = [];
+      for (final imageFile in _imageFiles) {
+        final imageUrl = await productProvider.uploadProductImage(File(imageFile.path));
+        newImageUrls.add(imageUrl);
+      }
+
+      final List<String> finalImageUrls = [..._imageUrls, ...newImageUrls];
+
+      final Map<String, dynamic> productData = {
+        'name': _nameController.text.trim(),
+        'description': _descriptionController.text.trim(),
+        'price': double.parse(_priceController.text.trim()),
+        'original_price': _originalPriceController.text.trim().isEmpty ? null : double.parse(_originalPriceController.text.trim()),
+        'stock_quantity': int.parse(_quantityController.text.trim()),
+        'category_id': _selectedCategoryId,
+        'tags': [_selectedCondition, _selectedType].where((t) => t.isNotEmpty).toList(),
+        'image_urls': finalImageUrls,
+      };
+
+      if (_isEditMode) {
+        await productProvider.updateProduct(widget.productToEdit!.id, productData);
+      } else {
+        await productProvider.addProduct(productData);
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('商品${_isEditMode ? "更新" : "上傳"}成功！'), backgroundColor: Colors.green));
+        Navigator.pop(context, true);
+      }
+
     } catch (e) {
-      debugPrint('上傳/更新商品失敗: $e');
-      success = false;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('操作失敗: $e'), backgroundColor: Colors.red));
+      }
     } finally {
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() { _isLoading = false; });
       }
     }
-
-    if (mounted) {
-      if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('商品${_isEditMode ? "更新" : "上傳"}成功！'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        Navigator.pop(context, true); // 返回 true 表示操作成功，通知前一頁刷新
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('商品${_isEditMode ? "更新" : "上傳"}失敗，請稍後再試。'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _quantityController.dispose();
-    _descriptionController.dispose();
-    _priceController.dispose();
-    // _originalPriceController.dispose();
-    super.dispose();
   }
 
   @override
@@ -368,24 +208,16 @@ class _ProductUploadPageState extends State<ProductUploadPage> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back,
-            color: Colors.black87,
-            size: _getResponsiveFontSize(context, 24),
-          ),
-          onPressed: _isLoading ? null : () => Navigator.pop(context), // 上傳時禁用返回
+          icon: Icon(Icons.arrow_back, color: Colors.black87, size: _getResponsiveFontSize(context, 24)),
+          onPressed: _isLoading ? null : () => Navigator.pop(context),
         ),
         title: Text(
           _isEditMode ? '編輯商品' : '上傳新商品',
-          style: TextStyle(
-            color: Colors.black87,
-            fontSize: _getResponsiveFontSize(context, 18),
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(color: Colors.black87, fontSize: _getResponsiveFontSize(context, 18), fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
       ),
-      body: AbsorbPointer( // 上傳時禁用交互
+      body: AbsorbPointer(
         absorbing: _isLoading,
         child: Form(
           key: _formKey,
@@ -402,19 +234,15 @@ class _ProductUploadPageState extends State<ProductUploadPage> {
                 _buildProductNameSection(context),
                 SizedBox(height: spacing),
 
-                _buildSectionTitle('商品選項 (數量)'),
-                _buildQuantitySection(context),
-                SizedBox(height: spacing),
-
-                _buildSectionTitle('商品類別'), // 之前叫 "商品材質"
+                _buildSectionTitle('商品類別'),
                 _buildCategoryDropdownSection(context),
                 SizedBox(height: spacing),
 
-                _buildSectionTitle('商品狀態'), // 之前叫 "商品出貨時間"
+                _buildSectionTitle('商品狀態'),
                 _buildConditionDropdownSection(context),
                 SizedBox(height: spacing),
 
-                _buildSectionTitle('商品類型'), // 這個是新增的，對應 _selectedType
+                _buildSectionTitle('商品類型'),
                 _buildTypeDropdownSection(context),
                 SizedBox(height: spacing),
 
@@ -422,17 +250,41 @@ class _ProductUploadPageState extends State<ProductUploadPage> {
                 _buildDescriptionSection(context),
                 SizedBox(height: spacing),
 
-                _buildSectionTitle('價格設定'),
-                _buildPriceSection(context), // 將價格和類型分開，更清晰
-                // SizedBox(height: spacing), // 如果有原價，可以在這裡添加
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildSectionTitle('價格設定 (NT\$)'),
+                          _buildPriceSection(context),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildSectionTitle('庫存數量'),
+                          _buildQuantitySection(context),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: spacing),
 
                 SizedBox(height: spacing * 2),
                 _buildActionButtons(context),
 
-                if (_isLoading) ...[ // 顯示加載指示器
+                if (_isLoading) ...[
                   SizedBox(height: spacing),
                   const Center(child: CircularProgressIndicator()),
-                  const Center(child: Text("正在處理中...")),
+                  const Center(child: Padding(
+                    padding: EdgeInsets.all(8.0),
+                    child: Text("正在處理中，請稍候..."),
+                  )),
                 ]
               ],
             ),
@@ -442,137 +294,149 @@ class _ProductUploadPageState extends State<ProductUploadPage> {
     );
   }
 
+  // --- UI Builder Widgets (已還原) ---
+
   Widget _buildSectionTitle(String title) {
     return Padding(
       padding: EdgeInsets.only(bottom: _getResponsiveSpacing(context, 8)),
       child: Text(
         title,
-        style: TextStyle(
-          fontSize: _getResponsiveFontSize(context, 16),
-          fontWeight: FontWeight.w500,
-          color: Colors.black87,
-        ),
+        style: TextStyle(fontSize: _getResponsiveFontSize(context, 16), fontWeight: FontWeight.w500, color: Colors.black87),
       ),
     );
   }
 
   Widget _buildImageUploadSection(BuildContext context) {
-    double imageSize = MediaQuery.of(context).size.width < 360 ? 70 : MediaQuery.of(context).size.width < 600 ? 80 : 100;
+    double imageSize = MediaQuery.of(context).size.width < 360 ? 70 : 80;
+    List<Widget> imageWidgets = [];
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    // 已存在的網路圖片
+    imageWidgets.addAll(_imageUrls.asMap().entries.map((entry) {
+      int index = entry.key;
+      String url = entry.value;
+      return Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            width: imageSize, height: imageSize,
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(8)),
+            child: ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.network(url, fit: BoxFit.cover, errorBuilder: (c, e, s) => Container(color: Colors.grey[200], child: const Icon(Icons.error_outline)))),
+          ),
+          Positioned(top: -8, right: -8, child: GestureDetector(onTap: () => _removeUrlImage(index), child: const CircleAvatar(radius: 12, backgroundColor: Colors.red, child: Icon(Icons.close, color: Colors.white, size: 16)))),
+        ],
+      );
+    }));
+
+    // 新選擇的本地圖片
+    imageWidgets.addAll(_imageFiles.asMap().entries.map((entry) {
+      int index = entry.key;
+      XFile file = entry.value;
+      return Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            width: imageSize, height: imageSize,
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(8)),
+            child: ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.file(File(file.path), fit: BoxFit.cover)),
+          ),
+          Positioned(top: -8, right: -8, child: GestureDetector(onTap: () => _removeLocalImage(index), child: const CircleAvatar(radius: 12, backgroundColor: Colors.red, child: Icon(Icons.close, color: Colors.white, size: 16)))),
+        ],
+      );
+    }));
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
       children: [
-        Wrap( // 使用 Wrap 處理多張圖片的佈局
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            // 已選擇的圖片
-            ..._selectedImages.asMap().entries.map((entry) {
-              int index = entry.key;
-              String imagePathOrUrl = entry.value;
-              return Stack(
-                children: [
-                  Container(
-                    width: imageSize,
-                    height: imageSize,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey[400]!),
-                      borderRadius: BorderRadius.circular(8),
-                      // color: Colors.grey[200], // 移除背景色，直接顯示圖片
-                    ),
-                    // child: Image.network(imagePathOrUrl, fit: BoxFit.cover, // 假設是網絡圖片
-                    //   errorBuilder: (context, error, stackTrace) => Center(child: Icon(Icons.broken_image, color: Colors.grey[400]))),
-                    // TODO: 根據 imagePathOrUrl 是本地文件還是網絡 URL 決定如何顯示
-                    // 這裡用一個占位符
-                    child: imagePathOrUrl.startsWith('http')
-                        ? Image.network(imagePathOrUrl, width: imageSize, height: imageSize, fit: BoxFit.cover,
-                        errorBuilder: (c,e,s) => Center(child: Icon(Icons.error_outline, size: imageSize * 0.4, color: Colors.grey[500])))
-                        : Center(child: Icon(Icons.image, size: imageSize * 0.4, color: Colors.grey[500])), // 模擬本地圖片
-                  ),
-                  Positioned(
-                    top: 2,
-                    right: 2,
-                    child: GestureDetector(
-                      onTap: () => _removeImage(index),
-                      child: Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-                        child: Icon(Icons.close, size: _getResponsiveFontSize(context, 12), color: Colors.white),
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            }).toList(),
+        ...imageWidgets,
+        if (_imageFiles.length + _imageUrls.length < 5)
+          GestureDetector(
+            onTap: _selectImage,
+            child: Container(
+              width: imageSize, height: imageSize,
+              decoration: BoxDecoration(border: Border.all(color: Colors.grey[400]!), borderRadius: BorderRadius.circular(8)),
+              child: Center(child: Icon(Icons.add_a_photo_outlined, size: imageSize * 0.4, color: Colors.grey[600])),
+            ),
+          ),
+      ],
+    );
+  }
 
-            // 添加圖片按鈕 (僅當圖片數量小於5時顯示)
-            if (_selectedImages.length < 5)
-              GestureDetector(
-                onTap: _selectImage,
-                child: Container(
-                  width: imageSize,
-                  height: imageSize,
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey[400]!),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Center(
-                    child: Icon(Icons.add_a_photo_outlined, size: imageSize * 0.4, color: Colors.grey[600]),
-                  ),
-                ),
-              ),
-          ],
+  Widget _buildCustomTextField({ required BuildContext context, required TextEditingController controller, required String hintText, TextInputType keyboardType = TextInputType.text, List<TextInputFormatter>? inputFormatters, int? maxLines = 1, String? Function(String?)? validator, IconData? prefixIcon }) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      inputFormatters: inputFormatters,
+      maxLines: maxLines,
+      decoration: InputDecoration(
+        hintText: hintText,
+        hintStyle: TextStyle(color: Colors.grey[500], fontSize: _getResponsiveFontSize(context, 14)),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey[300]!)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey[300]!)),
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: EdgeInsets.symmetric(horizontal: _getResponsiveSpacing(context, 12), vertical: _getResponsiveSpacing(context, 12)),
+        prefixIcon: prefixIcon != null ? Icon(prefixIcon, color: Colors.grey[600], size: _getResponsiveFontSize(context, 18)) : null,
+      ),
+      style: TextStyle(fontSize: _getResponsiveFontSize(context, 14)),
+      validator: validator,
+    );
+  }
+
+  Widget _buildCustomDropdown<T>({ required BuildContext context, required String hintText, required T? value, required List<T> items, required String Function(T) itemText, required dynamic Function(T) itemValue, required void Function(T?)? onChanged, String? Function(T?)? validator, IconData? prefixIcon }) {
+    return DropdownButtonFormField<T>(
+      value: value,
+      hint: Text(hintText, style: TextStyle(color: Colors.grey[500], fontSize: _getResponsiveFontSize(context, 14))),
+      isExpanded: true,
+      decoration: InputDecoration(
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey[300]!)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey[300]!)),
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: EdgeInsets.symmetric(horizontal: _getResponsiveSpacing(context, 12), vertical: _getResponsiveSpacing(context, 4)),
+        prefixIcon: prefixIcon != null ? Icon(prefixIcon, color: Colors.grey[600], size: _getResponsiveFontSize(context, 18)) : null,
+      ),
+      items: items.map((item) => DropdownMenuItem<T>(value: itemValue(item), child: Text(itemText(item), style: TextStyle(fontSize: _getResponsiveFontSize(context, 14))))).toList(),
+      onChanged: onChanged,
+      validator: validator,
+    );
+  }
+
+  Widget _buildActionButtons(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: ElevatedButton.icon(
+            icon: Icon(Icons.preview_outlined, size: _getResponsiveFontSize(context, 18)),
+            label: Text('預覽', style: TextStyle(fontSize: _getResponsiveFontSize(context, 16), fontWeight: FontWeight.bold)),
+            onPressed: _isLoading ? null : () { /* 預覽邏輯 */ },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blueGrey[200],
+              foregroundColor: Colors.black87,
+              padding: EdgeInsets.symmetric(vertical: _getResponsiveSpacing(context, 12)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
         ),
-        Padding(
-          padding: EdgeInsets.only(top: _getResponsiveSpacing(context, 4)),
-          child: Text(
-            '圖片大小建議小於5MB，支持JPG、PNG格式。',
-            style: TextStyle(fontSize: _getResponsiveFontSize(context, 10), color: Colors.grey[600]),
+        SizedBox(width: _getResponsiveSpacing(context, 16)),
+        Expanded(
+          child: ElevatedButton.icon(
+            icon: Icon(_isEditMode ? Icons.save_alt_outlined : Icons.upload_file_outlined, size: _getResponsiveFontSize(context, 18)),
+            label: Text(_isEditMode ? '保存修改' : '完成上傳', style: TextStyle(fontSize: _getResponsiveFontSize(context, 16), fontWeight: FontWeight.bold)),
+            onPressed: _isLoading ? null : _completeUpload,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.white,
+              padding: EdgeInsets.symmetric(vertical: _getResponsiveSpacing(context, 12)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildCustomTextField({
-    required BuildContext context,
-    required TextEditingController controller,
-    required String hintText,
-    TextInputType keyboardType = TextInputType.text,
-    List<TextInputFormatter>? inputFormatters,
-    int? maxLines = 1,
-    String? Function(String?)? validator,
-    IconData? prefixIcon,
-  }) {
-    return Container(
-      padding: EdgeInsets.symmetric(
-          horizontal: _getResponsiveSpacing(context, 10),
-          vertical: _getResponsiveSpacing(context, maxLines == 1 ? 2 : 8)), // 單行和多行不同padding
-      decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.grey[300]!),
-          boxShadow: [
-            BoxShadow(color: Colors.grey.withValues(alpha: 0.1), spreadRadius: 1, blurRadius: 3)
-          ]
-      ),
-      child: TextFormField(
-        controller: controller,
-        keyboardType: keyboardType,
-        inputFormatters: inputFormatters,
-        maxLines: maxLines,
-        decoration: InputDecoration(
-          hintText: hintText,
-          hintStyle: TextStyle(color: Colors.grey[500], fontSize: _getResponsiveFontSize(context, 14)),
-          border: InputBorder.none,
-          prefixIcon: prefixIcon != null ? Icon(prefixIcon, color: Colors.grey[600], size: _getResponsiveFontSize(context, 18)) : null,
-        ),
-        style: TextStyle(fontSize: _getResponsiveFontSize(context, 14)),
-        validator: validator,
-      ),
-    );
-  }
-
+  // --- UI Builder Widgets (已還原) ---
   Widget _buildProductNameSection(BuildContext context) {
     return _buildCustomTextField(
       context: context,
@@ -595,7 +459,7 @@ class _ProductUploadPageState extends State<ProductUploadPage> {
     return _buildCustomTextField(
       context: context,
       controller: _quantityController,
-      hintText: '輸入庫存數量',
+      hintText: '數量',
       prefixIcon: Icons.production_quantity_limits,
       keyboardType: TextInputType.number,
       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
@@ -604,7 +468,7 @@ class _ProductUploadPageState extends State<ProductUploadPage> {
           return '請輸入數量';
         }
         final n = int.tryParse(value);
-        if (n == null || n < 0) { // 允許數量為0，表示暫時無貨
+        if (n == null || n < 0) {
           return '請輸入有效的數量';
         }
         return null;
@@ -612,58 +476,22 @@ class _ProductUploadPageState extends State<ProductUploadPage> {
     );
   }
 
-  Widget _buildCustomDropdown<T>({
-    required BuildContext context,
-    required String hintText,
-    required T? value,
-    required List<T> items,
-    required String Function(T) itemText,
-    required void Function(T?)? onChanged,
-    String? Function(T?)? validator,
-    IconData? prefixIcon,
-  }) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: _getResponsiveSpacing(context, 10), vertical: _getResponsiveSpacing(context, 2)),
-      decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.grey[300]!),
-          boxShadow: [BoxShadow(color: Colors.grey.withValues(alpha: 0.1), spreadRadius: 1, blurRadius: 3)]
-      ),
-      child: DropdownButtonFormField<T>(
-        value: value,
-        hint: Text(hintText, style: TextStyle(color: Colors.grey[500], fontSize: _getResponsiveFontSize(context, 14))),
-        isExpanded: true,
-        decoration: InputDecoration(
-          border: InputBorder.none,
-          prefixIcon: prefixIcon != null ? Icon(prefixIcon, color: Colors.grey[600], size: _getResponsiveFontSize(context, 18)) : null,
-        ),
-        items: items.map((item) {
-          return DropdownMenuItem<T>(
-            value: item,
-            child: Text(itemText(item), style: TextStyle(fontSize: _getResponsiveFontSize(context, 14))),
-          );
-        }).toList(),
-        onChanged: onChanged,
-        validator: validator,
-      ),
-    );
-  }
-
   Widget _buildCategoryDropdownSection(BuildContext context) {
-    return _buildCustomDropdown<String>(
-      context: context,
-      hintText: '選擇商品所屬類別',
-      prefixIcon: Icons.category_outlined,
-      value: _selectedCategory.isEmpty || !_categories.contains(_selectedCategory) ? null : _selectedCategory,
-      items: _categories,
-      itemText: (category) => category,
-      onChanged: (value) {
-        setState(() {
-          _selectedCategory = value ?? '';
-        });
+    return Consumer<ProductProvider>(
+      builder: (context, provider, child) {
+        if (provider.areCategoriesLoading) return const Center(child: CircularProgressIndicator());
+        return _buildCustomDropdown<int>(
+          context: context,
+          hintText: '選擇商品所屬類別',
+          prefixIcon: Icons.category_outlined,
+          value: _selectedCategoryId,
+          items: provider.categories,
+          itemText: (category) => category.name,
+          itemValue: (category) => category.id,
+          onChanged: (value) => setState(() => _selectedCategoryId = value),
+          validator: (value) => value == null ? '請選擇商品類別' : null,
+        );
       },
-      validator: (value) => (value == null || value.isEmpty) ? '請選擇商品類別' : null,
     );
   }
 
@@ -672,14 +500,11 @@ class _ProductUploadPageState extends State<ProductUploadPage> {
       context: context,
       hintText: '選擇商品的新舊狀況',
       prefixIcon: Icons.new_releases_outlined,
-      value: _selectedCondition.isEmpty || !_conditions.contains(_selectedCondition) ? null : _selectedCondition,
+      value: _selectedCondition.isEmpty ? null : _selectedCondition,
       items: _conditions,
       itemText: (condition) => condition,
-      onChanged: (value) {
-        setState(() {
-          _selectedCondition = value ?? '';
-        });
-      },
+      itemValue: (condition) => condition,
+      onChanged: (value) => setState(() => _selectedCondition = value ?? ''),
       validator: (value) => (value == null || value.isEmpty) ? '請選擇商品狀態' : null,
     );
   }
@@ -689,14 +514,11 @@ class _ProductUploadPageState extends State<ProductUploadPage> {
       context: context,
       hintText: '選擇商品的銷售類型',
       prefixIcon: Icons.sell_outlined,
-      value: _selectedType.isEmpty || !_types.contains(_selectedType) ? null : _selectedType,
+      value: _selectedType.isEmpty ? null : _selectedType,
       items: _types,
       itemText: (type) => type,
-      onChanged: (value) {
-        setState(() {
-          _selectedType = value ?? '';
-        });
-      },
+      itemValue: (type) => type,
+      onChanged: (value) => setState(() => _selectedType = value ?? ''),
       validator: (value) => (value == null || value.isEmpty) ? '請選擇商品類型' : null,
     );
   }
@@ -721,10 +543,10 @@ class _ProductUploadPageState extends State<ProductUploadPage> {
     return _buildCustomTextField(
       context: context,
       controller: _priceController,
-      hintText: '輸入售價 (NT\$)',
+      hintText: '售價',
       prefixIcon: Icons.attach_money,
       keyboardType: TextInputType.number,
-      inputFormatters: [FilteringTextInputFormatter.digitsOnly], // 也可以允許小數點 [FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}'))]
+      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
       validator: (value) {
         if (value == null || value.isEmpty) {
           return '請輸入價格';
@@ -735,46 +557,6 @@ class _ProductUploadPageState extends State<ProductUploadPage> {
         }
         return null;
       },
-    );
-  }
-
-  Widget _buildActionButtons(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: ElevatedButton.icon(
-            icon: Icon(Icons.preview_outlined, size: _getResponsiveFontSize(context, 18)),
-            label: Text(
-              '預覽',
-              style: TextStyle(fontSize: _getResponsiveFontSize(context, 16), fontWeight: FontWeight.bold),
-            ),
-            onPressed: _isLoading ? null : _previewProduct,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blueGrey[200],
-              foregroundColor: Colors.black87,
-              padding: EdgeInsets.symmetric(vertical: _getResponsiveSpacing(context, 12)),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-          ),
-        ),
-        SizedBox(width: _getResponsiveSpacing(context, 16)),
-        Expanded(
-          child: ElevatedButton.icon(
-            icon: Icon(_isEditMode ? Icons.save_alt_outlined : Icons.upload_file_outlined, size: _getResponsiveFontSize(context, 18)),
-            label: Text(
-              _isEditMode ? '保存修改' : '完成上傳',
-              style: TextStyle(fontSize: _getResponsiveFontSize(context, 16), fontWeight: FontWeight.bold),
-            ),
-            onPressed: _isLoading ? null : _completeUpload,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange,
-              foregroundColor: Colors.white,
-              padding: EdgeInsets.symmetric(vertical: _getResponsiveSpacing(context, 12)),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-          ),
-        ),
-      ],
     );
   }
 }
