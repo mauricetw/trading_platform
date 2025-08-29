@@ -1,41 +1,38 @@
+// --- FILE: lib/models/product/category.dart ---
+
 class Category {
-  final String id; // 分類 ID
+  // --- 關鍵修正：將 id 的類型從 String 改為 int ---
+  // 這樣才能與後端資料庫的 Integer 類型匹配。
+  final int id; 
   final String name; // 分類名稱
   final String? parentId; // 父級分類的 ID，如果是一級分類則為 null
-  // final String? iconUrl; // 可選：分類圖標的 URL
-  // final int? order; // 可選：分類的排序順序
 
   Category({
     required this.id,
     required this.name,
-    this.parentId, // 父級分類 ID 是可選的
-    // this.iconUrl,
-    // this.order,
+    this.parentId,
   });
 
-  // 添加一個 fromJson 工廠方法來解析 JSON 數據
+  /// 從 JSON Map 建立一個 Category 物件的工廠方法。
   factory Category.fromJson(Map<String, dynamic> json) {
     return Category(
-      id: json['id'] as String,
+      // --- 同步修正：將 json['id'] 解析為 int ---
+      id: json['id'] as int,
       name: json['name'] as String,
-      parentId: json['parentId'] as String?, // JSON 中的 parentId 可能為 null
-      // iconUrl: json['iconUrl'] as String?,
-      // order: json['order'] as int?,
+      parentId: json['parentId'] as String?,
     );
   }
 
-  // （可選）添加一個 toJson 方法來將 Category 轉換為 JSON
+  /// 將 Category 物件轉換為 JSON Map 的方法。
   Map<String, dynamic> toJson() {
     return {
       'id': id,
       'name': name,
       'parentId': parentId,
-      // 'iconUrl': iconUrl,
-      // 'order': order,
     };
   }
 
-  // （可選）覆寫 toString() 方法方便調試
+  /// 覆寫 toString() 方法，方便在開發和除錯時印出物件資訊。
   @override
   String toString() {
     return 'Category(id: $id, name: $name, parentId: $parentId)';
