@@ -1,10 +1,10 @@
-// --- FILE: lib/models/product/product.dart (最終修正版) ---
+// --- FILE: lib/models/product/product.dart ---
 import 'package:json_annotation/json_annotation.dart';
-import '../order/shipping_info.dart'; // 1. 保留 shipping_info 的引用
+import '../order/shipping_info.dart';
 
 part 'product.g.dart';
 
-// --- SellerInfo 模型 (維持不變) ---
+// --- SellerInfo 模型 ---
 @JsonSerializable(fieldRename: FieldRename.snake)
 class SellerInfo {
   final int id;
@@ -38,8 +38,9 @@ class Product {
 
   final int categoryId;
 
-  @JsonKey(includeToJson: false) // 在 toJson 時忽略此欄位，避免衝突
-  final String categoryName;
+  // --- 微調：category，符合上層 UI 的使用習慣 ---
+  @JsonKey(includeToJson: false)
+  final String category;
 
   final List<String> imageUrls;
 
@@ -54,7 +55,6 @@ class Product {
   final int sellerId;
   final SellerInfo? seller;
 
-  // 2. 保留 shippingInfo 欄位
   final ShippingInformation? shippingInfo;
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -69,7 +69,7 @@ class Product {
     required this.price,
     this.originalPrice,
     required this.categoryId,
-    required this.categoryName,
+    required this.category,
     required this.stockQuantity,
     required this.imageUrls,
     required this.status,
@@ -81,11 +81,10 @@ class Product {
     this.tags,
     required this.sellerId,
     this.seller,
-    this.shippingInfo, // 3. 在建構函式中加入
+    this.shippingInfo,
     this.isFavorite = false,
   });
 
-  // 手動處理 fromJson 以解決 category 和 images 的結構不匹配問題
   factory Product.fromJson(Map<String, dynamic> json) {
     final categoryData = json['category'] as Map<String, dynamic>? ?? {};
     final imagesData = json['images'] as List<dynamic>? ?? [];
@@ -96,13 +95,11 @@ class Product {
       description: json['description'] as String?,
       price: (json['price'] as num).toDouble(),
       originalPrice: (json['original_price'] as num?)?.toDouble(),
-
       categoryId: categoryData['id'] as int? ?? 0,
-      categoryName: categoryData['name'] as String? ?? '未分類',
+      category: categoryData['name'] as String? ?? '未分類',
       imageUrls: imagesData
           .map((img) => (img as Map<String, dynamic>)['image_url'] as String)
           .toList(),
-
       stockQuantity: json['stock_quantity'] as int,
       status: json['status'] as String,
       salesCount: json['sales_count'] as int? ?? 0,
@@ -115,20 +112,15 @@ class Product {
       seller: json['seller'] == null
           ? null
           : SellerInfo.fromJson(json['seller'] as Map<String, dynamic>),
-
-      // 4. 在 fromJson 中處理 shippingInfo
       shippingInfo: json['shipping_info'] == null
           ? null
           : ShippingInformation.fromJson(json['shipping_info'] as Map<String, dynamic>),
-
       isFavorite: json['is_favorite'] as bool? ?? false,
     );
   }
 
-  // toJson 方法由產生器自動處理
   Map<String, dynamic> toJson() => _$ProductToJson(this);
 
-  // copyWith 方法
   Product copyWith({
     int? id,
     String? name,
@@ -136,7 +128,7 @@ class Product {
     double? price,
     double? originalPrice,
     int? categoryId,
-    String? categoryName,
+    String? category, // <-- 微調
     int? stockQuantity,
     String? status,
     List<String>? imageUrls,
@@ -148,7 +140,7 @@ class Product {
     List<String>? tags,
     int? sellerId,
     SellerInfo? seller,
-    ShippingInformation? shippingInfo, // 5. 在 copyWith 中加入
+    ShippingInformation? shippingInfo,
     bool? isFavorite,
   }) {
     return Product(
@@ -158,7 +150,7 @@ class Product {
       price: price ?? this.price,
       originalPrice: originalPrice ?? this.originalPrice,
       categoryId: categoryId ?? this.categoryId,
-      categoryName: categoryName ?? this.categoryName,
+      category: category ?? this.category, // <-- 微調
       stockQuantity: stockQuantity ?? this.stockQuantity,
       status: status ?? this.status,
       imageUrls: imageUrls ?? this.imageUrls,
@@ -175,4 +167,3 @@ class Product {
     );
   }
 }
-

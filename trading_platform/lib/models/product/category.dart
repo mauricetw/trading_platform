@@ -1,9 +1,8 @@
 // --- FILE: lib/models/product/category.dart ---
-
 class Category {
   // --- 關鍵修正：將 id 的類型從 String 改為 int ---
   // 這樣才能與後端資料庫的 Integer 類型匹配。
-  final int id; 
+  final int id;
   final String name; // 分類名稱
   final String? parentId; // 父級分類的 ID，如果是一級分類則為 null
 

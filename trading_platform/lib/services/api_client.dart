@@ -2,9 +2,9 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
-import '../config/api_config.dart'; // 1. 引入我們修正後的設定檔
+import '../config/api_config.dart';
 
-// API 異常類別 (保持不變)
+// API 異常類別
 class ApiException implements Exception {
   final String message;
   final int? statusCode;
@@ -16,12 +16,11 @@ class ApiException implements Exception {
   }
 }
 
-// ApiClient 專門負責底層的 HTTP 通訊
 class ApiClient {
-  // --- 2. 移除寫死的網址 ---
-  // static const String _authority = "10.0.2.2:8000"; // <-- 已移除
-
   String? _token;
+
+  // --- 關鍵修正：新增一個公開的 getter 來讓其他 service 讀取 token ---
+  String? get token => _token;
 
   void setAuthToken(String? token) {
     _token = token;
@@ -38,6 +37,14 @@ class ApiClient {
   }
 
   dynamic _handleResponse(http.Response response) {
+    // 檢查 body 是否為空，避免解碼錯誤
+    if (response.body.isEmpty) {
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return null; // 對於 204 No Content 這類的回應，回傳 null
+      } else {
+        throw ApiException('伺服器回應為空', response.statusCode);
+      }
+    }
     final responseBody = jsonDecode(utf8.decode(response.bodyBytes));
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return responseBody;
@@ -46,10 +53,7 @@ class ApiClient {
     }
   }
 
-  // --- 3. 修改所有 HTTP 方法以使用 APIConfig ---
-
   Future<dynamic> get(String path, {Map<String, String>? queryParams}) async {
-    // 使用 APIConfig.baseUrl 來建立完整的 URL
     final url = Uri.parse('${APIConfig.baseUrl}$path').replace(queryParameters: queryParams);
     try {
       final response = await http.get(url, headers: _getHeaders());
@@ -83,6 +87,7 @@ class ApiClient {
     final url = Uri.parse('${APIConfig.baseUrl}$path');
     try {
       final response = await http.delete(url, headers: _getHeaders());
+      // 修正：delete 成功時 statusCode 為 204，body 為空
       if (response.statusCode == 204) {
         return null;
       }

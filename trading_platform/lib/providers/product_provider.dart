@@ -1,14 +1,15 @@
-// --- FILE: lib/providers/product_provider.dart (修正版) ---
-import 'dart:io';
-import 'package:flutter/foundation.dart';
+// --- FILE: lib/providers/product_provider.dart ---
+import 'package:flutter/foundation.dart' hide Category; // 1. 關鍵修正：隱藏 Flutter 內部的 Category，避免命名衝突
+import 'package:image_picker/image_picker.dart';
+
 import '../models/product/product.dart';
-import '../models/product/category.dart'; // 假設您有一個 Category 模型
+import '../models/product/category.dart'; // 現在可以安全地使用您自己的 Category 模型
 import '../services/product_service.dart';
-import '../services/upload_service.dart'; // 引入新的上傳服務
+import '../services/upload_service.dart';
 
 class ProductProvider with ChangeNotifier {
   final ProductService _productService;
-  final UploadService _uploadService; // 依賴 UploadService
+  final UploadService _uploadService;
 
   // --- 狀態 ---
   List<Product> _products = [];
@@ -20,8 +21,12 @@ class ProductProvider with ChangeNotifier {
   bool _isSellerListLoading = false;
   String? _sellerListError;
 
-  List<Category> _categories = []; // 新增：儲存商品分類
+  List<Category> _categories = [];
   bool _areCategoriesLoading = false;
+
+  Product? _selectedProduct;
+  bool _isDetailLoading = false;
+  String? _detailError;
 
   // --- Getters ---
   List<Product> get products => _products;
@@ -30,12 +35,15 @@ class ProductProvider with ChangeNotifier {
 
   List<Product> get sellerProducts => _sellerProducts;
   bool get isSellerListLoading => _isSellerListLoading;
-  
+
   List<Category> get categories => _categories;
   bool get areCategoriesLoading => _areCategoriesLoading;
 
+  Product? get selectedProduct => _selectedProduct;
+  bool get isDetailLoading => _isDetailLoading;
+  String? get detailError => _detailError;
+
   ProductProvider(this._productService, this._uploadService) {
-    // Provider 被建立時，自動獲取初始資料
     fetchProducts();
     fetchCategories();
   }
@@ -46,9 +54,9 @@ class ProductProvider with ChangeNotifier {
     _areCategoriesLoading = true;
     notifyListeners();
     try {
+      // 現在可以正確呼叫 _productService.getCategories()
       _categories = await _productService.getCategories();
     } catch (e) {
-      // 處理錯誤
       print("Failed to fetch categories: $e");
     } finally {
       _areCategoriesLoading = false;
@@ -76,6 +84,22 @@ class ProductProvider with ChangeNotifier {
     fetchProducts(categoryId: _selectedCategoryId);
   }
 
+  Future<void> fetchProductById(int productId) async {
+    _isDetailLoading = true;
+    _detailError = null;
+    _selectedProduct = null;
+    notifyListeners();
+
+    try {
+      _selectedProduct = await _productService.getProductById(productId);
+    } catch (e) {
+      _detailError = e.toString();
+    } finally {
+      _isDetailLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> fetchSellerProducts() async {
     _isSellerListLoading = true;
     _sellerListError = null;
@@ -90,14 +114,12 @@ class ProductProvider with ChangeNotifier {
     }
   }
 
-  // --- 新增：上傳圖片的專屬方法 ---
-  Future<String> uploadProductImage(File imageFile) async {
+  Future<String> uploadProductImage(XFile imageFile) async {
     try {
-      // 呼叫 UploadService 來處理上傳
       final imageUrl = await _uploadService.uploadImage(imageFile);
       return imageUrl;
     } catch (e) {
-      rethrow; // 向上拋出錯誤，讓 UI 層處理
+      rethrow;
     }
   }
 
@@ -105,8 +127,6 @@ class ProductProvider with ChangeNotifier {
     try {
       final newProduct = await _productService.createProduct(productData);
       _sellerProducts.insert(0, newProduct);
-      // 可選：也可以更新公開商品列表
-      // _products.insert(0, newProduct);
       notifyListeners();
     } catch (e) {
       rethrow;
@@ -116,12 +136,10 @@ class ProductProvider with ChangeNotifier {
   Future<void> updateProduct(int productId, Map<String, dynamic> productData) async {
     try {
       final updatedProduct = await _productService.updateProduct(productId, productData);
-      // 更新賣家商品列表
       final sellerIndex = _sellerProducts.indexWhere((p) => p.id == productId);
       if (sellerIndex != -1) {
         _sellerProducts[sellerIndex] = updatedProduct;
       }
-      // 更新公開商品列表
       final publicIndex = _products.indexWhere((p) => p.id == productId);
       if (publicIndex != -1) {
         _products[publicIndex] = updatedProduct;
@@ -133,7 +151,6 @@ class ProductProvider with ChangeNotifier {
   }
 
   Future<void> deleteProduct(int productId) async {
-    // 樂觀更新
     final originalSellerIndex = _sellerProducts.indexWhere((p) => p.id == productId);
     Product? backupSellerProduct;
     if (originalSellerIndex != -1) {
@@ -144,7 +161,6 @@ class ProductProvider with ChangeNotifier {
     try {
       await _productService.deleteProduct(productId);
     } catch (e) {
-      // 回滾
       if (backupSellerProduct != null && originalSellerIndex != -1) {
         _sellerProducts.insert(originalSellerIndex, backupSellerProduct);
       }
