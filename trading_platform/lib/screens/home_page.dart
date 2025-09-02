@@ -46,13 +46,11 @@ class HomePage extends StatelessWidget {
 
   // 根據 Provider 狀態決定顯示內容的輔助函式
   Widget _buildProductContent(BuildContext context, ProductProvider provider) {
-    // 修復：檢查 isLoading 屬性是否存在
-    if (provider.isLoading && provider.products.isEmpty) {
+    if (provider.isListLoading && provider.products.isEmpty) {
       return const Center(child: Padding(padding: EdgeInsets.all(32.0), child: CircularProgressIndicator()));
     }
-    // 修復：檢查 error 屬性是否存在
-    if (provider.error != null) {
-      return Center(child: Text('發生錯誤: ${provider.error}'));
+    if (provider.listError != null) {
+      return Center(child: Text('發生錯誤: ${provider.listError}'));
     }
     if (provider.products.isEmpty) {
       return Center(
@@ -111,58 +109,26 @@ class _CategoriesGrid extends StatelessWidget {
     );
   }
 
-  // 修復：使用 withValues() 替代已廢棄的 withOpacity()
+  // 採用了組員版本更精緻的 UI 設計
   Widget _buildCategoryCard(BuildContext context, Category category, bool isSelected, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         decoration: BoxDecoration(
-          color: isSelected ? Theme.of(context).primaryColor.withValues(alpha: 0.1) : Colors.white,
+          color: isSelected ? Theme.of(context).primaryColor.withOpacity(0.1) : Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: isSelected ? Border.all(color: Theme.of(context).primaryColor, width: 1.5) : null,
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 8, offset: const Offset(0, 2))],
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 8, offset: const Offset(0, 2))],
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-                width: 45,
-                height: 45,
-                decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                        colors: isSelected
-                            ? [Theme.of(context).primaryColor, Theme.of(context).primaryColorDark]
-                            : [const Color(0xFF1E88E5), const Color(0xFF1565C0)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight
-                    ),
-                    borderRadius: BorderRadius.circular(22.5)
-                ),
-                child: Center(
-                    child: Text(category.icon, style: const TextStyle(fontSize: 22))
-                )
-            ),
+            Container(width: 45, height: 45, decoration: BoxDecoration(gradient: LinearGradient(colors: isSelected ? [Theme.of(context).primaryColor, Theme.of(context).primaryColorDark] : [const Color(0xFF1E88E5), const Color(0xFF1565C0)], begin: Alignment.topLeft, end: Alignment.bottomRight), borderRadius: BorderRadius.circular(22.5)), child: Center(child: Text(category.icon, style: const TextStyle(fontSize: 22)))),
             const SizedBox(height: 8),
-            Text(
-                category.name,
-                style: TextStyle(
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                    fontSize: 12,
-                    color: isSelected ? Theme.of(context).primaryColor : Colors.black87
-                ),
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis
-            ),
+            Text(category.name, style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.w500, fontSize: 12, color: isSelected ? Theme.of(context).primaryColor : Colors.black87), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
             const SizedBox(height: 4),
-            Text(
-                '${category.count} 件',
-                style: TextStyle(
-                    fontSize: 10,
-                    color: isSelected ? Theme.of(context).primaryColor.withValues(alpha: 0.8) : Colors.grey[600]
-                )
-            ),
+            Text('${category.count} 件', style: TextStyle(fontSize: 10, color: isSelected ? Theme.of(context).primaryColor.withOpacity(0.8) : Colors.grey[600])),
           ],
         ),
       ),
@@ -212,137 +178,26 @@ class _ProductCard extends StatelessWidget {
       // 導航到商品詳情頁，並傳遞 productId
       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ProductScreen(productId: product.id))),
       child: Container(
-        decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 8, offset: const Offset(0, 2))]
-        ),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 8, offset: const Offset(0, 2))]),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-                flex: 3,
-                child: Stack(
-                    alignment: Alignment.topRight,
-                    children: [
-                      Container(
-                          width: double.infinity,
-                          height: double.infinity,
-                          decoration: BoxDecoration(
-                              color: Colors.grey[100],
-                              borderRadius: const BorderRadius.vertical(top: Radius.circular(12))
-                          ),
-                          child: ClipRRect(
-                              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                              child: Image.network(
-                                  imageUrlToDisplay,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (c, e, s) => Container(
-                                      color: Colors.grey[200],
-                                      child: Center(
-                                          child: Icon(Icons.broken_image, size: 40, color: Colors.grey[400])
-                                      )
-                                  ),
-                                  loadingBuilder: (c, child, p) => p == null ? child : Center(
-                                      child: CircularProgressIndicator(
-                                          value: p.expectedTotalBytes != null
-                                              ? p.cumulativeBytesLoaded / p.expectedTotalBytes!
-                                              : null
-                                      )
-                                  )
-                              )
-                          )
-                      ),
-                      if (product.isSold)
-                        Positioned(
-                            top: 8,
-                            left: 8,
-                            child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                    color: Colors.redAccent.withValues(alpha: 0.9),
-                                    borderRadius: BorderRadius.circular(12)
-                                ),
-                                child: const Text(
-                                    'SOLD',
-                                    style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)
-                                )
-                            )
-                        ),
-                      Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: GestureDetector(
-                              onTap: () {
-                                // 修復：檢查 toggleFavoriteStatus 方法是否存在
-                                final productProvider = context.read<ProductProvider>();
-                                if (productProvider.toggleFavoriteStatus != null) {
-                                  productProvider.toggleFavoriteStatus!(product.id);
-                                }
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                        content: Text(product.isFavorite ? '已取消收藏' : '已加入收藏 ❤️'),
-                                        duration: const Duration(seconds: 1)
-                                    )
-                                );
-                              },
-                              child: Container(
-                                  padding: const EdgeInsets.all(6),
-                                  decoration: BoxDecoration(
-                                      color: Colors.black.withValues(alpha: 0.3),
-                                      shape: BoxShape.circle
-                                  ),
-                                  child: Icon(
-                                      product.isFavorite ? Icons.favorite : Icons.favorite_border,
-                                      color: product.isFavorite ? Colors.redAccent : Colors.white,
-                                      size: 18
-                                  )
-                              )
-                          )
-                      ),
-                    ]
-                )
-            ),
-            Expanded(
-                flex: 2,
-                child: Padding(
-                    padding: const EdgeInsets.all(10.0),
-                    child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                              product.name,
-                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, height: 1.2),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis
-                          ),
-                          Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                    _formatPrice(product.price),
-                                    style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                        color: Theme.of(context).primaryColor
-                                    )
-                                ),
-                                if (product.originalPrice != null && product.originalPrice! > product.price)
-                                  Text(
-                                      _formatPrice(product.originalPrice!),
-                                      style: TextStyle(
-                                          fontSize: 11,
-                                          color: Colors.grey[600],
-                                          decoration: TextDecoration.lineThrough
-                                      )
-                                  ),
-                              ]
-                          ),
-                        ]
-                    )
-                )
-            ),
+            Expanded(flex: 3, child: Stack(alignment: Alignment.topRight, children: [
+              Container(width: double.infinity, height: double.infinity, decoration: BoxDecoration(color: Colors.grey[100], borderRadius: const BorderRadius.vertical(top: Radius.circular(12))), child: ClipRRect(borderRadius: const BorderRadius.vertical(top: Radius.circular(12)), child: Image.network(imageUrlToDisplay, fit: BoxFit.cover, errorBuilder: (c, e, s) => Container(color: Colors.grey[200], child: Center(child: Icon(Icons.broken_image, size: 40, color: Colors.grey[400]))), loadingBuilder: (c, child, p) => p == null ? child : Center(child: CircularProgressIndicator(value: p.expectedTotalBytes != null ? p.cumulativeBytesLoaded / p.expectedTotalBytes! : null))))),
+              if (product.isSold) Positioned(top: 8, left: 8, child: Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: Colors.redAccent.withOpacity(0.9), borderRadius: BorderRadius.circular(12)), child: const Text('SOLD', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)))),
+              Padding(padding: const EdgeInsets.all(8.0), child: GestureDetector(onTap: () {
+                // 點擊愛心時，呼叫 Provider 的方法來切換收藏狀態
+                context.read<ProductProvider>().toggleFavoriteStatus(product.id);
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(product.isFavorite ? '已取消收藏' : '已加入收藏 ❤️'), duration: const Duration(seconds: 1)));
+              }, child: Container(padding: const EdgeInsets.all(6), decoration: BoxDecoration(color: Colors.black.withOpacity(0.3), shape: BoxShape.circle), child: Icon(product.isFavorite ? Icons.favorite : Icons.favorite_border, color: product.isFavorite ? Colors.redAccent : Colors.white, size: 18)))),
+            ])),
+            Expanded(flex: 2, child: Padding(padding: const EdgeInsets.all(10.0), child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+              Text(product.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, height: 1.2), maxLines: 2, overflow: TextOverflow.ellipsis),
+              Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                Text(_formatPrice(product.price), style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Theme.of(context).primaryColor)),
+                if (product.originalPrice != null && product.originalPrice! > product.price) Text(_formatPrice(product.originalPrice!), style: TextStyle(fontSize: 11, color: Colors.grey[600], decoration: TextDecoration.lineThrough)),
+              ]),
+            ]))),
           ],
         ),
       ),
@@ -353,18 +208,9 @@ class _ProductCard extends StatelessWidget {
 // --- 靜態的商品分類模型 ---
 // 在真實應用中，這個也可能從後端獲取
 class Category {
-  final int id;
-  final String name;
-  final String icon;
-  final int count;
+  final int id; final String name; final String icon; final int count;
   Category({required this.id, required this.name, required this.icon, required this.count});
 }
-
 final List<Category> _categories = [
-  Category(id: 1, name: '書籍文具', icon: '📚', count: 156),
-  Category(id: 2, name: '電子產品', icon: '📱', count: 89),
-  Category(id: 3, name: '服裝配件', icon: '👕', count: 234),
-  Category(id: 4, name: '家居用品', icon: '🏠', count: 178),
-  Category(id: 5, name: '美容保健', icon: '💄', count: 67),
-  Category(id: 6, name: '運動戶外', icon: '⚽', count: 123),
+  Category(id: 1, name: '書籍文具', icon: '📚', count: 156), Category(id: 2, name: '電子產品', icon: '📱', count: 89), Category(id: 3, name: '服裝配件', icon: '👕', count: 234), Category(id: 4, name: '家居用品', icon: '🏠', count: 178), Category(id: 5, name: '美容保健', icon: '💄', count: 67), Category(id: 6, name: '運動戶外', icon: '⚽', count: 123),
 ];
