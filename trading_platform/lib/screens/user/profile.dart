@@ -1,16 +1,18 @@
 import 'package:first_flutter_project/screens/settings/setting.dart';
 import 'package:flutter/material.dart';
-import '../../models/user/user.dart';
-import 'public_profile.dart';
-// 使用完整路徑導入，避免相對路徑問題
+import 'package:first_flutter_project/models/user/user.dart';
+// 明確導入用戶配置頁面
+import 'package:first_flutter_project/screens/user/public_profile.dart';
+// 使用完整路徑導入
 import 'package:first_flutter_project/screens/user/cart.dart';
 import 'package:first_flutter_project/screens/user/orderlist.dart';
 import 'package:first_flutter_project/screens/user/wishlist.dart';
-import '../seller/product_management.dart';
-import '../seller/order_page.dart';
-import '../seller/shipping_setting_page.dart';
-import '../../widgets/FullBottomConcaveAppBarShape.dart';
-import '../../theme/app_theme.dart';
+// 現在可以正常導入商品管理頁面了
+import 'package:first_flutter_project/screens/seller/product_management.dart';
+import 'package:first_flutter_project/screens/seller/order_page.dart';
+import 'package:first_flutter_project/screens/seller/shipping_setting_page.dart';
+import 'package:first_flutter_project/widgets/FullBottomConcaveAppBarShape.dart';
+import 'package:first_flutter_project/theme/app_theme.dart';
 
 class Profile extends StatelessWidget {
   final User currentUser;
@@ -368,7 +370,12 @@ class Profile extends StatelessWidget {
                             icon: Icons.inventory_2_outlined,
                             onPressed: () {
                               debugPrint('導航到：商品管理');
-                              Navigator.push(context, MaterialPageRoute(builder: (context) => ProductManagementScreen(currentUser: currentUser)));
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => ProductManagementScreen(currentUser: currentUser),
+                                ),
+                              );
                             },
                           ),
                           const SizedBox(width: 15),

@@ -513,11 +513,12 @@ class _PublicUserProfilePageState extends State<PublicUserProfilePage> {
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          if (productFromList.description.isNotEmpty)
+                          // 修復：正確處理可空的 description
+                          if (productFromList.description?.isNotEmpty == true)
                             Padding(
                               padding: const EdgeInsets.only(top: 3.0),
                               child: Text(
-                                productFromList.description,
+                                productFromList.description!,
                                 style: textTheme.bodySmall?.copyWith(
                                     color: colorScheme.onSurfaceVariant
                                         .withValues(alpha: 0.8),
@@ -528,14 +529,13 @@ class _PublicUserProfilePageState extends State<PublicUserProfilePage> {
                             ),
                         ],
                       ),
-                      if (productFromList.price > 0) // price 是必需的 double，不是可選的
-                        Text(
-                          'NT\$ ${productFromList.price.toStringAsFixed(0)}',
-                          style: textTheme.titleSmall?.copyWith(
-                            color: colorScheme.primary,
-                            fontWeight: FontWeight.bold,
-                          ),
+                      Text(
+                        'NT\$ ${productFromList.price.toStringAsFixed(0)}',
+                        style: textTheme.titleSmall?.copyWith(
+                          color: colorScheme.primary,
+                          fontWeight: FontWeight.bold,
                         ),
+                      ),
                     ],
                   ),
                 ),
