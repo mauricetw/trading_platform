@@ -20,6 +20,7 @@ import 'services/wishlist_service.dart';
 import 'services/order_service.dart';
 import 'services/address_service.dart';
 import 'services/announcement_service.dart';
+import 'services/upload_service.dart';
 
 // --- 引入所有需要的頁面 ---
 import 'screens/auth/login_main.dart';
@@ -40,6 +41,7 @@ void main() {
     final AnnouncementService announcementService = AnnouncementService(apiClient);
     final OrderService orderService = OrderService();
     final AddressService addressService = AddressService();
+    final UploadService uploadService = UploadService(apiClient);
 
     runApp(
       MultiProvider(
@@ -48,7 +50,7 @@ void main() {
             create: (_) => AuthProvider(authService, userService, apiClient),
           ),
           ChangeNotifierProvider(
-            create: (_) => ProductProvider(productService),
+            create: (_) => ProductProvider(productService, uploadService),
           ),
           ChangeNotifierProvider(
             create: (_) => CategoryProvider(),
@@ -67,7 +69,7 @@ void main() {
             create: (_) => WishlistProvider(wishlistService, null),
             update: (_, auth, previousWishlist) {
               previousWishlist?.update(auth);
-              return previousWishlist ?? WishlistProvider(wishlistService, auth);
+                return previousWishlist ?? WishlistProvider(wishlistService, auth);
             },
           ),
           ChangeNotifierProxyProvider2<AuthProvider, CartProvider, CheckoutProvider>(

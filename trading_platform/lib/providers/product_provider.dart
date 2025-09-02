@@ -42,6 +42,7 @@ class ProductProvider with ChangeNotifier {
   Product? get selectedProduct => _selectedProduct;
   bool get isDetailLoading => _isDetailLoading;
   String? get detailError => _detailError;
+  String? get listError => _listError;
 
   ProductProvider(this._productService, this._uploadService) {
     fetchProducts();
@@ -49,6 +50,21 @@ class ProductProvider with ChangeNotifier {
   }
 
   // --- 核心業務邏輯 ---
+  void toggleFavoriteStatus(int productId) {
+    final i = _products.indexWhere((p) => p.id == productId);
+    if (i != -1) {
+      final p = _products[i];
+      _products[i] = p.copyWith(isFavorite: !(p.isFavorite));
+      notifyListeners();
+    }
+    final si = _sellerProducts.indexWhere((p) => p.id == productId);
+    if (si != -1) {
+      final p = _sellerProducts[si];
+      _sellerProducts[si] = p.copyWith(isFavorite: !(p.isFavorite));
+      notifyListeners();
+    }
+  }
+
 
   Future<void> fetchCategories() async {
     _areCategoriesLoading = true;
@@ -69,7 +85,9 @@ class ProductProvider with ChangeNotifier {
     _listError = null;
     notifyListeners();
     try {
-      final fetchedProducts = await _productService.getProducts(categoryId: _selectedCategoryId);
+      final fetchedProducts = await _productService.getProducts(
+        categoryId: categoryId,
+      );
       _products = fetchedProducts;
     } catch (e) {
       _listError = e.toString();
