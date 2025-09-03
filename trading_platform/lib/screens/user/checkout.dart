@@ -5,6 +5,7 @@ import 'package:first_flutter_project/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+
 import '../../providers/checkout_provider.dart';
 import '../../services/order_service.dart';
 import '../../widgets/FullBottomConcaveAppBarShape.dart';
@@ -27,10 +28,8 @@ class CheckoutScreen extends StatelessWidget {
 
     return ChangeNotifierProvider(
       create: (_) => CheckoutProvider(
-        orderService,
         addressService,
         authProvider,
-        cartProvider,
       ),
       child: Scaffold(
         // 用通用底色，避免 M3 專屬 API

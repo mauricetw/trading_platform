@@ -1,133 +1,115 @@
 import 'dart:math';
+import '../config/api_config.dart';
 import '../models/user/address.dart';
-import '../models/user/user.dart';
+import 'api_client.dart';
 import 'interfaces/address_service_interface.dart';
+import '../mock/data/mock_addresses.dart';
 
 class AddressService implements IAddressService {
-  final List<Address> _mockAddresses = [
-    Address(
-        id: 'addr1',
-        userId: 'mock_user_id',
-        recipientName: '張三',
-        phoneNumber: '0912345678',
-        country: '台灣',
-        province: '台北市',
-        city: '大安區',
-        district: '', // Some addresses might not have district
-        streetAddress1: '復興南路一段390號',
-        postalCode: '106',
-        isDefault: false),
-    Address(
-        id: 'addr2',
-        userId: 'mock_user_id',
-        recipientName: '李四',
-        phoneNumber: '0987654321',
-        country: '台灣',
-        province: '新北市',
-        city: '板橋區',
-        district: '',
-        streetAddress1: '文化路一段100號',
-        postalCode: '220',
-        isDefault: true),
-    Address(
-        id: 'addr3',
-        userId: 'another_user_id', // For testing different users
-        recipientName: '王五',
-        phoneNumber: '0922222222',
-        country: '台灣',
-        province: '高雄市',
-        city: '苓雅區',
-        streetAddress1: '三多四路21號',
-        postalCode: '802',
-        isDefault: true),
-  ];
+  final ApiClient _apiClient;
+  AddressService([ApiClient? apiClient]) : _apiClient = apiClient ?? ApiClient();
 
   Future<void> _simulateNetworkDelay() async {
-    await Future.delayed(Duration(milliseconds: Random().nextInt(800) + 200));
+    await Future.delayed(Duration(milliseconds: Random().nextInt(500) + 150));
+  }
+
+  @override
+  Future<List<Address>> getMyAddresses() async {
+    if (APIConfig.useMock) {
+      await _simulateNetworkDelay();
+      return List<Address>.from(mockAddresses); // ✅ 全是 Address
+    }
+    final json = await _apiClient.get('/addresses/me');
+    final List<dynamic> arr = json;
+    return arr.map((e) => Address.fromJson(e)).toList();
   }
 
   @override
   Future<List<Address>> getUserAddresses(String userId) async {
-    await _simulateNetworkDelay();
-    print('[AddressService] Mock: Getting addresses for user: $userId');
-    return _mockAddresses.where((addr) => addr.userId == userId).toList();
+    if (APIConfig.useMock) {
+      await _simulateNetworkDelay();
+      return mockAddresses.where((a) => a.userId == userId).toList();
+    }
+    final json = await _apiClient.get('/addresses', queryParams: {'user_id': userId});
+    final List<dynamic> arr = json;
+    return arr.map((e) => Address.fromJson(e)).toList();
   }
 
   @override
   Future<Address?> getDefaultAddress(String userId) async {
-    await _simulateNetworkDelay();
+    final list = await getUserAddresses(userId);
     try {
-      return _mockAddresses.firstWhere(
-              (addr) => addr.userId == userId && addr.isDefault == true);
-    } catch (e) {
-      return null; // No default address found
+      return list.firstWhere((a) => a.isDefault == true);
+    } catch (_) {
+      return null;
     }
   }
 
   @override
   Future<Address?> addAddress(String userId, Address addressData) async {
-    await _simulateNetworkDelay();
-    final newAddress = addressData.copyWith(
-      id: 'addr_new_${DateTime.now().millisecondsSinceEpoch}',
-      userId: userId, // Ensure userId is set
-    );
-    _mockAddresses.add(newAddress);
-    print('[AddressService] Mock: Added address: ${newAddress.id} for user $userId');
-    return newAddress;
+    if (APIConfig.useMock) {
+      await _simulateNetworkDelay();
+      final newAddr = addressData.copyWith(
+        id: 'addr_new_${DateTime.now().millisecondsSinceEpoch}',
+        userId: userId,
+      );
+      mockAddresses.add(newAddr);
+      return newAddr;
+    }
+    final json = await _apiClient.post('/addresses', body: addressData.toJson());
+    return Address.fromJson(json);
   }
 
   @override
   Future<Address?> updateAddress(String userId, Address addressData) async {
-    await _simulateNetworkDelay();
-    final index = _mockAddresses
-        .indexWhere((a) => a.id == addressData.id && a.userId == userId);
-    if (index != -1) {
-      // If updating the default status, ensure other addresses for this user are not default
-      if (addressData.isDefault) {
-        for (int i = 0; i < _mockAddresses.length; i++) {
-          if (_mockAddresses[i].userId == userId && _mockAddresses[i].id != addressData.id) {
-            _mockAddresses[i] = _mockAddresses[i].copyWith(isDefault: false);
+    if (APIConfig.useMock) {
+      await _simulateNetworkDelay();
+      final i = mockAddresses.indexWhere((a) => a.id == addressData.id && a.userId == userId);
+      if (i != -1) {
+        // 若設為預設，把其他的取消預設
+        if (addressData.isDefault) {
+          for (int k = 0; k < mockAddresses.length; k++) {
+            if (mockAddresses[k].userId == userId && mockAddresses[k].id != addressData.id) {
+              mockAddresses[k] = mockAddresses[k].copyWith(isDefault: false);
+            }
           }
         }
+        mockAddresses[i] = addressData.copyWith(userId: userId);
+        return mockAddresses[i];
       }
-      _mockAddresses[index] = addressData.copyWith(userId: userId); // Ensure userId is maintained
-      print('[AddressService] Mock: Updated address: ${addressData.id}');
-      return _mockAddresses[index];
+      return null;
     }
-    print('[AddressService] Mock: Update failed, address not found: ${addressData.id}');
-    return null;
+    final json = await _apiClient.put('/addresses/${addressData.id}', body: addressData.toJson());
+    return Address.fromJson(json);
   }
 
   @override
   Future<bool> deleteAddress(String userId, String addressId) async {
-    await _simulateNetworkDelay();
-    final initialLength = _mockAddresses.length;
-    _mockAddresses.removeWhere((a) => a.id == addressId && a.userId == userId);
-    final success = _mockAddresses.length < initialLength;
-    if (success) {
-      print('[AddressService] Mock: Deleted address: $addressId');
-    } else {
-      print('[AddressService] Mock: Delete failed, address not found or wrong user: $addressId');
+    if (APIConfig.useMock) {
+      await _simulateNetworkDelay();
+      final before = mockAddresses.length;
+      mockAddresses.removeWhere((a) => a.id == addressId && a.userId == userId);
+      return mockAddresses.length < before;
     }
-    return success;
+    await _apiClient.delete('/addresses/$addressId');
+    return true;
   }
 
   @override
   Future<bool> setDefaultAddress(String userId, String addressId) async {
-    await _simulateNetworkDelay();
-    int targetIndex = -1;
-    for(int i=0; i < _mockAddresses.length; i++){
-      if(_mockAddresses[i].userId == userId){
-        bool isTarget = _mockAddresses[i].id == addressId;
-        _mockAddresses[i] = _mockAddresses[i].copyWith(isDefault: isTarget);
-        if(isTarget) targetIndex = i;
+    if (APIConfig.useMock) {
+      await _simulateNetworkDelay();
+      bool found = false;
+      for (int i = 0; i < mockAddresses.length; i++) {
+        if (mockAddresses[i].userId == userId) {
+          final isTarget = mockAddresses[i].id == addressId;
+          mockAddresses[i] = mockAddresses[i].copyWith(isDefault: isTarget);
+          if (isTarget) found = true;
+        }
       }
+      return found;
     }
-    if (targetIndex != -1) {
-      print('[AddressService] Mock: Set address $addressId as default for user $userId.');
-      return true;
-    }
-    print('[AddressService] Mock: Failed to set $addressId as default (not found or wrong user).');
-    return false;
+    await _apiClient.post('/addresses/$addressId/set_default', body: {});
+    return true;
   }
 }

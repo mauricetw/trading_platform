@@ -80,10 +80,11 @@ void main() {
             },
           ),
           ChangeNotifierProxyProvider2<AuthProvider, CartProvider, CheckoutProvider>(
-            create: (_) => CheckoutProvider(orderService, addressService, null, null),
-            update: (_, auth, cart, previousCheckout) {
-              previousCheckout?.update(auth, cart);
-              return previousCheckout ?? CheckoutProvider(orderService, addressService, auth, cart);
+            create: (_) => CheckoutProvider(orderService, addressService),
+            update: (_, auth, cart, prev) {
+              final p = prev ?? CheckoutProvider(orderService, addressService);
+              p.update(auth, cart); // 每次注入最新的 auth / cart
+              return p;
             },
           ),
         ],

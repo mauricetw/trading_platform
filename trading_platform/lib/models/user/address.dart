@@ -1,11 +1,8 @@
+// lib/models/user/address.dart
 import 'package:json_annotation/json_annotation.dart';
-
 part 'address.g.dart';
 
-@JsonSerializable(
-  explicitToJson: true,
-  includeIfNull: false,
-)
+@JsonSerializable(explicitToJson: true, includeIfNull: false)
 class Address {
   final String id;
   final String? userId;
@@ -38,7 +35,6 @@ class Address {
   });
 
   factory Address.fromJson(Map<String, dynamic> json) => _$AddressFromJson(json);
-
   Map<String, dynamic> toJson() => _$AddressToJson(this);
 
   Address copyWith({
@@ -74,21 +70,17 @@ class Address {
   }
 
   String get displayAddress {
-    List<String> parts = [];
-    // 您可以根據需要調整顯示的順序和包含的字段
-    if (country != null && country!.isNotEmpty) parts.add(country!);
-    if (province != null && province!.isNotEmpty) parts.add(province!);
-    if (city != null && city!.isNotEmpty) parts.add(city!);
-    if (district != null && district!.isNotEmpty) parts.add(district!);
-    if (streetAddress1 != null && streetAddress1!.isNotEmpty) parts.add(streetAddress1!);
-    if (streetAddress2 != null && streetAddress2!.isNotEmpty) parts.add(streetAddress2!);
-    if (postalCode != null && postalCode!.isNotEmpty) parts.add('($postalCode)'); // 郵編可以加括號
-    if (recipientName != null && recipientName!.isNotEmpty) parts.add('收件人: $recipientName');
-    if (phoneNumber != null && phoneNumber!.isNotEmpty) parts.add('電話: $phoneNumber');
-
-    return parts.where((part) => part.isNotEmpty).join(' ').trim();
+    final parts = <String>[
+      if (country?.isNotEmpty == true) country!,
+      if (province?.isNotEmpty == true) province!,
+      if (city?.isNotEmpty == true) city!,
+      if (district?.isNotEmpty == true) district!,
+      if (streetAddress1?.isNotEmpty == true) streetAddress1!,
+      if (streetAddress2?.isNotEmpty == true) streetAddress2!,
+      if (postalCode?.isNotEmpty == true) '($postalCode)',
+      if (recipientName?.isNotEmpty == true) '收件人: $recipientName',
+      if (phoneNumber?.isNotEmpty == true) '電話: $phoneNumber',
+    ];
+    return parts.join(' ').trim();
   }
-
-
 }
-
