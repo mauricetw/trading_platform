@@ -1,3 +1,4 @@
+// --- FILE: lib/screens/user/profile.dart ---
 import 'package:first_flutter_project/screens/settings/setting.dart';
 import 'package:flutter/material.dart';
 import 'package:first_flutter_project/models/user/user.dart';
@@ -201,7 +202,7 @@ class Profile extends StatelessWidget {
                         ),
                         shadows: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.25),
+                            color: Colors.black.withOpacity(0.25),
                             blurRadius: 10,
                             offset: const Offset(0, 5),
                           ),
@@ -219,7 +220,7 @@ class Profile extends StatelessWidget {
                         children: [
                           CircleAvatar(
                             radius: avatarRadius,
-                            backgroundColor: primaryCS.surfaceContainerHighest.withValues(alpha: 0.8),
+                            backgroundColor: primaryCS.surfaceContainerHighest.withOpacity(0.8),
                             backgroundImage: (user.avatarUrl != null && user.avatarUrl!.isNotEmpty)
                                 ? NetworkImage(user.avatarUrl!)
                                 : null,
@@ -242,8 +243,8 @@ class Profile extends StatelessWidget {
                                 ),
                               );
                             },
-                            splashColor: primaryCS.onPrimary.withValues(alpha: 0.12),
-                            highlightColor: primaryCS.onPrimary.withValues(alpha: 0.08),
+                            splashColor: primaryCS.onPrimary.withOpacity(0.12),
+                            highlightColor: primaryCS.onPrimary.withOpacity(0.08),
                             borderRadius: BorderRadius.circular(8.0),
                             child: Padding(
                               padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
@@ -370,10 +371,12 @@ class Profile extends StatelessWidget {
                             icon: Icons.inventory_2_outlined,
                             onPressed: () {
                               debugPrint('導航到：商品管理');
+                              // --- 關鍵修正：不再傳遞 currentUser 參數 ---
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => ProductManagementScreen(currentUser: currentUser),
+                                  // ProductManagementScreen 現在會透過 Provider 獲取所需資料
+                                  builder: (context) => const ProductManagementScreen(),
                                 ),
                               );
                             },

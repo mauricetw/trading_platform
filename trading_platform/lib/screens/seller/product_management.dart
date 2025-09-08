@@ -22,7 +22,7 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> with 
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    
+
     // REFACTORED: 確保 build 完成後再獲取資料，避免錯誤
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // 頁面初始化時，立即從後端獲取賣家的商品列表
@@ -131,9 +131,8 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> with 
         final activeProducts = allProducts.where((p) => p.status == "available").toList();
         final soldProducts = allProducts.where((p) => p.status != "available").toList(); // 假設非 available 即為已售出/下架
 
-        // REFACTORED: 更新 Tab 上的計數
-        _tabController.index = DefaultTabController.of(context).index;
-        
+        // --- 關鍵修正：已移除 `_tabController.index = DefaultTabController.of(context).index;` ---
+
         return Scaffold(
           backgroundColor: primaryCS.surfaceContainerHighest,
           appBar: AppBar(
@@ -169,13 +168,13 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> with 
           body: provider.isSellerListLoading && allProducts.isEmpty
               ? const Center(child: CircularProgressIndicator())
               : TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _buildProductList(allProducts),
-                    _buildProductList(activeProducts),
-                    _buildProductList(soldProducts),
-                  ],
-                ),
+            controller: _tabController,
+            children: [
+              _buildProductList(allProducts),
+              _buildProductList(activeProducts),
+              _buildProductList(soldProducts),
+            ],
+          ),
         );
       },
     );
@@ -231,10 +230,10 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> with 
                   width: 80, height: 80, color: Colors.grey[200],
                   child: product.imageUrls.isNotEmpty
                       ? Image.network(
-                          product.imageUrls.first,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Icon(Icons.image_not_supported, size: 32, color: Colors.grey[400]),
-                        )
+                    product.imageUrls.first,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Icon(Icons.image_not_supported, size: 32, color: Colors.grey[400]),
+                  )
                       : Icon(Icons.image, size: 32, color: Colors.grey[400]),
                 ),
               ),
@@ -263,9 +262,9 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> with 
                       ],
                     ),
                     const SizedBox(height: 4),
-                    if (product.description?.isNotEmpty == true)
+                    if (product.description.isNotEmpty)
                       Text(
-                        product.description!,
+                        product.description,
                         style: textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
                         maxLines: 2, overflow: TextOverflow.ellipsis,
                       ),
