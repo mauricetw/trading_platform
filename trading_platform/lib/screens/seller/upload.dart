@@ -39,6 +39,7 @@ class _ProductUploadPageState extends State<ProductUploadPage> {
   String _selectedCondition = '';
   String _selectedType = '';
 
+  // 這些列表現在只作為 UI 選項，不再用於資料提交
   final List<String> _conditions = ['全新', '近全新', '良好', '普通', '需要維修'];
   final List<String> _types = ['一般商品', '限時特價', '二手商品', '收藏品', '手作商品'];
 
@@ -54,7 +55,7 @@ class _ProductUploadPageState extends State<ProductUploadPage> {
     _priceController = TextEditingController();
     _originalPriceController = TextEditingController();
 
-    // REFACTORED: 確保 Provider 在 build 完成後才被呼叫
+    // REFACTORED: 確保 build 完成後才被呼叫
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // 頁面載入時，從 Provider 獲取最新的分類列表
       context.read<ProductProvider>().fetchCategories();
@@ -128,7 +129,6 @@ class _ProductUploadPageState extends State<ProductUploadPage> {
       return;
     }
     final picker = ImagePicker();
-    // 允許使用者一次選擇多張圖片，體驗更好
     final List<XFile> images = await picker.pickMultiImage(imageQuality: 80);
     if (images.isNotEmpty) {
       setState(() {
@@ -165,18 +165,17 @@ class _ProductUploadPageState extends State<ProductUploadPage> {
     try {
       final productProvider = context.read<ProductProvider>();
 
-      // CRITICAL FIX: 先上傳所有新選擇的本地圖片
+      // 1. 先上傳所有新選擇的本地圖片
       List<String> newImageUrls = [];
       for (final imageFile in _imageFiles) {
-        // 呼叫 Provider 的方法來上傳圖片
         final imageUrl = await productProvider.uploadProductImage(imageFile);
         newImageUrls.add(imageUrl);
       }
 
-      // 組合最終的圖片 URL 列表 (已存在的 + 新上傳的)
+      // 2. 組合最終的圖片 URL 列表
       final List<String> finalImageUrls = [..._imageUrls, ...newImageUrls];
 
-      // 準備要提交到後端的商品資料
+      // 3. 準備要提交到後端的商品資料
       final Map<String, dynamic> productData = {
         'name': _nameController.text.trim(),
         'description': _descriptionController.text.trim(),
@@ -185,10 +184,10 @@ class _ProductUploadPageState extends State<ProductUploadPage> {
         'stock_quantity': int.parse(_quantityController.text.trim()),
         'category_id': _selectedCategoryId,
         'tags': [_selectedCondition, _selectedType].where((t) => t.isNotEmpty).toList(),
-        'image_urls': finalImageUrls, // 使用最終的 URL 列表
+        'image_urls': finalImageUrls,
       };
 
-      // 根據是編輯模式還是新增模式，呼叫 Provider 的不同方法
+      // 4. 根據模式呼叫 Provider 的不同方法
       if (_isEditMode) {
         await productProvider.updateProduct(widget.productToEdit!.id, productData);
       } else {
@@ -197,7 +196,8 @@ class _ProductUploadPageState extends State<ProductUploadPage> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('商品${_isEditMode ? "更新" : "上傳"}成功！'), backgroundColor: Colors.green));
-        Navigator.pop(context, true); // 回傳 true，通知前一頁刷新
+        // 5. 回傳 true，通知前一頁刷新
+        Navigator.pop(context, true);
       }
 
     } catch (e) {
@@ -247,8 +247,7 @@ class _ProductUploadPageState extends State<ProductUploadPage> {
                 _buildSectionTitle('商品名稱'),
                 _buildProductNameSection(context),
                 SizedBox(height: spacing),
-
-                // CRITICAL FIX: 分類下拉選單現在從 Provider 動態獲取資料
+                
                 _buildSectionTitle('商品類別'),
                 _buildCategoryDropdownSection(context),
                 SizedBox(height: spacing),
@@ -290,10 +289,10 @@ class _ProductUploadPageState extends State<ProductUploadPage> {
                   ],
                 ),
                 SizedBox(height: spacing),
-
+                
                 _buildSectionTitle('原價 (選填)'),
                 _buildOriginalPriceSection(context),
-
+                
                 SizedBox(height: spacing * 2),
                 _buildActionButtons(context),
 
@@ -327,7 +326,7 @@ class _ProductUploadPageState extends State<ProductUploadPage> {
 
   Widget _buildImageUploadSection(BuildContext context) {
     double imageSize = MediaQuery.of(context).size.width < 360 ? 70 : 80;
-
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -433,7 +432,6 @@ class _ProductUploadPageState extends State<ProductUploadPage> {
   Widget _buildActionButtons(BuildContext context) {
     return Row(
       children: [
-        // 預覽按鈕已移除，以簡化流程，可根據需求加回
         Expanded(
           child: ElevatedButton.icon(
             icon: Icon(_isEditMode ? Icons.save_alt_outlined : Icons.upload_file_outlined, size: _getResponsiveFontSize(context, 18)),
@@ -482,19 +480,21 @@ class _ProductUploadPageState extends State<ProductUploadPage> {
     );
   }
 
-  // CRITICAL FIX: 動態獲取分類列表並綁定 ID
   Widget _buildCategoryDropdownSection(BuildContext context) {
     return Consumer<ProductProvider>(
       builder: (context, provider, child) {
         if (provider.areCategoriesLoading && provider.categories.isEmpty) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(child: Padding(
+            padding: EdgeInsets.all(8.0),
+            child: Text('正在載入分類...'),
+          ));
         }
         return _buildCustomDropdown<int>(
           context: context,
           hintText: '選擇商品所屬類別',
           prefixIcon: Icons.category_outlined,
           value: _selectedCategoryId,
-          items: provider.categories.map((category) {
+          items: provider.categories.map((Category category) {
             return DropdownMenuItem<int>(
               value: category.id,
               child: Text(category.name),
@@ -518,7 +518,7 @@ class _ProductUploadPageState extends State<ProductUploadPage> {
       validator: (value) => (value == null || value.isEmpty) ? '請選擇商品狀態' : null,
     );
   }
-
+  
   Widget _buildTypeDropdownSection(BuildContext context) {
     return _buildCustomDropdown<String>(
       context: context,
@@ -574,11 +574,12 @@ class _ProductUploadPageState extends State<ProductUploadPage> {
       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
       validator: (value) {
         if (value != null && value.isNotEmpty) {
-          final n = double.tryParse(value);
-          if (n == null || n <= 0) return '請輸入有效的原價';
+           final n = double.tryParse(value);
+           if (n == null || n <= 0) return '請輸入有效的原價';
         }
         return null;
       },
     );
   }
 }
+
