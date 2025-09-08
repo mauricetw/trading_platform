@@ -1,12 +1,15 @@
+// --- FILE: lib/screens/seller/product_management.dart ---
 import 'package:flutter/material.dart';
-import 'package:first_flutter_project/models/user/user.dart';
-import 'package:first_flutter_project/models/product/product.dart';
-import 'package:first_flutter_project/theme/app_theme.dart';
+import 'package:provider/provider.dart';
+
+import '../../models/product/product.dart';
+import '../../providers/product_provider.dart';
+import '../../theme/app_theme.dart';
+import './upload.dart'; // 引入上架頁面
 
 class ProductManagementScreen extends StatefulWidget {
-  final User currentUser;
-
-  const ProductManagementScreen({super.key, required this.currentUser});
+  // REFACTORED: 不再需要傳入 currentUser，因為 Provider 會處理使用者狀態
+  const ProductManagementScreen({super.key});
 
   @override
   State<ProductManagementScreen> createState() => _ProductManagementScreenState();
@@ -14,16 +17,17 @@ class ProductManagementScreen extends StatefulWidget {
 
 class _ProductManagementScreenState extends State<ProductManagementScreen> with TickerProviderStateMixin {
   late TabController _tabController;
-  List<Product> _allProducts = [];
-  List<Product> _activeProducts = [];
-  List<Product> _soldProducts = [];
-  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    _loadProducts();
+    
+    // REFACTORED: 確保 build 完成後再獲取資料，避免錯誤
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // 頁面初始化時，立即從後端獲取賣家的商品列表
+      _refreshProducts();
+    });
   }
 
   @override
@@ -32,169 +36,152 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> with 
     super.dispose();
   }
 
-  Future<void> _loadProducts() async {
-    setState(() {
-      _isLoading = true;
-    });
+  // REFACTORED: 抽離出刷新邏輯，方便下拉刷新和操作後刷新
+  Future<void> _refreshProducts() async {
+    // 使用 context.read 是因為我們只需要觸發一次，不需要監聽
+    // 加上 try-catch 可以在獲取失敗時顯示錯誤訊息
+    try {
+      await context.read<ProductProvider>().fetchSellerProducts();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('無法載入商品: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
 
-    // 模擬加載商品數據
-    await Future.delayed(const Duration(milliseconds: 800));
-
-    // 創建模擬商品數據
-    final List<Product> mockProducts = [];
-    final sellerId = widget.currentUser.id;
-
-    final sellerInfo = SellerInfo(
-      id: sellerId,
-      username: widget.currentUser.username,
-      avatarUrl: widget.currentUser.avatarUrl,
+  // REFACTORED: 導航邏輯現在會等待返回結果，並在需要時觸發刷新
+  Future<void> _navigateAndUpsertProduct({Product? productToEdit}) async {
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ProductUploadPage(
+          productToEdit: productToEdit,
+        ),
+      ),
     );
-
-    for (int i = 0; i < 12; i++) {
-      final now = DateTime.now();
-      final isActive = i % 3 != 0; // 約2/3為活躍商品
-
-      final product = Product(
-        id: sellerId * 1000 + i,
-        name: _getProductName(i),
-        description: _getProductDescription(i),
-        price: (200 + i * 50 + (i % 3) * 100).toDouble(),
-        originalPrice: (250 + i * 60 + (i % 3) * 120).toDouble(),
-        categoryId: (i % 5) + 1,
-        category: _getCategoryName(i % 5),
-        stockQuantity: isActive ? (i % 20 + 5) : 0,
-        status: isActive ? "available" : "sold",
-        imageUrls: [
-          'https://picsum.photos/seed/product_${sellerId}_${i}/400/300',
-          'https://picsum.photos/seed/product_${sellerId}_${i}_2/400/300',
-        ],
-        createdAt: now.subtract(Duration(days: i + 1, hours: i * 2)),
-        updatedAt: now.subtract(Duration(hours: i)),
-        salesCount: isActive ? 0 : (i * 2 + 3),
-        averageRating: isActive ? null : ((i % 40 + 30) / 10.0).clamp(3.0, 5.0),
-        reviewCount: isActive ? 0 : (i + 2),
-        tags: _getProductTags(i),
-        sellerId: sellerId,
-        seller: sellerInfo,
-        shippingInfo: null,
-        isFavorite: false,
-      );
-
-      mockProducts.add(product);
-    }
-
-    if (mounted) {
-      setState(() {
-        _allProducts = mockProducts;
-        _activeProducts = mockProducts.where((p) => p.status == "available").toList();
-        _soldProducts = mockProducts.where((p) => p.status == "sold").toList();
-        _isLoading = false;
-      });
+    // 如果從上傳/編輯頁面返回的結果是 true，表示有變更，需要刷新列表
+    if (result == true && mounted) {
+      _refreshProducts();
     }
   }
 
-  String _getProductName(int index) {
-    final names = [
-      '精品無線藍牙耳機',
-      '智能手機支架',
-      '便攜式充電寶',
-      '多功能筆記本',
-      '創意桌面收納盒',
-      '時尚手機殼',
-      '高品質數據線',
-      '迷你藍牙音響',
-      '實用鍵盤保護膜',
-      '舒適滑鼠墊',
-      '創新手機配件',
-      '精美文具套裝',
-    ];
-    return names[index % names.length];
+  // REFACTORED: 刪除邏輯現在呼叫 Provider
+  void _showDeleteConfirmation(Product product) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('確認刪除'),
+          content: Text('確定要刪除商品「${product.name}」嗎？\n此操作無法撤銷。'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('取消'),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(dialogContext); // 先關閉對話框
+                try {
+                  await context.read<ProductProvider>().deleteProduct(product.id);
+                  if(mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('${product.name} 已刪除'), backgroundColor: Colors.green),
+                    );
+                  }
+                } catch(e) {
+                  if(mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('刪除失敗: $e'), backgroundColor: Colors.red),
+                    );
+                  }
+                }
+              },
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('刪除'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
-  String _getProductDescription(int index) {
-    final descriptions = [
-      '高品質音響效果，舒適佩戴體驗，適合日常使用和運動時佩戴。',
-      '多角度調節，穩固支撐，適用於各種尺寸的手機和平板。',
-      '大容量電池，快速充電，輕巧便攜，是您出行的最佳伙伴。',
-      '優質紙張，精美裝幀，適合學習、工作和記錄生活點滴。',
-      '多格設計，整潔收納，讓您的桌面保持井然有序。',
-      '時尚設計，全面保護，精準開孔，不影響使用體驗。',
-      '優質材料，傳輸穩定，耐用性強，充電快速安全。',
-      '音質清晰，連接穩定，小巧便攜，隨時享受音樂。',
-      '透明材質，完美貼合，有效防塵防水，延長鍵盤使用壽命。',
-      '舒適手感，防滑底部，精美圖案，提升使用體驗。',
-      '創新設計，實用功能，讓您的數位生活更加便利。',
-      '精美包裝，品質優良，是學習和工作的好幫手。',
-    ];
-    return descriptions[index % descriptions.length];
-  }
-
-  String _getCategoryName(int index) {
-    final categories = ['數位配件', '文具用品', '生活用品', '手機配件', '辦公用品'];
-    return categories[index];
-  }
-
-  List<String> _getProductTags(int index) {
-    final allTags = [
-      ['熱銷', '推薦'],
-      ['新品', '限時優惠'],
-      ['精品', '高品質'],
-      ['實用', '創新'],
-      ['時尚', '潮流'],
-    ];
-    return allTags[index % allTags.length];
+  // REFACTORED: 切換狀態的邏輯也應透過 Provider 處理 (待新增)
+  void _toggleProductStatus(Product product) {
+    // TODO: 在 ProductProvider 中新增一個 updateProductStatus 的方法，
+    // 並在這裡呼叫它，以更新後端資料庫中的商品狀態。
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          product.status == "available"
+              ? '${product.name} 已下架 (功能待實現)'
+              : '${product.name} 已重新上架 (功能待實現)',
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme colorScheme = Theme.of(context).colorScheme;
-    final TextTheme textTheme = Theme.of(context).textTheme;
+    return Consumer<ProductProvider>(
+      builder: (context, provider, child) {
+        // REFACTORED: 動態計算不同狀態的商品列表
+        final allProducts = provider.sellerProducts;
+        final activeProducts = allProducts.where((p) => p.status == "available").toList();
+        final soldProducts = allProducts.where((p) => p.status != "available").toList(); // 假設非 available 即為已售出/下架
 
-    return Scaffold(
-      backgroundColor: primaryCS.surfaceContainerHighest,
-      appBar: AppBar(
-        title: const Text('商品管理'),
-        backgroundColor: primaryCS.primary,
-        foregroundColor: primaryCS.onPrimary,
-        centerTitle: true,
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: primaryCS.onPrimary,
-          unselectedLabelColor: primaryCS.onPrimary.withValues(alpha: 0.7),
-          indicatorColor: primaryCS.secondary,
-          tabs: [
-            Tab(text: '全部 (${_allProducts.length})'),
-            Tab(text: '上架中 (${_activeProducts.length})'),
-            Tab(text: '已售出 (${_soldProducts.length})'),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('新增商品功能開發中')),
-              );
-            },
+        // REFACTORED: 更新 Tab 上的計數
+        _tabController.index = DefaultTabController.of(context).index;
+        
+        return Scaffold(
+          backgroundColor: primaryCS.surfaceContainerHighest,
+          appBar: AppBar(
+            title: const Text('商品管理'),
+            backgroundColor: primaryCS.primary,
+            foregroundColor: primaryCS.onPrimary,
+            centerTitle: true,
+            bottom: TabBar(
+              controller: _tabController,
+              labelColor: primaryCS.onPrimary,
+              unselectedLabelColor: primaryCS.onPrimary.withOpacity(0.7),
+              indicatorColor: primaryCS.secondary,
+              tabs: [
+                Tab(text: '全部 (${allProducts.length})'),
+                Tab(text: '上架中 (${activeProducts.length})'),
+                Tab(text: '已售出/下架 (${soldProducts.length})'),
+              ],
+            ),
+            actions: [
+              // REFACTORED: AppBar 上的 "+" 按鈕現在可以正常導航
+              IconButton(
+                icon: const Icon(Icons.add_circle_outline),
+                tooltip: "上架新商品",
+                onPressed: () => _navigateAndUpsertProduct(),
+              ),
+              IconButton(
+                icon: const Icon(Icons.refresh),
+                tooltip: "重新整理",
+                onPressed: _refreshProducts,
+              ),
+            ],
           ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadProducts,
-          ),
-        ],
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : TabBarView(
-        controller: _tabController,
-        children: [
-          _buildProductList(_allProducts),
-          _buildProductList(_activeProducts),
-          _buildProductList(_soldProducts),
-        ],
-      ),
+          body: provider.isSellerListLoading && allProducts.isEmpty
+              ? const Center(child: CircularProgressIndicator())
+              : TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildProductList(allProducts),
+                    _buildProductList(activeProducts),
+                    _buildProductList(soldProducts),
+                  ],
+                ),
+        );
+      },
     );
   }
+
+  // --- 以下 UI Builder Widgets 保持您組員的設計 ---
 
   Widget _buildProductList(List<Product> products) {
     if (products.isEmpty) {
@@ -204,17 +191,13 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> with 
           children: [
             Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey),
             SizedBox(height: 16),
-            Text(
-              '暫無商品',
-              style: TextStyle(fontSize: 18, color: Colors.grey),
-            ),
+            Text('暫無商品', style: TextStyle(fontSize: 18, color: Colors.grey)),
           ],
         ),
       );
     }
-
     return RefreshIndicator(
-      onRefresh: _loadProducts,
+      onRefresh: _refreshProducts,
       child: ListView.builder(
         padding: const EdgeInsets.all(16.0),
         itemCount: products.length,
@@ -227,7 +210,6 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> with 
   }
 
   Widget _buildProductCard(Product product) {
-    final ColorScheme colorScheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
     final isActive = product.status == "available";
 
@@ -237,40 +219,26 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> with 
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: () {
-          _showProductOptions(product);
-        },
+        onTap: () => _showProductOptions(product),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 商品圖片
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: Container(
-                  width: 80,
-                  height: 80,
-                  color: Colors.grey[200],
+                  width: 80, height: 80, color: Colors.grey[200],
                   child: product.imageUrls.isNotEmpty
                       ? Image.network(
-                    product.imageUrls.first,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Icon(
-                      Icons.image_not_supported,
-                      size: 32,
-                      color: Colors.grey[400],
-                    ),
-                  )
-                      : Icon(
-                    Icons.image,
-                    size: 32,
-                    color: Colors.grey[400],
-                  ),
+                          product.imageUrls.first,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Icon(Icons.image_not_supported, size: 32, color: Colors.grey[400]),
+                        )
+                      : Icon(Icons.image, size: 32, color: Colors.grey[400]),
                 ),
               ),
               const SizedBox(width: 12),
-              // 商品信息
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -280,27 +248,16 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> with 
                         Expanded(
                           child: Text(
                             product.name,
-                            style: textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
+                            style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                            maxLines: 2, overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: isActive ? Colors.green : Colors.grey,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(color: isActive ? Colors.green : Colors.grey, borderRadius: BorderRadius.circular(12)),
                           child: Text(
-                            isActive ? '上架中' : '已售完',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
+                            isActive ? '上架中' : '已售完/下架',
+                            style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
                           ),
                         ),
                       ],
@@ -309,70 +266,29 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> with 
                     if (product.description?.isNotEmpty == true)
                       Text(
                         product.description!,
-                        style: textTheme.bodySmall?.copyWith(
-                          color: Colors.grey[600],
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                        style: textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
+                        maxLines: 2, overflow: TextOverflow.ellipsis,
                       ),
                     const SizedBox(height: 8),
                     Row(
                       children: [
                         Text(
                           'NT\$ ${product.price.toStringAsFixed(0)}',
-                          style: textTheme.titleSmall?.copyWith(
-                            color: primaryCS.primary,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: textTheme.titleSmall?.copyWith(color: primaryCS.primary, fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(width: 8),
-                        if (product.originalPrice != null &&
-                            product.originalPrice! > product.price)
+                        if (product.originalPrice != null && product.originalPrice! > product.price)
                           Text(
                             'NT\$ ${product.originalPrice!.toStringAsFixed(0)}',
-                            style: textTheme.bodySmall?.copyWith(
-                              color: Colors.grey,
-                              decoration: TextDecoration.lineThrough,
-                            ),
+                            style: textTheme.bodySmall?.copyWith(color: Colors.grey, decoration: TextDecoration.lineThrough),
                           ),
                         const Spacer(),
                         if (isActive)
-                          Text(
-                            '庫存: ${product.stockQuantity}',
-                            style: textTheme.bodySmall?.copyWith(
-                              color: Colors.grey[600],
-                            ),
-                          )
+                          Text('庫存: ${product.stockQuantity}', style: textTheme.bodySmall?.copyWith(color: Colors.grey[600]))
                         else
-                          Text(
-                            '已售: ${product.salesCount}',
-                            style: textTheme.bodySmall?.copyWith(
-                              color: Colors.grey[600],
-                            ),
-                          ),
+                          Text('已售: ${product.salesCount}', style: textTheme.bodySmall?.copyWith(color: Colors.grey[600])),
                       ],
                     ),
-                    const SizedBox(height: 4),
-                    if (product.tags != null && product.tags!.isNotEmpty)
-                      Wrap(
-                        spacing: 4,
-                        children: product.tags!.take(2).map((tag) => Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: primaryCS.secondary.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            tag,
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: primaryCS.secondary,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        )).toList(),
-                      ),
                   ],
                 ),
               ),
@@ -386,29 +302,18 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> with 
   void _showProductOptions(Product product) {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (BuildContext context) {
         return Container(
           padding: const EdgeInsets.all(20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
+              Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
               const SizedBox(height: 20),
               Text(
                 product.name,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 20),
@@ -417,24 +322,11 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> with 
                 title: '編輯商品',
                 onTap: () {
                   Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('編輯功能開發中')),
-                  );
+                  _navigateAndUpsertProduct(productToEdit: product);
                 },
               ),
               _buildOptionTile(
-                icon: Icons.visibility,
-                title: '查看商品頁面',
-                onTap: () {
-                  Navigator.pop(context);
-                  // 這裡可以導航到商品詳情頁
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('查看商品: ${product.name}')),
-                  );
-                },
-              ),
-              _buildOptionTile(
-                icon: product.status == "available" ? Icons.pause : Icons.play_arrow,
+                icon: product.status == "available" ? Icons.pause_circle_outline : Icons.play_circle_outline,
                 title: product.status == "available" ? '下架商品' : '重新上架',
                 onTap: () {
                   Navigator.pop(context);
@@ -442,7 +334,7 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> with 
                 },
               ),
               _buildOptionTile(
-                icon: Icons.delete,
+                icon: Icons.delete_outline,
                 title: '刪除商品',
                 textColor: Colors.red,
                 onTap: () {
@@ -458,59 +350,13 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> with 
     );
   }
 
-  Widget _buildOptionTile({
-    required IconData icon,
-    required String title,
-    required VoidCallback onTap,
-    Color? textColor,
-  }) {
+  Widget _buildOptionTile({ required IconData icon, required String title, required VoidCallback onTap, Color? textColor }) {
     return ListTile(
-      leading: Icon(icon, color: textColor),
+      leading: Icon(icon, color: textColor ?? Theme.of(context).colorScheme.primary),
       title: Text(title, style: TextStyle(color: textColor)),
       onTap: onTap,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
     );
   }
-
-  void _toggleProductStatus(Product product) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          product.status == "available"
-              ? '${product.name} 已下架'
-              : '${product.name} 已重新上架',
-        ),
-      ),
-    );
-    // 這裡實際應該調用 API 更新商品狀態
-  }
-
-  void _showDeleteConfirmation(Product product) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('確認刪除'),
-          content: Text('確定要刪除商品「${product.name}」嗎？\n此操作無法撤銷。'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('取消'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('${product.name} 已刪除')),
-                );
-                // 這裡實際應該調用 API 刪除商品
-              },
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
-              child: const Text('刪除'),
-            ),
-          ],
-        );
-      },
-    );
-  }
 }
+
