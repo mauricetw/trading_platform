@@ -36,6 +36,7 @@ class ApiClient {
     return headers;
   }
 
+  // --- 強化 _handleResponse 以解析 FastAPI 的驗證錯誤 ---
   dynamic _handleResponse(http.Response response) {
     // 檢查 body 是否為空，避免解碼錯誤
     if (response.body.isEmpty) {
@@ -45,11 +46,28 @@ class ApiClient {
         throw ApiException('伺服器回應為空', response.statusCode);
       }
     }
+
     final responseBody = jsonDecode(utf8.decode(response.bodyBytes));
+
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return responseBody;
     } else {
-      throw ApiException(responseBody['detail'] ?? 'API 請求失敗', response.statusCode);
+      // --- 錯誤處理邏輯 ---
+      String errorMessage = 'API 請求失敗';
+      final detail = responseBody['detail'];
+
+      if (detail is String) {
+        // 如果 'detail' 是字串，直接使用
+        errorMessage = detail;
+      } else if (detail is List && detail.isNotEmpty) {
+        // 如果 'detail' 是列表 (FastAPI 驗證錯誤)，提取第一條錯誤訊息
+        final firstError = detail[0] as Map<String, dynamic>;
+        final field = (firstError['loc'] as List).last; // 獲取欄位名
+        final msg = firstError['msg']; // 獲取錯誤訊息
+        errorMessage = '欄位 "$field": $msg';
+      }
+
+      throw ApiException(errorMessage, response.statusCode);
     }
   }
 

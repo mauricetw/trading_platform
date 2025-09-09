@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/product/product.dart';
+import '../models/product/category.dart';
 import '../providers/product_provider.dart';
-import '../widgets/filter_options.dart'; // 確保 FilterOptionsWidget 路徑正確
-import 'home_page.dart'; // 我們將重用 HomePage 中的 _ProductCard Widget
+import '../widgets/filter_options.dart';
+import 'product.dart'; // 引入商品詳情頁
+import 'package:intl/intl.dart'; // 用於格式化價格
 
 class SearchPage extends StatefulWidget {
   final String? searchText;
@@ -20,28 +22,26 @@ class SearchPage extends StatefulWidget {
 class _SearchPageState extends State<SearchPage> {
   final TextEditingController _searchController = TextEditingController();
   Timer? _debounce;
-  // 本地狀態，用於管理篩選條件
-  // 注意：這裡的篩選是純 UI 狀態，最終會傳遞給 Provider
   FilterOptions _activeFilters = const FilterOptions();
 
   @override
   void initState() {
     super.initState();
 
-    final productProvider = Provider.of<ProductProvider>(context, listen: false);
+    final productProvider = context.read<ProductProvider>();
 
     if (widget.searchText != null && widget.searchText!.trim().isNotEmpty) {
       _searchController.text = widget.searchText!;
-      // 頁面載入時，如果帶有初始搜尋文字，立即執行一次搜尋
-      // 注意：目前 ProductProvider.fetchProducts 不支援搜尋參數
-      // 這裡先載入所有產品，然後在本地進行篩選
-      productProvider.fetchProducts();
-    } else {
-      // 載入所有產品
-      productProvider.fetchProducts();
     }
 
-    // 監聽文字框的變化以實現防抖搜尋
+    // 頁面載入時，立即執行一次搜尋 (可能是空搜尋，即載入所有商品)
+    _performSearch();
+
+    // 確保分類列表已載入
+    if (productProvider.categories.isEmpty) {
+      productProvider.fetchCategories();
+    }
+
     _searchController.addListener(_onSearchChanged);
   }
 
@@ -61,27 +61,19 @@ class _SearchPageState extends State<SearchPage> {
     });
   }
 
-  /// 執行搜尋的核心方法
+  /// REFACTORED: 執行搜尋的核心方法，現在會將所有條件傳遞給 Provider
   Future<void> _performSearch() async {
     final provider = context.read<ProductProvider>();
-    // 移除未使用的變數 queryText
 
-    // 從篩選器中獲取 categoryId
     final categoryName = _activeFilters.categories.isNotEmpty ? _activeFilters.categories.first : null;
-    final categoryId = _getCategoryIdByName(categoryName);
+    final categoryId = _getCategoryIdByName(categoryName, provider.categories);
+    final searchQuery = _searchController.text.trim();
 
-    // 根據 ProductProvider 的實際能力調整
-    // 目前只支援按分類篩選，搜尋功能需要在本地實現
-    if (categoryId != null) {
-      // 按分類篩選
-      provider.filterByCategory(categoryId);
-    } else {
-      // 載入所有產品（清除分類篩選）
-      provider.fetchProducts();
-    }
-
-    // 注意：文字搜尋目前在 UI 層進行本地篩選
-    // 如果需要後端搜尋，需要擴展 ProductProvider 和 ProductService
+    // 呼叫 Provider 的 fetchProducts，並傳入所有篩選條件
+    provider.fetchProducts(
+      categoryId: categoryId,
+      searchQuery: searchQuery,
+    );
   }
 
   /// 顯示篩選器 BottomSheet
@@ -97,12 +89,21 @@ class _SearchPageState extends State<SearchPage> {
       },
     );
 
-    if (selectedFilters != null && selectedFilters != _activeFilters) {
+    if (selectedFilters != null) { // 即使沒有改變也應重新整理
       setState(() {
         _activeFilters = selectedFilters;
       });
-      // 套用篩選後，立即重新執行搜尋
       _performSearch();
+    }
+  }
+
+  // REFACTORED: 輔助函式現在從 Provider 獲取分類列表
+  int? _getCategoryIdByName(String? name, List<Category> categories) {
+    if (name == null) return null;
+    try {
+      return categories.firstWhere((c) => c.name == name).id;
+    } catch (e) {
+      return null;
     }
   }
 
@@ -124,24 +125,17 @@ class _SearchPageState extends State<SearchPage> {
       ),
       body: Column(
         children: <Widget>[
-          _buildActiveFiltersDisplay(), // 顯示當前激活的篩選條件
+          _buildActiveFiltersDisplay(),
           Expanded(
-            // 使用 Consumer 來監聽 Provider 的狀態變化並重建 UI
             child: Consumer<ProductProvider>(
               builder: (context, provider, child) {
-                if (provider.isListLoading) {
+                if (provider.isListLoading && provider.products.isEmpty) {
                   return const Center(child: CircularProgressIndicator());
                 }
                 if (provider.listError != null) {
                   return Center(child: Text('發生錯誤: ${provider.listError}'));
                 }
                 if (provider.products.isEmpty) {
-                  // 檢查是否正在載入或有錯誤
-                  if (provider.isListLoading) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-
-                  // 根據是否有搜尋詞或篩選條件，顯示不同的提示
                   final bool hasInput = _searchController.text.trim().isNotEmpty || _activeFilters.categories.isNotEmpty;
                   return Center(
                     child: Column(
@@ -159,26 +153,8 @@ class _SearchPageState extends State<SearchPage> {
                   );
                 }
 
-                // 檢查搜尋結果是否為空
-                final filteredProducts = _filterProductsBySearch(provider.products);
-                if (filteredProducts.isEmpty && _searchController.text.trim().isNotEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.sentiment_dissatisfied_outlined, size: 60, color: Colors.grey),
-                        const SizedBox(height: 16),
-                        Text(
-                          '找不到符合 "${_searchController.text.trim()}" 的商品',
-                          style: const TextStyle(fontSize: 18, color: Colors.grey),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  );
-                }
-                // 如果有資料，則顯示結果列表（包含本地搜尋篩選）
-                return _buildResultsList(_filterProductsBySearch(provider.products));
+                // REFACTORED: 不再需要本地篩選，直接顯示 Provider 的結果
+                return _buildResultsList(provider.products);
               },
             ),
           ),
@@ -187,31 +163,12 @@ class _SearchPageState extends State<SearchPage> {
     );
   }
 
-  // 新增：本地搜尋篩選方法
-  List<Product> _filterProductsBySearch(List<Product> allProducts) {
-    final queryText = _searchController.text.trim().toLowerCase();
-
-    if (queryText.isEmpty) {
-      return allProducts;
-    }
-
-    return allProducts.where((product) {
-      // 在產品名稱、描述、分類中搜尋
-      return product.name.toLowerCase().contains(queryText) ||
-          product.description.toLowerCase().contains(queryText) ||
-          product.category.toLowerCase().contains(queryText) ||
-          // 修正：完整的 null 檢查
-          (product.tags != null && product.tags!.isNotEmpty &&
-              product.tags!.any((tag) => tag.toLowerCase().contains(queryText)));
-    }).toList();
-  }
-
-  // --- UI 元件 (主要採用組員版本的美化設計) ---
+  // --- UI 元件 ---
 
   Widget _buildSearchBar() {
     return TextField(
       controller: _searchController,
-      autofocus: true,
+      autofocus: widget.searchText == null, // 如果有初始文字則不自動聚焦
       decoration: InputDecoration(
         hintText: '搜尋商品...',
         border: InputBorder.none,
@@ -248,124 +205,86 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   Widget _buildResultsList(List<Product> results) {
-    // 修正：如果 _ProductsGrid 不存在，創建一個簡單的網格佈局
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: ProductsGrid(products: results), // 移除底線前綴，使用公開的 widget
-      ),
-    );
-  }
-
-  // 輔助函式，根據分類名稱找到對應的 ID
-  int? _getCategoryIdByName(String? name) {
-    if (name == null) return null;
-    try {
-      // _categories 來自 home_page.dart，為了方便我們在這裡重新定義
-      final categories = [
-        Category(id: 1, name: '書籍文具', icon: '📚', count: 0),
-        Category(id: 2, name: '電子產品', icon: '📱', count: 0),
-        Category(id: 3, name: '服裝配件', icon: '👕', count: 0),
-        Category(id: 4, name: '家居用品', icon: '🏠', count: 0),
-        Category(id: 5, name: '美容保健', icon: '💄', count: 0),
-        Category(id: 6, name: '運動戶外', icon: '⚽', count: 0),
-      ];
-      return categories.firstWhere((c) => c.name == name).id;
-    } catch (e) {
-      return null;
-    }
-  }
-}
-
-// 如果 home_page.dart 中的 _ProductsGrid 是私有的，需要創建一個公開版本
-class ProductsGrid extends StatelessWidget {
-  final List<Product> products;
-
-  const ProductsGrid({super.key, required this.products});
-
-  @override
-  Widget build(BuildContext context) {
     return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(16.0),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
         childAspectRatio: 0.7,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
       ),
-      itemCount: products.length,
+      itemCount: results.length,
       itemBuilder: (context, index) {
-        return ProductCard(product: products[index]); // 使用公開的 ProductCard
+        return ProductCard(product: results[index]);
       },
     );
   }
 }
 
-// 如果 home_page.dart 中的 ProductCard 是私有的，需要創建一個公開版本
+// --- 共用 Widget ---
+// 為了避免循環依賴，將 ProductCard 放在這裡或一個共用的 widgets 檔案
 class ProductCard extends StatelessWidget {
   final Product product;
-
   const ProductCard({super.key, required this.product});
+
+  String _formatPrice(double price) {
+    final formatCurrency = NumberFormat.currency(locale: "zh_TW", symbol: "NT\$", decimalDigits: 0);
+    return formatCurrency.format(price);
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 商品圖片
-          Expanded(
-            flex: 3,
-            child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-              child: product.imageUrls.isNotEmpty
-                  ? Image.network(
-                product.imageUrls.first,
+    return GestureDetector(
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ProductScreen(productId: product.id))),
+      child: Card(
+        elevation: 2,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              flex: 3,
+              child: Container(
                 width: double.infinity,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    color: Colors.grey[300],
-                    child: const Icon(Icons.image_not_supported, size: 50),
-                  );
-                },
-              )
-                  : Container(
-                color: Colors.grey[300],
-                child: const Icon(Icons.image, size: 50),
+                color: Colors.grey[200],
+                child: product.imageUrls.isNotEmpty
+                    ? Image.network(
+                  product.imageUrls.first,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => const Icon(Icons.image_not_supported, size: 50, color: Colors.grey),
+                )
+                    : const Icon(Icons.image, size: 50, color: Colors.grey),
               ),
             ),
-          ),
-          // 商品資訊
-          Expanded(
-            flex: 2,
-            child: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    product.name,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'NT\${product.price.toStringAsFixed(0)}',
-                    style: TextStyle(
-                      color: Theme.of(context).primaryColor,
-                      fontWeight: FontWeight.w600,
+            Expanded(
+              flex: 2,
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      product.name,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                ],
+                    Text(
+                      _formatPrice(product.price),
+                      style: TextStyle(
+                        color: Theme.of(context).primaryColor,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

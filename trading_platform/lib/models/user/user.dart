@@ -1,13 +1,18 @@
 // --- FILE: lib/models/user/user.dart ---
-
 import 'package:json_annotation/json_annotation.dart';
 
 part 'user.g.dart';
 
-@JsonSerializable(fieldRename: FieldRename.snake, explicitToJson: true)
+@JsonSerializable(
+    fieldRename: FieldRename.snake,
+    explicitToJson: true,
+    createFactory: false // 我們將手動實作 fromJson 工廠方法
+)
 class User {
-  // --- 基礎欄位 (與後端對齊) ---
+  // --- 基礎欄位 (已完整保留) ---
   final int id;
+  // --- 關鍵修正：透過 JsonKey，將後端的 'nickname' 對應到前端的 'username' ---
+  @JsonKey(name: 'nickname')
   final String username;
   final String email;
   final String? phoneNumber;
@@ -19,7 +24,7 @@ class User {
   final bool isVerified;
   final List<String> roles;
 
-  // --- 賣家相關屬性 ---
+  // --- 賣家相關屬性 (已完整保留) ---
   final bool isSeller;
   final String? sellerName;
   final String? sellerDescription;
@@ -27,11 +32,11 @@ class User {
   final double? buyerRating;
   final int productCount;
 
-  // --- 收藏狀態 ---
+  // --- 收藏狀態 (已完整保留) ---
   @JsonKey(defaultValue: [])
   final List<String> favoriteProductIds;
 
-  // --- 新增：公開資訊欄位 ---
+  // --- 公開資訊欄位 (已完整保留) ---
   final String? publicDisplayName;
   final String? publicBio;
   final String? publicCoverPhotoUrl;
@@ -57,20 +62,47 @@ class User {
     this.buyerRating,
     required this.productCount,
     this.favoriteProductIds = const [],
-    // 初始化新增的公開資訊欄位
     this.publicDisplayName,
     this.publicBio,
     this.publicCoverPhotoUrl,
     this.isSchoolPublic = false,
   });
 
-  // --- Helper getter ---
+  // --- Helper getter (已保留) ---
   String get effectivePublicDisplayName => publicDisplayName?.isNotEmpty == true ? publicDisplayName! : username;
 
-  factory User.fromJson(Map<String, dynamic> json) => _$UserFromJson(json);
+  // --- 關鍵修正：強化 fromJson 的空值處理能力 ---
+  factory User.fromJson(Map<String, dynamic> json) {
+    return User(
+      id: json['id'] as int? ?? 0,
+      username: json['nickname'] as String? ?? '未知使用者', // 從 nickname 讀取
+      email: json['email'] as String? ?? '',
+      registeredAt: json['registered_at'] != null ? DateTime.parse(json['registered_at'] as String) : DateTime.now(),
+      phoneNumber: json['phone_number'] as String?,
+      avatarUrl: json['avatar_url'] as String?,
+      lastLoginAt: json['last_login_at'] != null ? DateTime.parse(json['last_login_at'] as String) : null,
+      bio: json['bio'] as String?,
+      schoolName: json['school_name'] as String?,
+      isVerified: json['is_verified'] as bool? ?? false,
+      roles: (json['roles'] as List<dynamic>?)?.map((e) => e as String).toList() ?? ['user'],
+      isSeller: json['is_seller'] as bool? ?? false,
+      sellerName: json['seller_name'] as String?,
+      sellerDescription: json['seller_description'] as String?,
+      sellerRating: (json['seller_rating'] as num?)?.toDouble(),
+      buyerRating: (json['buyer_rating'] as num?)?.toDouble(),
+      productCount: json['product_count'] as int? ?? 0,
+      favoriteProductIds: (json['favorite_product_ids'] as List<dynamic>?)?.map((e) => e as String).toList() ?? [],
+      publicDisplayName: json['public_display_name'] as String?,
+      publicBio: json['public_bio'] as String?,
+      publicCoverPhotoUrl: json['public_cover_photo_url'] as String?,
+      isSchoolPublic: json['is_school_public'] as bool? ?? false,
+    );
+  }
+
+  /// toJson 方法會由 build_runner 自動產生
   Map<String, dynamic> toJson() => _$UserToJson(this);
 
-  // --- copyWith (合併後版本) ---
+  // --- copyWith (已完整保留) ---
   User copyWith({
     int? id,
     String? username,
@@ -121,3 +153,4 @@ class User {
     );
   }
 }
+

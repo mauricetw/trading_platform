@@ -4,17 +4,12 @@ import '../order/shipping_info.dart';
 
 part 'product.g.dart';
 
-/// ===============
-/// SellerInfo
-/// ===============
+// --- SellerInfo 模型 (維持不變) ---
 @JsonSerializable(fieldRename: FieldRename.snake)
 class SellerInfo {
   final int id;
-
-  /// 後端若用 nickname，可用 JsonKey 對應到 username
   @JsonKey(name: 'nickname')
   final String username;
-
   final String? avatarUrl;
 
   SellerInfo({
@@ -28,38 +23,24 @@ class SellerInfo {
   Map<String, dynamic> toJson() => _$SellerInfoToJson(this);
 }
 
-/// ===============
-/// Product
-/// ===============
-///
-/// - `description` 改為非空字串，UI 端不用再 `?? ''`
-/// - `fromJson` 做兼容：
-///   - category 可能是物件或分離欄位
-///   - images 可能是字串陣列或物件陣列（image_url/url）
-/// - `category` 僅供前端顯示（不輸出到後端）
+// --- Product 模型 ---
 @JsonSerializable(
-  fieldRename: FieldRename.snake,
-  explicitToJson: true,
-  createFactory: false, // 我們自訂 fromJson
+    fieldRename: FieldRename.snake,
+    explicitToJson: true,
+    createFactory: false // 我們將手動實作 fromJson 工廠方法
 )
 class Product {
   final int id;
   final String name;
-
-  /// 非空字串（給預設空字串）
-  final String description;
-
+  final String? description;
   final double price;
   final double? originalPrice;
-
   final int categoryId;
 
-  /// 只給前端顯示用；不輸出到後端
   @JsonKey(includeToJson: false)
   final String category;
 
   final List<String> imageUrls;
-
   final int stockQuantity;
   final String status;
   final int salesCount;
@@ -73,17 +54,15 @@ class Product {
 
   final ShippingInformation? shippingInfo;
 
-  /// 前端狀態，不參與序列化
   @JsonKey(includeFromJson: false, includeToJson: false)
   bool isFavorite;
 
-  /// 便利屬性
   bool get isSold => stockQuantity == 0 || status == 'sold';
 
   Product({
     required this.id,
     required this.name,
-    required this.description,
+    this.description,
     required this.price,
     this.originalPrice,
     required this.categoryId,
@@ -103,72 +82,50 @@ class Product {
     this.isFavorite = false,
   });
 
-  /// 自訂 fromJson：兼容多種後端輸出形態
+  // --- 關鍵修正：強化 fromJson 的空值處理能力 ---
   factory Product.fromJson(Map<String, dynamic> json) {
-    // 1) category 相容處理
-    int resolvedCategoryId = 0;
-    String resolvedCategoryName = '未分類';
-    final categoryData = json['category'];
-
-    if (categoryData is Map<String, dynamic>) {
-      resolvedCategoryId = categoryData['id'] as int? ?? 0;
-      resolvedCategoryName = categoryData['name'] as String? ?? '未分類';
-    } else {
-      // 後端可能直接給欄位
-      resolvedCategoryId = (json['category_id'] as int?) ?? 0;
-      resolvedCategoryName = (json['category_name'] as String?) ??
-          (json['category'] as String?) ??
-          '未分類';
-    }
-
-    // 2) images 相容處理：可能是 ["url", ...] 或 [{"image_url": "..."}] 或 {"url": "..."}
-    final rawImages = (json['images'] as List?) ?? const [];
-    final resolvedImageUrls = rawImages
-        .map((e) {
-      if (e is String) return e;
-      if (e is Map<String, dynamic>) {
-        return (e['image_url'] as String?) ??
-            (e['url'] as String?) ??
-            '';
-      }
-      return '';
-    })
-        .where((s) => s.isNotEmpty)
-        .toList();
+    final categoryData = json['category'] as Map<String, dynamic>? ?? {};
+    final imagesData = json['images'] as List<dynamic>? ?? [];
 
     return Product(
-      id: json['id'] as int,
-      name: json['name'] as String,
-      description: (json['description'] as String?) ?? '',
-      price: (json['price'] as num).toDouble(),
+      id: json['id'] as int? ?? 0,
+      name: json['name'] as String? ?? '無名稱商品',
+      description: json['description'] as String?,
+      price: (json['price'] as num? ?? 0).toDouble(),
       originalPrice: (json['original_price'] as num?)?.toDouble(),
-      categoryId: resolvedCategoryId,
-      category: resolvedCategoryName,
-      imageUrls: resolvedImageUrls,
-      stockQuantity: json['stock_quantity'] as int,
-      status: json['status'] as String,
-      salesCount: (json['sales_count'] as int?) ?? 0,
-      averageRating: (json['average_rating'] as num?)?.toDouble(),
-      reviewCount: (json['review_count'] as int?) ?? 0,
-      tags: (json['tags'] as List?)
-          ?.map((e) => e.toString())
+
+      categoryId: categoryData['id'] as int? ?? 0,
+      category: categoryData['name'] as String? ?? '未分類',
+
+      imageUrls: imagesData
+          .map((img) => (img as Map<String, dynamic>)['image_url'] as String?)
+          .where((url) => url != null)
+          .cast<String>()
           .toList(),
-      createdAt: DateTime.parse(json['created_at'] as String),
-      updatedAt: DateTime.parse(json['updated_at'] as String),
-      sellerId: json['seller_id'] as int,
-      seller: (json['seller'] is Map<String, dynamic>)
-          ? SellerInfo.fromJson(json['seller'] as Map<String, dynamic>)
-          : null,
-      shippingInfo: (json['shipping_info'] is Map<String, dynamic>)
-          ? ShippingInformation.fromJson(
-        json['shipping_info'] as Map<String, dynamic>,
-      )
-          : null,
-      isFavorite: (json['is_favorite'] as bool?) ?? false,
+
+      stockQuantity: json['stock_quantity'] as int? ?? 0,
+      status: json['status'] as String? ?? 'unknown',
+      salesCount: json['sales_count'] as int? ?? 0,
+      averageRating: (json['average_rating'] as num?)?.toDouble(),
+      reviewCount: json['review_count'] as int? ?? 0,
+      tags: (json['tags'] as List<dynamic>?)?.map((e) => e as String).toList(),
+
+      createdAt: json['created_at'] != null ? DateTime.parse(json['created_at'] as String) : DateTime.now(),
+      updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at'] as String) : DateTime.now(),
+
+      sellerId: json['seller_id'] as int? ?? 0,
+      seller: json['seller'] == null
+          ? null
+          : SellerInfo.fromJson(json['seller'] as Map<String, dynamic>),
+
+      shippingInfo: json['shipping_info'] == null
+          ? null
+          : ShippingInformation.fromJson(json['shipping_info'] as Map<String, dynamic>),
+
+      isFavorite: json['is_favorite'] as bool? ?? false,
     );
   }
 
-  /// toJson 仍交給 json_serializable 產生
   Map<String, dynamic> toJson() => _$ProductToJson(this);
 
   Product copyWith({
@@ -202,8 +159,8 @@ class Product {
       categoryId: categoryId ?? this.categoryId,
       category: category ?? this.category,
       stockQuantity: stockQuantity ?? this.stockQuantity,
-      imageUrls: imageUrls ?? this.imageUrls,
       status: status ?? this.status,
+      imageUrls: imageUrls ?? this.imageUrls,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       salesCount: salesCount ?? this.salesCount,

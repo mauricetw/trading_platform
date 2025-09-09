@@ -16,6 +16,7 @@ class ProductProvider with ChangeNotifier {
   bool _isListLoading = false;
   String? _listError;
   int? _selectedCategoryId;
+  String _searchQuery = ''; // 新增：儲存當前的搜尋關鍵字
 
   List<Product> _sellerProducts = [];
   bool _isSellerListLoading = false;
@@ -32,6 +33,7 @@ class ProductProvider with ChangeNotifier {
   List<Product> get products => _products;
   bool get isListLoading => _isListLoading;
   int? get selectedCategoryId => _selectedCategoryId;
+  String get searchQuery => _searchQuery;
 
   List<Product> get sellerProducts => _sellerProducts;
   bool get isSellerListLoading => _isSellerListLoading;
@@ -80,13 +82,17 @@ class ProductProvider with ChangeNotifier {
     }
   }
 
-  Future<void> fetchProducts({int? categoryId}) async {
+  Future<void> fetchProducts({int? categoryId, String? searchQuery}) async {
     _isListLoading = true;
     _listError = null;
+    _selectedCategoryId = categoryId; // 更新當前選擇的分類
+    _searchQuery = searchQuery ?? ''; // 更新當前的搜尋關鍵字
     notifyListeners();
+
     try {
       final fetchedProducts = await _productService.getProducts(
-        categoryId: categoryId,
+        categoryId: _selectedCategoryId,
+        search: _searchQuery, // 將搜尋關鍵字傳遞給 service
       );
       _products = fetchedProducts;
     } catch (e) {

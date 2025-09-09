@@ -252,7 +252,9 @@ class _ProductScreenState extends State<ProductScreen> {
 
           Text('商品描述', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 8),
-          Text(product.description, style: Theme.of(context).textTheme.bodyMedium),
+          // --- 關鍵修正：加入空值處理 ---
+          // 使用 '??' 運算符，如果 description 是 null，就提供一個預設的空字串
+          Text(product.description ?? '暫無商品描述', style: Theme.of(context).textTheme.bodyMedium),
           const SizedBox(height: 20),
 
           Text('庫存: ${product.stockQuantity}', style: Theme.of(context).textTheme.bodyMedium),

@@ -6,41 +6,9 @@ part of 'user.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-User _$UserFromJson(Map<String, dynamic> json) => User(
-  id: (json['id'] as num).toInt(),
-  username: json['username'] as String,
-  email: json['email'] as String,
-  registeredAt: DateTime.parse(json['registered_at'] as String),
-  phoneNumber: json['phone_number'] as String?,
-  avatarUrl: json['avatar_url'] as String?,
-  lastLoginAt:
-      json['last_login_at'] == null
-          ? null
-          : DateTime.parse(json['last_login_at'] as String),
-  bio: json['bio'] as String?,
-  schoolName: json['school_name'] as String?,
-  isVerified: json['is_verified'] as bool,
-  roles: (json['roles'] as List<dynamic>).map((e) => e as String).toList(),
-  isSeller: json['is_seller'] as bool,
-  sellerName: json['seller_name'] as String?,
-  sellerDescription: json['seller_description'] as String?,
-  sellerRating: (json['seller_rating'] as num?)?.toDouble(),
-  buyerRating: (json['buyer_rating'] as num?)?.toDouble(),
-  productCount: (json['product_count'] as num).toInt(),
-  favoriteProductIds:
-      (json['favorite_product_ids'] as List<dynamic>?)
-          ?.map((e) => e as String)
-          .toList() ??
-      [],
-  publicDisplayName: json['public_display_name'] as String?,
-  publicBio: json['public_bio'] as String?,
-  publicCoverPhotoUrl: json['public_cover_photo_url'] as String?,
-  isSchoolPublic: json['is_school_public'] as bool? ?? false,
-);
-
 Map<String, dynamic> _$UserToJson(User instance) => <String, dynamic>{
   'id': instance.id,
-  'username': instance.username,
+  'nickname': instance.username,
   'email': instance.email,
   'phone_number': instance.phoneNumber,
   'avatar_url': instance.avatarUrl,
@@ -61,4 +29,5 @@ Map<String, dynamic> _$UserToJson(User instance) => <String, dynamic>{
   'public_bio': instance.publicBio,
   'public_cover_photo_url': instance.publicCoverPhotoUrl,
   'is_school_public': instance.isSchoolPublic,
+  'effective_public_display_name': instance.effectivePublicDisplayName,
 };

@@ -11,7 +11,7 @@ class ProductService {
   /// 獲取所有商品分類
   Future<List<Category>> getCategories() async {
     // 呼叫後端的 /categories API
-    final responseBody = await _apiClient.get('/categories');
+    final responseBody = await _apiClient.get('/products/categories');
     // 將回傳的 JSON 列表轉換為 Category 物件列表
     final List<dynamic> categoryListJson = responseBody;
     return categoryListJson.map((json) => Category.fromJson(json)).toList();

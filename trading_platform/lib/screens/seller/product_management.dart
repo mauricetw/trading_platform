@@ -180,7 +180,7 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> with 
     );
   }
 
-  // --- 以下 UI Builder Widgets 保持您組員的設計 ---
+  // --- 以下 UI Builder Widgets 保持設計 ---
 
   Widget _buildProductList(List<Product> products) {
     if (products.isEmpty) {
@@ -262,9 +262,10 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> with 
                       ],
                     ),
                     const SizedBox(height: 4),
-                    if (product.description.isNotEmpty)
+                    // --- 加入空值檢查 ---
+                    if (product.description != null && product.description!.isNotEmpty)
                       Text(
-                        product.description,
+                        product.description!, // 使用 '!' 斷言，因為前面已檢查過不為 null
                         style: textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
                         maxLines: 2, overflow: TextOverflow.ellipsis,
                       ),
