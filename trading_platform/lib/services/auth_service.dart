@@ -5,6 +5,11 @@ import '../models/auth/auth_response.dart';
 class AuthService {
   final String baseUrl = "http://10.0.2.2:8000";
 
+  /// 檢查HTTP狀態碼是否為成功
+  bool _isSuccessStatusCode(int statusCode) {
+    return statusCode >= 200 && statusCode < 300;
+  }
+
   /// 處理使用者登入
   ///
   /// 傳入使用者名稱/Email 和密碼，成功後回傳 AuthResponse。
@@ -20,7 +25,7 @@ class AuthService {
         }),
       );
 
-      if (response.statusCode == 200) {
+      if (_isSuccessStatusCode(response.statusCode)) {
         Map<String, dynamic> responseData = jsonDecode(utf8.decode(response.bodyBytes));
         return AuthResponse.fromJson(responseData);
       } else {
@@ -52,7 +57,7 @@ class AuthService {
         body: jsonEncode({'email': email}),
       );
 
-      if (response.statusCode == 200) {
+      if (_isSuccessStatusCode(response.statusCode)) {
         return; // 成功發送
       } else {
         final errorData = jsonDecode(utf8.decode(response.bodyBytes));
@@ -67,6 +72,8 @@ class AuthService {
   /// 處理使用者註冊
   ///
   /// 傳入使用者名稱、Email、密碼和驗證碼，成功後回傳 AuthResponse。
+  ///
+  /// **關鍵修復**: 現在接受所有2xx狀態碼（200-299），包括201 Created
   Future<AuthResponse> register(String username, String email, String password, String code) async {
     final url = Uri.parse('$baseUrl/auth/register');
     try {
@@ -81,7 +88,8 @@ class AuthService {
         }),
       );
 
-      if (response.statusCode == 200) {
+      // 修復：接受所有成功狀態碼 (200-299)，而不只是200
+      if (_isSuccessStatusCode(response.statusCode)) {
         Map<String, dynamic> responseData = jsonDecode(utf8.decode(response.bodyBytes));
         return AuthResponse.fromJson(responseData);
       } else {
@@ -112,7 +120,7 @@ class AuthService {
         body: jsonEncode({'login': identifier}),
       );
 
-      if (response.statusCode == 200) {
+      if (_isSuccessStatusCode(response.statusCode)) {
         final responseData = jsonDecode(utf8.decode(response.bodyBytes));
         return responseData['message'] ?? '驗證信發送成功';
       } else {
@@ -137,7 +145,7 @@ class AuthService {
         body: jsonEncode({'login': login, 'code': code}),
       );
 
-      if (response.statusCode == 200) {
+      if (_isSuccessStatusCode(response.statusCode)) {
         final responseData = jsonDecode(utf8.decode(response.bodyBytes));
         return responseData['reset_token'] ?? responseData['token'];
       } else {
@@ -165,8 +173,8 @@ class AuthService {
         }),
       );
 
-      if (response.statusCode == 200 || response.statusCode == 204) {
-        if (response.statusCode == 200 && response.body.isNotEmpty) {
+      if (_isSuccessStatusCode(response.statusCode)) {
+        if (response.body.isNotEmpty) {
           final responseData = jsonDecode(utf8.decode(response.bodyBytes));
           return responseData['message'] ?? '密碼重設成功';
         }

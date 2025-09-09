@@ -1,5 +1,5 @@
 // --- FILE: lib/screens/auth/sign_up.dart ---
-// (已整合 AuthProvider)
+// (已整合 AuthProvider 和修復所有編譯錯誤)
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -45,9 +45,9 @@ class _SignUpPageState extends State<SignUpPage> {
       );
       return;
     }
-    
+
     setState(() { _isSendingCode = true; });
-    
+
     try {
       await Provider.of<AuthProvider>(context, listen: false).sendVerificationCode(_emailController.text.trim());
       if (mounted) {
@@ -102,16 +102,82 @@ class _SignUpPageState extends State<SignUpPage> {
       );
 
       if (mounted) {
+        // 註冊成功 - 顯示成功訊息
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('註冊成功！請登入。'), backgroundColor: Colors.green),
+          const SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 8),
+                Text('註冊成功！已自動為您登入'),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
         );
-        // 註冊成功後，返回登入頁
-        Navigator.of(context).pop();
+
+        // 等待一下讓使用者看到成功訊息
+        await Future.delayed(const Duration(milliseconds: 800));
+
+        // 由於 AuthProvider 的 register 方法會自動呼叫 _handleAuthSuccess
+        // 使用者已經登入了，所以我們可以直接返回或導航到主頁
+        if (Navigator.canPop(context)) {
+          Navigator.of(context).pop(); // 返回登入頁面，但使用者已經登入
+          // 或者你可以導航到主頁面：
+          // Navigator.of(context).pushReplacementNamed('/home');
+        }
       }
     } catch (e) {
+      // 詳細的錯誤日誌，幫助除錯
+      print('註冊過程發生錯誤: $e');
+
       if (mounted) {
+        String errorMessage = '註冊過程中發生錯誤';
+        IconData errorIcon = Icons.error;
+
+        // 根據錯誤內容提供更精確的使用者提示
+        final errorString = e.toString().toLowerCase();
+
+        if (errorString.contains('email') || errorString.contains('信箱')) {
+          errorMessage = '電子信箱格式錯誤或已被使用';
+          errorIcon = Icons.email_outlined;
+        } else if (errorString.contains('code') || errorString.contains('驗證碼')) {
+          errorMessage = '驗證碼錯誤或已過期，請重新取得';
+          errorIcon = Icons.verified_user_outlined;
+        } else if (errorString.contains('username') || errorString.contains('用戶') || errorString.contains('使用者')) {
+          errorMessage = '用戶名稱已被使用，請選擇其他名稱';
+          errorIcon = Icons.person_outline;
+        } else if (errorString.contains('password') || errorString.contains('密碼')) {
+          errorMessage = '密碼格式不符合要求';
+          errorIcon = Icons.lock_outline;
+        } else if (errorString.contains('network') || errorString.contains('connection') || errorString.contains('連線')) {
+          errorMessage = '網路連接錯誤，請檢查網路後重試';
+          errorIcon = Icons.wifi_off;
+        } else if (errorString.contains('timeout') || errorString.contains('逾時')) {
+          errorMessage = '請求逾時，請稍後重試';
+          errorIcon = Icons.access_time;
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('註冊失敗: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(errorIcon, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(child: Text(errorMessage)),
+              ],
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+            action: SnackBarAction(
+              label: '確認',
+              textColor: Colors.white,
+              onPressed: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              },
+            ),
+          ),
         );
       }
     } finally {
