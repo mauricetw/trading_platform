@@ -1,7 +1,6 @@
-// --- FILE: lib/screens/announcement.dart ---
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../models/announcement/announcement.dart'; // 使用你原有的模型
+import '../models/announcement/announcement.dart';
 import '../providers/announcement_provider.dart';
 import 'announcement_detail.dart';
 import '../widgets/FullBottomConcaveAppBarShape.dart';
@@ -81,7 +80,7 @@ class AnnouncementListScreen extends StatelessWidget {
         itemCount: provider.announcements.length,
         itemBuilder: (context, index) {
           final announcement = provider.announcements[index];
-          final bool isRead = false;
+          final bool isRead = announcement.isRead == true;
           return Card(
             margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             elevation: 2,
@@ -112,7 +111,6 @@ class AnnouncementListScreen extends StatelessWidget {
   }
 
   String _getShortDescription(Announcement announcement) {
-    // 安全地獲取短描述，如果沒有就使用預設文字
     try {
       return announcement.shortDescription ?? '點擊查看詳情';
     } catch (e) {

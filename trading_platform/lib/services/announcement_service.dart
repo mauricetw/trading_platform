@@ -1,15 +1,21 @@
+import 'package:flutter/foundation.dart';
 import '../models/announcement/announcement.dart';
 import 'api_client.dart';
 
 class AnnouncementService {
   final ApiClient _apiClient;
+
   AnnouncementService(this._apiClient);
 
   /// 從後端獲取所有公告列表
   Future<List<Announcement>> getAnnouncements() async {
-    final responseBody = await _apiClient.get('/announcements');
-    final List<dynamic> announcementsJson = responseBody;
-    return announcementsJson.map((json) => Announcement.fromJson(json)).toList();
+    try {
+      final responseBody = await _apiClient.get('/announcements');
+      final List<dynamic> announcementsJson = responseBody;
+      return announcementsJson.map((json) => Announcement.fromJson(json)).toList();
+    } catch (e) {
+      throw Exception('獲取公告列表失敗：$e');
+    }
   }
 
   /// 根據ID獲取單個公告的詳情
@@ -18,7 +24,6 @@ class AnnouncementService {
       final responseBody = await _apiClient.get('/announcements/$id');
       return Announcement.fromJson(responseBody as Map<String, dynamic>);
     } catch (e) {
-      // 如果是 404 錯誤，返回 null
       if (e.toString().contains('404')) {
         return null;
       }
@@ -35,6 +40,9 @@ class AnnouncementService {
       );
       return true;
     } catch (e) {
+      if (kDebugMode) {
+        print('標記公告已讀失敗：$e');
+      }
       return false;
     }
   }
