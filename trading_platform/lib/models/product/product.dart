@@ -1,5 +1,6 @@
 // --- FILE: lib/models/product/product.dart ---
 import 'package:json_annotation/json_annotation.dart';
+import 'package:flutter/foundation.dart';
 import '../order/shipping_info.dart';
 
 part 'product.g.dart';
@@ -103,69 +104,166 @@ class Product {
     this.isFavorite = false,
   });
 
-  /// 自訂 fromJson：兼容多種後端輸出形態
+  /// 自訂 fromJson：兼容多種後端輸出形態，加強錯誤處理
   factory Product.fromJson(Map<String, dynamic> json) {
-    // 1) category 相容處理
-    int resolvedCategoryId = 0;
-    String resolvedCategoryName = '未分類';
-    final categoryData = json['category'];
+    try {
+      // 1) category 相容處理
+      int resolvedCategoryId = 0;
+      String resolvedCategoryName = '未分類';
+      final categoryData = json['category'];
 
-    if (categoryData is Map<String, dynamic>) {
-      resolvedCategoryId = categoryData['id'] as int? ?? 0;
-      resolvedCategoryName = categoryData['name'] as String? ?? '未分類';
-    } else {
-      // 後端可能直接給欄位
-      resolvedCategoryId = (json['category_id'] as int?) ?? 0;
-      resolvedCategoryName = (json['category_name'] as String?) ??
-          (json['category'] as String?) ??
-          '未分類';
-    }
-
-    // 2) images 相容處理：可能是 ["url", ...] 或 [{"image_url": "..."}] 或 {"url": "..."}
-    final rawImages = (json['images'] as List?) ?? const [];
-    final resolvedImageUrls = rawImages
-        .map((e) {
-      if (e is String) return e;
-      if (e is Map<String, dynamic>) {
-        return (e['image_url'] as String?) ??
-            (e['url'] as String?) ??
-            '';
+      if (categoryData is Map<String, dynamic>) {
+        resolvedCategoryId = categoryData['id'] as int? ?? 0;
+        resolvedCategoryName = categoryData['name'] as String? ?? '未分類';
+      } else {
+        // 後端可能直接給欄位
+        resolvedCategoryId = (json['category_id'] as int?) ?? 0;
+        resolvedCategoryName = (json['category_name'] as String?) ??
+            (json['category'] as String?) ??
+            '未分類';
       }
-      return '';
-    })
-        .where((s) => s.isNotEmpty)
-        .toList();
 
-    return Product(
-      id: json['id'] as int,
-      name: json['name'] as String,
-      description: (json['description'] as String?) ?? '',
-      price: (json['price'] as num).toDouble(),
-      originalPrice: (json['original_price'] as num?)?.toDouble(),
-      categoryId: resolvedCategoryId,
-      category: resolvedCategoryName,
-      imageUrls: resolvedImageUrls,
-      stockQuantity: json['stock_quantity'] as int,
-      status: json['status'] as String,
-      salesCount: (json['sales_count'] as int?) ?? 0,
-      averageRating: (json['average_rating'] as num?)?.toDouble(),
-      reviewCount: (json['review_count'] as int?) ?? 0,
-      tags: (json['tags'] as List?)
-          ?.map((e) => e.toString())
-          .toList(),
-      createdAt: DateTime.parse(json['created_at'] as String),
-      updatedAt: DateTime.parse(json['updated_at'] as String),
-      sellerId: json['seller_id'] as int,
-      seller: (json['seller'] is Map<String, dynamic>)
-          ? SellerInfo.fromJson(json['seller'] as Map<String, dynamic>)
-          : null,
-      shippingInfo: (json['shipping_info'] is Map<String, dynamic>)
-          ? ShippingInformation.fromJson(
-        json['shipping_info'] as Map<String, dynamic>,
-      )
-          : null,
-      isFavorite: (json['is_favorite'] as bool?) ?? false,
-    );
+      // 2) images 相容處理：可能是 ["url", ...] 或 [{"image_url": "..."}] 或 {"url": "..."}
+      final rawImages = (json['images'] as List?) ?? const [];
+      final resolvedImageUrls = rawImages
+          .map((e) {
+        if (e is String) return e;
+        if (e is Map<String, dynamic>) {
+          return (e['image_url'] as String?) ??
+              (e['url'] as String?) ??
+              '';
+        }
+        return '';
+      })
+          .where((s) => s.isNotEmpty)
+          .toList();
+
+      // 3) DateTime 安全解析
+      DateTime parseDateTime(dynamic dateValue, DateTime fallback) {
+        if (dateValue == null) return fallback;
+        if (dateValue is String) {
+          try {
+            return DateTime.parse(dateValue);
+          } catch (e) {
+            debugPrint('DateTime 解析失敗: $dateValue, 錯誤: $e');
+            return fallback;
+          }
+        }
+        return fallback;
+      }
+
+      final now = DateTime.now();
+
+      // 4) 數值安全轉換 - 修正版本
+      double safeDouble(dynamic value, double defaultValue) {
+        if (value == null) return defaultValue;
+        if (value is num) return value.toDouble();
+        if (value is String) {
+          return double.tryParse(value) ?? defaultValue;
+        }
+        return defaultValue;
+      }
+
+      double? safeNullableDouble(dynamic value) {
+        if (value == null) return null;
+        if (value is num) return value.toDouble();
+        if (value is String) {
+          return double.tryParse(value);
+        }
+        return null;
+      }
+
+      int safeInt(dynamic value, int defaultValue) {
+        if (value == null) return defaultValue;
+        if (value is num) return value.toInt();
+        if (value is String) {
+          return int.tryParse(value) ?? defaultValue;
+        }
+        return defaultValue;
+      }
+
+      // 5) 建立 Product 實例
+      return Product(
+        id: safeInt(json['id'], 0),
+        name: (json['name'] as String?) ?? '未知商品',
+        description: (json['description'] as String?) ?? '',
+        price: safeDouble(json['price'], 0.0),
+        originalPrice: safeNullableDouble(json['original_price']),
+        categoryId: resolvedCategoryId,
+        category: resolvedCategoryName,
+        imageUrls: resolvedImageUrls,
+        stockQuantity: safeInt(json['stock_quantity'], 0),
+        status: (json['status'] as String?) ?? 'unknown',
+        salesCount: safeInt(json['sales_count'], 0),
+        averageRating: safeNullableDouble(json['average_rating']),
+        reviewCount: safeInt(json['review_count'], 0),
+        tags: (json['tags'] as List?)
+            ?.map((e) => e.toString())
+            .where((s) => s.isNotEmpty)
+            .toList(),
+        createdAt: parseDateTime(json['created_at'], now),
+        updatedAt: parseDateTime(json['updated_at'], now),
+        sellerId: safeInt(json['seller_id'], 0),
+        seller: (json['seller'] is Map<String, dynamic>)
+            ? _safeSellerInfoFromJson(json['seller'] as Map<String, dynamic>)
+            : null,
+        shippingInfo: (json['shipping_info'] is Map<String, dynamic>)
+            ? _safeShippingInfoFromJson(json['shipping_info'] as Map<String, dynamic>)
+            : null,
+        isFavorite: (json['is_favorite'] as bool?) ?? false,
+      );
+    } catch (e, stackTrace) {
+      debugPrint('Product.fromJson 解析失敗:');
+      debugPrint('錯誤: $e');
+      debugPrint('原始 JSON: $json');
+      debugPrint('堆疊追蹤: $stackTrace');
+
+      // 返回一個最小可用的 Product 實例，避免完全失敗
+      return Product(
+        id: 0,
+        name: '解析失敗的商品',
+        description: '資料解析時發生錯誤',
+        price: 0.0,
+        categoryId: 0,
+        category: '未分類',
+        imageUrls: const [],
+        stockQuantity: 0,
+        status: 'error',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        salesCount: 0,
+        reviewCount: 0,
+        sellerId: 0,
+        isFavorite: false,
+      );
+    }
+  }
+
+  /// 安全的 SellerInfo 解析
+  static SellerInfo? _safeSellerInfoFromJson(Map<String, dynamic> json) {
+    try {
+      return SellerInfo.fromJson(json);
+    } catch (e) {
+      debugPrint('SellerInfo 解析失敗: $e');
+      // 嘗試手動建構
+      return SellerInfo(
+        id: (json['id'] as int?) ?? 0,
+        username: (json['username'] as String?) ??
+            (json['nickname'] as String?) ??
+            '未知賣家',
+        avatarUrl: json['avatar_url'] as String?,
+      );
+    }
+  }
+
+  /// 安全的 ShippingInformation 解析
+  static ShippingInformation? _safeShippingInfoFromJson(Map<String, dynamic> json) {
+    try {
+      return ShippingInformation.fromJson(json);
+    } catch (e) {
+      debugPrint('ShippingInformation 解析失敗: $e');
+      return null; // 運送資訊不是必要的，失敗時返回 null
+    }
   }
 
   /// toJson 仍交給 json_serializable 產生

@@ -65,7 +65,6 @@ class ProductProvider with ChangeNotifier {
     }
   }
 
-
   Future<void> fetchCategories() async {
     _areCategoriesLoading = true;
     notifyListeners();
@@ -73,7 +72,7 @@ class ProductProvider with ChangeNotifier {
       // 現在可以正確呼叫 _productService.getCategories()
       _categories = await _productService.getCategories();
     } catch (e) {
-      print("Failed to fetch categories: $e");
+      debugPrint("Failed to fetch categories: $e");
     } finally {
       _areCategoriesLoading = false;
       notifyListeners();
@@ -91,6 +90,7 @@ class ProductProvider with ChangeNotifier {
       _products = fetchedProducts;
     } catch (e) {
       _listError = e.toString();
+      debugPrint('獲取商品列表失敗: $e');
     } finally {
       _isListLoading = false;
       notifyListeners();
@@ -109,9 +109,25 @@ class ProductProvider with ChangeNotifier {
     notifyListeners();
 
     try {
+      debugPrint('開始獲取商品 ID: $productId');
       _selectedProduct = await _productService.getProductById(productId);
-    } catch (e) {
-      _detailError = e.toString();
+      debugPrint('成功獲取商品: ${_selectedProduct?.name}');
+    } catch (e, stackTrace) {
+      debugPrint('獲取商品詳情失敗:');
+      debugPrint('商品 ID: $productId');
+      debugPrint('錯誤: $e');
+      debugPrint('堆疊追蹤: $stackTrace');
+
+      // 提供更友好的錯誤訊息
+      if (e.toString().contains('FormatException')) {
+        _detailError = '商品資料格式錯誤，請稍後再試';
+      } else if (e.toString().contains('404')) {
+        _detailError = '找不到此商品，可能已被刪除';
+      } else if (e.toString().contains('network') || e.toString().contains('connection')) {
+        _detailError = '網路連接問題，請檢查網路狀態';
+      } else {
+        _detailError = '載入商品失敗: ${e.toString()}';
+      }
     } finally {
       _isDetailLoading = false;
       notifyListeners();
@@ -126,6 +142,7 @@ class ProductProvider with ChangeNotifier {
       _sellerProducts = await _productService.getMyProducts();
     } catch (e) {
       _sellerListError = e.toString();
+      debugPrint('獲取賣家商品失敗: $e');
     } finally {
       _isSellerListLoading = false;
       notifyListeners();
@@ -137,6 +154,7 @@ class ProductProvider with ChangeNotifier {
       final imageUrl = await _uploadService.uploadImage(imageFile);
       return imageUrl;
     } catch (e) {
+      debugPrint('上傳商品圖片失敗: $e');
       rethrow;
     }
   }
@@ -147,6 +165,7 @@ class ProductProvider with ChangeNotifier {
       _sellerProducts.insert(0, newProduct);
       notifyListeners();
     } catch (e) {
+      debugPrint('新增商品失敗: $e');
       rethrow;
     }
   }
@@ -164,6 +183,7 @@ class ProductProvider with ChangeNotifier {
       }
       notifyListeners();
     } catch (e) {
+      debugPrint('更新商品失敗: $e');
       rethrow;
     }
   }
@@ -179,6 +199,7 @@ class ProductProvider with ChangeNotifier {
     try {
       await _productService.deleteProduct(productId);
     } catch (e) {
+      debugPrint('刪除商品失敗: $e');
       if (backupSellerProduct != null && originalSellerIndex != -1) {
         _sellerProducts.insert(originalSellerIndex, backupSellerProduct);
       }
