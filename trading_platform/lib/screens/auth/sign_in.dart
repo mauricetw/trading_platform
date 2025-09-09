@@ -1,12 +1,13 @@
 // --- FILE: lib/screens/auth/sign_in.dart ---
 // (已整合 AuthProvider，並採用與註冊頁一致的 UI 風格)
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import 'forget_password.dart';
 
 class SignInPage extends StatefulWidget {
-  const SignInPage({Key? key}) : super(key: key);
+  const SignInPage({super.key});
 
   @override
   State<SignInPage> createState() => _SignInPageState();
@@ -39,15 +40,78 @@ class _SignInPageState extends State<SignInPage> {
         _passwordController.text.trim(),
       );
 
-      if (mounted) {
-        Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
-      }
+      // 修復：檢查 mounted 後再使用 context
+      if (!mounted) return;
+
+      // 登入成功 - 顯示歡迎訊息
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.white),
+              SizedBox(width: 8),
+              Text('登入成功！歡迎回來'),
+            ],
+          ),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 1),
+        ),
+      );
+
+      // 稍微延遲一下讓用戶看到成功訊息
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      if (!mounted) return;
+      Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
+
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('登入失敗: $e'), backgroundColor: Colors.red),
-        );
+      debugPrint('登入錯誤: $e');
+
+      if (!mounted) return;
+
+      String errorMessage = '登入失敗，請檢查您的帳號或密碼';
+      IconData errorIcon = Icons.error_outline;
+
+      // 根據錯誤類型提供更具體的提示
+      final errorString = e.toString().toLowerCase();
+
+      if (errorString.contains('user not found') || errorString.contains('用戶不存在') || errorString.contains('帳號')) {
+        errorMessage = '找不到此帳號，請檢查用戶名稱或使用Email登入';
+        errorIcon = Icons.person_search;
+      } else if (errorString.contains('password') || errorString.contains('密碼') || errorString.contains('incorrect')) {
+        errorMessage = '密碼錯誤，請重新輸入';
+        errorIcon = Icons.lock_outline;
+      } else if (errorString.contains('email') && errorString.contains('not verified')) {
+        errorMessage = 'Email尚未驗證，請檢查信箱完成驗證';
+        errorIcon = Icons.mark_email_unread;
+      } else if (errorString.contains('network') || errorString.contains('connection')) {
+        errorMessage = '網路連接錯誤，請檢查網路後重試';
+        errorIcon = Icons.wifi_off;
+      } else if (errorString.contains('server') || errorString.contains('伺服器')) {
+        errorMessage = '伺服器暫時無法回應，請稍後重試';
+        errorIcon = Icons.data_usage;
       }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(errorIcon, color: Colors.white),
+              const SizedBox(width: 8),
+              Expanded(child: Text(errorMessage)),
+            ],
+          ),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
+          action: SnackBarAction(
+            label: '確認',
+            textColor: Colors.white,
+            onPressed: () {
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            },
+          ),
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() { _isLoading = false; });
@@ -139,7 +203,7 @@ class _SignInPageState extends State<SignInPage> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  
+
                   // 忘記密碼
                   Center(
                     child: TextButton(
