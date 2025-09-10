@@ -6,27 +6,54 @@ import '../order/shipping_info.dart';
 part 'product.g.dart';
 
 /// ===============
-/// SellerInfo
+/// SellerInfo - 改進版
 /// ===============
 @JsonSerializable(fieldRename: FieldRename.snake)
 class SellerInfo {
   final int id;
 
-  /// 後端若用 nickname，可用 JsonKey 對應到 username
+  /// 使用 nullable String 並提供預設值
   @JsonKey(name: 'nickname')
-  final String username;
+  final String? _username;
 
   final String? avatarUrl;
 
+  // Getter 確保永遠不會返回 null
+  String get username => _username ?? '未知賣家';
+
   SellerInfo({
     required this.id,
-    required this.username,
+    String? username,
     this.avatarUrl,
-  });
+  }) : _username = username;
 
-  factory SellerInfo.fromJson(Map<String, dynamic> json) =>
-      _$SellerInfoFromJson(json);
-  Map<String, dynamic> toJson() => _$SellerInfoToJson(this);
+  factory SellerInfo.fromJson(Map<String, dynamic> json) {
+    try {
+      return SellerInfo(
+        id: (json['id'] as int?) ?? 0,
+        username: (json['nickname'] as String?) ??
+            (json['username'] as String?) ??
+            '未知賣家',
+        avatarUrl: json['avatar_url'] as String?,
+      );
+    } catch (e) {
+      debugPrint('SellerInfo.fromJson 錯誤: $e');
+      debugPrint('原始 JSON: $json');
+
+      // 返回安全的預設實例
+      return SellerInfo(
+        id: (json['id'] as int?) ?? 0,
+        username: '未知賣家',
+        avatarUrl: null,
+      );
+    }
+  }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'nickname': _username,
+    'avatar_url': avatarUrl,
+  };
 }
 
 /// ===============
@@ -107,6 +134,8 @@ class Product {
   /// 自訂 fromJson：兼容多種後端輸出形態，加強錯誤處理
   factory Product.fromJson(Map<String, dynamic> json) {
     try {
+      debugPrint('解析 Product JSON: ${json.toString()}'); // 調試用
+
       // 1) category 相容處理
       int resolvedCategoryId = 0;
       String resolvedCategoryName = '未分類';
@@ -183,7 +212,7 @@ class Product {
       }
 
       // 5) 建立 Product 實例
-      return Product(
+      final product = Product(
         id: safeInt(json['id'], 0),
         name: (json['name'] as String?) ?? '未知商品',
         description: (json['description'] as String?) ?? '',
@@ -212,6 +241,10 @@ class Product {
             : null,
         isFavorite: (json['is_favorite'] as bool?) ?? false,
       );
+
+      debugPrint('成功解析 Product: ${product.name}, ID: ${product.id}');
+      return product;
+
     } catch (e, stackTrace) {
       debugPrint('Product.fromJson 解析失敗:');
       debugPrint('錯誤: $e');
@@ -222,7 +255,7 @@ class Product {
       return Product(
         id: 0,
         name: '解析失敗的商品',
-        description: '資料解析時發生錯誤',
+        description: '資料解析時發生錯誤: $e',
         price: 0.0,
         categoryId: 0,
         category: '未分類',
@@ -242,9 +275,13 @@ class Product {
   /// 安全的 SellerInfo 解析
   static SellerInfo? _safeSellerInfoFromJson(Map<String, dynamic> json) {
     try {
+      debugPrint('解析 SellerInfo: $json');
       return SellerInfo.fromJson(json);
-    } catch (e) {
+    } catch (e, stackTrace) {
       debugPrint('SellerInfo 解析失敗: $e');
+      debugPrint('原始 JSON: $json');
+      debugPrint('堆疊追蹤: $stackTrace');
+
       // 嘗試手動建構
       return SellerInfo(
         id: (json['id'] as int?) ?? 0,

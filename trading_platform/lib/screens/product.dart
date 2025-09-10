@@ -100,10 +100,9 @@ class _ProductScreenState extends State<ProductScreen> {
   }
 
   void _navigateToSellerProfile(int sellerId) {
-    if (mounted) {
+    if (mounted && sellerId > 0) {
       Navigator.of(context).push(
         MaterialPageRoute(
-          // 修正：將 int 轉換為 String
           builder: (context) => PublicUserProfilePage(userId: sellerId.toString()),
         ),
       );
@@ -119,23 +118,65 @@ class _ProductScreenState extends State<ProductScreen> {
           if (productProvider.isDetailLoading) {
             return const Center(child: CircularProgressIndicator());
           }
+
           if (productProvider.detailError != null) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text('發生錯誤: ${productProvider.detailError}'),
-                  const SizedBox(height: 20),
-                  ElevatedButton(
+                  Icon(
+                    Icons.error_outline,
+                    size: 64,
+                    color: Colors.grey[400],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    '載入失敗',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
+                  const SizedBox(height: 8),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 32),
+                    child: Text(
+                      productProvider.detailError!,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton.icon(
                     onPressed: () => productProvider.fetchProductById(widget.productId),
-                    child: const Text('重試'),
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('重試'),
                   )
                 ],
               ),
             );
           }
+
           if (productProvider.selectedProduct == null) {
-            return const Center(child: Text('找不到商品資料'));
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.shopping_bag_outlined,
+                    size: 64,
+                    color: Colors.grey[400],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    '找不到商品資料',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('返回'),
+                  )
+                ],
+              ),
+            );
           }
 
           final product = productProvider.selectedProduct!;
@@ -156,16 +197,36 @@ class _ProductScreenState extends State<ProductScreen> {
           final product = provider.selectedProduct;
           if (product == null) return const SizedBox.shrink();
 
-          return Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: ElevatedButton.icon(
-              icon: const Icon(Icons.add_shopping_cart),
-              label: const Text('加入購物車'),
-              onPressed: product.isSold ? null : () => _addToCart(product),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 15),
-                textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                backgroundColor: product.isSold ? Colors.grey : Theme.of(context).primaryColor,
+          return Container(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).scaffoldBackgroundColor,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, -2),
+                ),
+              ],
+            ),
+            child: SafeArea(
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.add_shopping_cart),
+                label: Text(product.isSold ? '已售完' : '加入購物車'),
+                onPressed: product.isSold ? null : () => _addToCart(product),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  backgroundColor: product.isSold
+                      ? Colors.grey[300]
+                      : Theme.of(context).primaryColor,
+                  foregroundColor: product.isSold
+                      ? Colors.grey[600]
+                      : Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
               ),
             ),
           );
@@ -179,24 +240,96 @@ class _ProductScreenState extends State<ProductScreen> {
       expandedHeight: 300.0,
       pinned: true,
       floating: true,
+      backgroundColor: Colors.black,
       flexibleSpace: FlexibleSpaceBar(
-        title: Text(
+        title: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.6),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Text(
             product.name,
-            style: const TextStyle(fontSize: 16.0, color: Colors.white, shadows: [Shadow(blurRadius: 2.0)])
+            style: const TextStyle(
+              fontSize: 16.0,
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
-        background: product.imageUrls.isNotEmpty
-            ? Image.network(
-          product.imageUrls.first,
-          fit: BoxFit.cover,
-          errorBuilder: (c, e, s) => Container(color: Colors.grey, child: const Icon(Icons.image_not_supported, size: 50)),
-        )
-            : Container(color: Colors.grey),
+        background: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (product.imageUrls.isNotEmpty)
+              Image.network(
+                product.imageUrls.first,
+                fit: BoxFit.cover,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Container(
+                    color: Colors.grey[300],
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        value: loadingProgress.expectedTotalBytes != null
+                            ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                            : null,
+                      ),
+                    ),
+                  );
+                },
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    color: Colors.grey[300],
+                    child: const Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.image_not_supported, size: 50, color: Colors.grey),
+                        SizedBox(height: 8),
+                        Text('圖片載入失敗', style: TextStyle(color: Colors.grey)),
+                      ],
+                    ),
+                  );
+                },
+              )
+            else
+              Container(
+                color: Colors.grey[300],
+                child: const Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.image, size: 50, color: Colors.grey),
+                    SizedBox(height: 8),
+                    Text('暫無圖片', style: TextStyle(color: Colors.grey)),
+                  ],
+                ),
+              ),
+            // 漸層遮罩
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              height: 100,
+              child: Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.transparent, Colors.black54],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
       actions: [
         IconButton(
           icon: Icon(
             isFavorite ? Icons.favorite : Icons.favorite_border,
             color: isFavorite ? Colors.red : Colors.white,
+            size: 28,
           ),
           onPressed: () => _toggleFavorite(product),
         ),
@@ -210,57 +343,227 @@ class _ProductScreenState extends State<ProductScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text(
-            'NT\$ ${product.price.toStringAsFixed(0)}',
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: Theme.of(context).primaryColor,
-            ),
+          // 價格區域
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'NT\$ ${product.price.toStringAsFixed(0)}',
+                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).primaryColor,
+                      ),
+                    ),
+                    if (product.originalPrice != null && product.originalPrice! > product.price)
+                      Text(
+                        'NT\$ ${product.originalPrice!.toStringAsFixed(0)}',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          decoration: TextDecoration.lineThrough,
+                          color: Colors.grey,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _getStatusColor(product.status),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  _getStatusText(product.status),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
 
-          // 修正：根據 Product 模型顯示賣家資訊
-          if (product.seller != null)
-            Card(
-              child: ListTile(
-                leading: CircleAvatar(
-                  backgroundImage: product.seller!.avatarUrl != null && product.seller!.avatarUrl!.isNotEmpty
-                      ? NetworkImage(product.seller!.avatarUrl!)
-                      : null,
-                  child: product.seller!.avatarUrl == null || product.seller!.avatarUrl!.isEmpty
-                      ? const Icon(Icons.person)
-                      : null,
-                ),
-                title: Text(product.seller!.username),
-                trailing: const Icon(Icons.arrow_forward_ios),
-                onTap: () => _navigateToSellerProfile(product.seller!.id),
-              ),
-            )
-          else
-          // 如果沒有 seller 資訊，顯示 sellerId
-            Card(
-              child: ListTile(
-                leading: const CircleAvatar(
-                  child: Icon(Icons.person),
-                ),
-                title: Text('賣家 ID: ${product.sellerId}'),
-                trailing: const Icon(Icons.arrow_forward_ios),
-                onTap: () => _navigateToSellerProfile(product.sellerId),
-              ),
-            ),
-          const SizedBox(height: 20),
+          // 賣家資訊
+          _buildSellerCard(product),
+          const SizedBox(height: 24),
 
-          Text('商品描述', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 8),
-          Text(product.description, style: Theme.of(context).textTheme.bodyMedium),
-          const SizedBox(height: 20),
+          // 商品資訊
+          _buildProductInfo(context, product),
+          const SizedBox(height: 24),
 
-          Text('庫存: ${product.stockQuantity}', style: Theme.of(context).textTheme.bodyMedium),
-          const SizedBox(height: 10),
-          Text('狀態: ${_getStatusText(product.status)}', style: Theme.of(context).textTheme.bodyMedium),
+          // 商品描述
+          _buildDescription(context, product),
+
+          // 底部留白，避免被底部按鈕遮擋
+          const SizedBox(height: 80),
         ],
       ),
     );
+  }
+
+  Widget _buildSellerCard(Product product) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      child: ListTile(
+        contentPadding: const EdgeInsets.all(16),
+        leading: CircleAvatar(
+          radius: 24,
+          backgroundColor: Colors.grey[300],
+          backgroundImage: (product.seller?.avatarUrl?.isNotEmpty == true)
+              ? NetworkImage(product.seller!.avatarUrl!)
+              : null,
+          child: (product.seller?.avatarUrl?.isEmpty != false)
+              ? const Icon(Icons.person, size: 24)
+              : null,
+        ),
+        title: Text(
+          product.seller?.username ?? '賣家 ID: ${product.sellerId}',
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+        subtitle: Text('銷售 ${product.salesCount} 件商品'),
+        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+        onTap: () => _navigateToSellerProfile(product.sellerId),
+      ),
+    );
+  }
+
+  Widget _buildProductInfo(BuildContext context, Product product) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('商品資訊', style: Theme.of(context).textTheme.titleLarge),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.grey[50],
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Column(
+            children: [
+              _buildInfoRow('分類', product.category),
+              const Divider(height: 16),
+              _buildInfoRow('庫存', '${product.stockQuantity} 件'),
+              const Divider(height: 16),
+              _buildInfoRow('銷售數量', '${product.salesCount} 件'),
+              if (product.averageRating != null) ...[
+                const Divider(height: 16),
+                _buildInfoRow('評價', '${product.averageRating!.toStringAsFixed(1)} ⭐ (${product.reviewCount} 則評價)'),
+              ],
+              if (product.tags?.isNotEmpty == true) ...[
+                const Divider(height: 16),
+                _buildTagsRow('標籤', product.tags!),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 80,
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: Colors.grey,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(fontWeight: FontWeight.w500),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTagsRow(String label, List<String> tags) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 80,
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: Colors.grey,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: tags.map((tag) => Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Theme.of(context).primaryColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                tag,
+                style: TextStyle(
+                  color: Theme.of(context).primaryColor,
+                  fontSize: 12,
+                ),
+              ),
+            )).toList(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDescription(BuildContext context, Product product) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('商品描述', style: Theme.of(context).textTheme.titleLarge),
+        const SizedBox(height: 12),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.grey[50],
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            product.description.isNotEmpty ? product.description : '暫無商品描述',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              height: 1.6,
+              color: product.description.isNotEmpty ? null : Colors.grey,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'available':
+        return Colors.green;
+      case 'unavailable':
+        return Colors.orange;
+      case 'sold_out':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
   }
 
   String _getStatusText(String status) {
