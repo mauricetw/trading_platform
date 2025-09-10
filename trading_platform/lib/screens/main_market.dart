@@ -7,12 +7,12 @@ import 'chatlist/chat_list.dart';
 import 'home_page.dart';
 import '../widgets/market_search_bar.dart';
 import '../theme/app_theme.dart';
-import '../models/user/user.dart'; // User 模型的導入
+// REFACTORED: 不再需要直接導入 User 模型，因為不再手動傳遞
+// import '../models/user/user.dart';
 
 class MainMarket extends StatefulWidget {
-  final User currentUser; // User 類型參數
-
-  const MainMarket({super.key, required this.currentUser});
+  // --- 關鍵修正：不再需要從外部接收 currentUser ---
+  const MainMarket({super.key});
 
   @override
   State<MainMarket> createState() => _MainMarketState();
@@ -23,12 +23,13 @@ class _MainMarketState extends State<MainMarket> {
   int _currentIndex = 0;
   final PageController _pageController = PageController(initialPage: 0);
 
-  // 使用 getter 來動態生成 pages，確保能獲取到 currentUser
-  List<Widget> get _pages => [
-    const HomePage(),
-    const ChatListScreen(),
-    const AnnouncementListScreen(),
-    Profile(currentUser: widget.currentUser), // 傳入 User 類型的 currentUser 參數
+  // --- 關鍵修正：_pages 列表現在直接建立 Profile()，不需要任何參數 ---
+  // Profile 頁面自己會透過 Provider 獲取使用者資料
+  final List<Widget> _pages = const [
+    HomePage(),
+    ChatListScreen(),
+    AnnouncementListScreen(),
+    Profile(),
   ];
 
   @override
@@ -66,7 +67,6 @@ class _MainMarketState extends State<MainMarket> {
 
   @override
   Widget build(BuildContext context) {
-    // 直接使用 app_theme.dart 中定義的 primaryCS
     bool showMarketSearchBar = _currentIndex == 0;
 
     return Scaffold(
@@ -88,18 +88,18 @@ class _MainMarketState extends State<MainMarket> {
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          // 使用 app_theme.dart 中定義的 primaryCS
           gradient: LinearGradient(
             colors: [
               primaryCS.primary,
-              primaryCS.primary.withValues(alpha: 0.9) // 使用 withValues 替代已棄用的 withOpacity
+              // 修正：使用 withOpacity (或您自訂的 withValues)
+              primaryCS.primary.withOpacity(0.9)
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
+              color: Colors.black.withOpacity(0.1),
               blurRadius: 10,
               offset: const Offset(0, -2),
             ),
