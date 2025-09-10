@@ -18,8 +18,6 @@ class ApiException implements Exception {
 
 class ApiClient {
   String? _token;
-
-  // --- 關鍵修正：新增一個公開的 getter 來讓其他 service 讀取 token ---
   String? get token => _token;
 
   void setAuthToken(String? token) {
@@ -36,12 +34,10 @@ class ApiClient {
     return headers;
   }
 
-  // --- 強化 _handleResponse 以解析 FastAPI 的驗證錯誤 ---
   dynamic _handleResponse(http.Response response) {
-    // 檢查 body 是否為空，避免解碼錯誤
     if (response.body.isEmpty) {
       if (response.statusCode >= 200 && response.statusCode < 300) {
-        return null; // 對於 204 No Content 這類的回應，回傳 null
+        return null;
       } else {
         throw ApiException('伺服器回應為空', response.statusCode);
       }
@@ -52,18 +48,15 @@ class ApiClient {
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return responseBody;
     } else {
-      // --- 錯誤處理邏輯 ---
       String errorMessage = 'API 請求失敗';
       final detail = responseBody['detail'];
 
       if (detail is String) {
-        // 如果 'detail' 是字串，直接使用
         errorMessage = detail;
       } else if (detail is List && detail.isNotEmpty) {
-        // 如果 'detail' 是列表 (FastAPI 驗證錯誤)，提取第一條錯誤訊息
         final firstError = detail[0] as Map<String, dynamic>;
-        final field = (firstError['loc'] as List).last; // 獲取欄位名
-        final msg = firstError['msg']; // 獲取錯誤訊息
+        final field = (firstError['loc'] as List).last;
+        final msg = firstError['msg'];
         errorMessage = '欄位 "$field": $msg';
       }
 
@@ -105,7 +98,6 @@ class ApiClient {
     final url = Uri.parse('${APIConfig.baseUrl}$path');
     try {
       final response = await http.delete(url, headers: _getHeaders());
-      // 修正：delete 成功時 statusCode 為 204，body 為空
       if (response.statusCode == 204) {
         return null;
       }

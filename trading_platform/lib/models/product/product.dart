@@ -82,7 +82,7 @@ class Product {
     this.isFavorite = false,
   });
 
-  // --- 關鍵修正：強化 fromJson 的空值處理能力 ---
+  // --- 強化 fromJson 的空值處理能力 ---
   factory Product.fromJson(Map<String, dynamic> json) {
     final categoryData = json['category'] as Map<String, dynamic>? ?? {};
     final imagesData = json['images'] as List<dynamic>? ?? [];

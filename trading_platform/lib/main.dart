@@ -33,7 +33,7 @@ import 'theme/app_theme.dart';
 void main() {
   try {
     final ApiClient apiClient = ApiClient();
-    final AuthService authService = AuthService(); // 不再需要傳入 apiClient
+    final AuthService authService = AuthService(apiClient);
     final UserService userService = UserService(apiClient);
     final ProductService productService = ProductService(apiClient);
     final CartService cartService = CartService(apiClient);
