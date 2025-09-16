@@ -2,6 +2,7 @@
 import 'package:json_annotation/json_annotation.dart';
 import 'package:flutter/foundation.dart';
 import '../order/shipping_info.dart';
+import '../../config/api_config.dart';
 
 part 'product.g.dart';
 
@@ -152,20 +153,26 @@ class Product {
             '未分類';
       }
 
-      // 2) images 相容處理：可能是 ["url", ...] 或 [{"image_url": "..."}] 或 {"url": "..."}
+      // 2) images 相容處理，並將相對路徑轉換為絕對路徑
       final rawImages = (json['images'] as List?) ?? const [];
-      final resolvedImageUrls = rawImages
-          .map((e) {
-        if (e is String) return e;
-        if (e is Map<String, dynamic>) {
-          return (e['image_url'] as String?) ??
-              (e['url'] as String?) ??
-              '';
+      final resolvedImageUrls = rawImages.map((e) {
+        String? relativeUrl;
+        if (e is String) {
+          relativeUrl = e;
+        } else if (e is Map<String, dynamic>) {
+          relativeUrl = (e['image_url'] as String?) ?? (e['url'] as String?);
+        }
+
+        if (relativeUrl != null && relativeUrl.isNotEmpty) {
+          // 如果 URL 已經是完整的 http/https 連結，直接使用
+          if (relativeUrl.startsWith('http')) {
+            return relativeUrl;
+          }
+          // 否則，拼接 APIConfig.baseUrl
+          return '${APIConfig.baseUrl}$relativeUrl';
         }
         return '';
-      })
-          .where((s) => s.isNotEmpty)
-          .toList();
+      }).where((s) => s.isNotEmpty).toList();
 
       // 3) DateTime 安全解析
       DateTime parseDateTime(dynamic dateValue, DateTime fallback) {
