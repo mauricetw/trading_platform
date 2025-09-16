@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../models/user/user.dart'; // 假設你可能需要 User 模型，如果不需要可以移除
+import '../../models/user/user.dart';
 import 'package:first_flutter_project/services/auth_service.dart'; // 如果 getCurrentUserId 來自這裡
 import '../../widgets/upsert_shipping_option_dialog.dart';
 import '../../models/user/shipping_option.dart';

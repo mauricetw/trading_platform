@@ -75,7 +75,9 @@ class User {
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
       id: json['id'] as int? ?? 0,
-      username: json['nickname'] as String? ?? '未知使用者', // 從 nickname 讀取
+      username: json['nickname'] as String?
+          ?? json['username'] as String?
+          ?? '未知使用者',
       email: json['email'] as String? ?? '',
       registeredAt: json['registered_at'] != null ? DateTime.parse(json['registered_at'] as String) : DateTime.now(),
       phoneNumber: json['phone_number'] as String?,

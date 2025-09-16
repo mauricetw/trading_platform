@@ -31,7 +31,7 @@ class UserService {
     final responseBody = await _apiClient.put(
         '/users/me',
         body: {
-          'username': username,
+          'nickname': username,
           'bio': bio,
           'school_name': schoolName, // 注意：key 使用蛇形命名以匹配後端
           'avatar_url': avatarUrl,
