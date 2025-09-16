@@ -1,4 +1,4 @@
-// --- FILE: lib/providers/cart_provider.dart ---
+// lib/providers/cart_provider.dart - 臨時版本
 import 'package:flutter/foundation.dart';
 import '../models/user/cart_item.dart';
 import '../models/product/product.dart';
@@ -66,9 +66,16 @@ class CartProvider with ChangeNotifier {
 
     try {
       final fetchedItems = await _cartService.fetchCartItems();
-      _items = { for (var item in fetchedItems) item.productId : item };
+      _items = {};
+
+      for (var item in fetchedItems) {
+        _items[item.productId] = item;
+      }
+
+      debugPrint('CartProvider: Successfully fetched ${_items.length} cart items');
     } catch (e) {
       _error = e.toString();
+      debugPrint('CartProvider: Error fetching cart: $_error');
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -83,13 +90,20 @@ class CartProvider with ChangeNotifier {
     }
     if (quantityToAdd <= 0) return;
 
-    final int key = product.id;
+    final int productId = product.id;
+
     try {
-      final updatedItem = await _cartService.addItemToCart(key, quantityToAdd);
-      _items[key] = updatedItem;
+      debugPrint('CartProvider: Adding item to cart - productId: $productId, quantity: $quantityToAdd');
+
+      // 直接呼叫 API，不進行樂觀更新
+      final updatedItem = await _cartService.addItemToCart(productId, quantityToAdd);
+      _items[productId] = updatedItem;
       notifyListeners();
+
+      debugPrint('CartProvider: Successfully added item to cart');
     } catch (e) {
       _error = "加入購物車失敗: $e";
+      debugPrint('CartProvider: Error adding item: $_error');
       notifyListeners();
       rethrow;
     }
@@ -97,13 +111,19 @@ class CartProvider with ChangeNotifier {
 
   Future<void> removeItem(int productId) async {
     if (!_items.containsKey(productId)) return;
+
     final removedItem = _items.remove(productId);
     notifyListeners();
+
     try {
       await _cartService.removeItemFromCart(productId);
+      debugPrint('CartProvider: Successfully removed item from cart');
     } catch (e) {
-      _items[productId] = removedItem!;
+      if (removedItem != null) {
+        _items[productId] = removedItem;
+      }
       _error = "移除商品失敗: $e";
+      debugPrint('CartProvider: Error removing item: $_error');
       notifyListeners();
       rethrow;
     }
@@ -120,15 +140,18 @@ class CartProvider with ChangeNotifier {
       return;
     }
 
+    // 樂觀更新
     _items[productId] = originalItem.copyWith(quantity: newQuantity);
     notifyListeners();
 
     try {
       final updatedItem = await _cartService.updateCartItemQuantity(productId, newQuantity);
       _items[productId] = updatedItem;
+      debugPrint('CartProvider: Successfully updated item quantity');
     } catch (e) {
-      _items[productId] = originalItem; // API 失敗時回滾
+      _items[productId] = originalItem;
       _error = "更新數量失敗: $e";
+      debugPrint('CartProvider: Error updating quantity: $_error');
       rethrow;
     } finally {
       notifyListeners();
@@ -149,25 +172,26 @@ class CartProvider with ChangeNotifier {
 
   Future<void> clearCart() async {
     if (_items.isEmpty) return;
+
     final backupItems = Map.of(_items);
     _items.clear();
     notifyListeners();
+
     try {
       await _cartService.clearRemoteCart();
+      debugPrint('CartProvider: Successfully cleared cart');
     } catch (e) {
       _items = backupItems;
       _error = "清空購物車失敗: $e";
+      debugPrint('CartProvider: Error clearing cart: $_error');
       notifyListeners();
       rethrow;
     }
   }
 
-  // --- 【【【錯誤修正：新增這個方法】】】 ---
-  /// 清除所有已選中的商品 (通常在下單成功後呼叫)
   Future<void> clearSelectedItems() async {
     if (!(_authProvider?.isLoggedIn ?? false)) return;
 
-    // 1. 找出所有被選中的商品 ID
     final selectedIds = _items.values
         .where((item) => item.isSelected)
         .map((item) => item.productId)
@@ -175,21 +199,19 @@ class CartProvider with ChangeNotifier {
 
     if (selectedIds.isEmpty) return;
 
-    // 2. 樂觀更新：先在 UI 上移除
     final backupItems = Map.of(_items);
     _items.removeWhere((key, value) => value.isSelected);
     notifyListeners();
 
     try {
-      // 3. 呼叫後端 API 逐一刪除
-      // 注意：更高效的做法是提供一個可以批量刪除的後端 API
       await Future.wait(
           selectedIds.map((id) => _cartService.removeItemFromCart(id))
       );
+      debugPrint('CartProvider: Successfully cleared selected items');
     } catch (e) {
-      // 4. 如果 API 失敗，回滾 UI
       _items = backupItems;
       _error = "清除已選商品失敗: $e";
+      debugPrint('CartProvider: Error clearing selected items: $_error');
       notifyListeners();
       rethrow;
     }
@@ -210,10 +232,8 @@ class CartProvider with ChangeNotifier {
     notifyListeners();
   }
 
-// --- 後端同步方法 (TODOs) ---
-// Future<void> saveCartItemToBackend(CartItem item) async { ... }
-// Future<void> removeCartItemFromBackend(String productId) async { ... }
-// Future<void> updateCartItemQuantityInBackend(String productId, int newQuantity) async { ... }
-// Future<void> clearCartInBackend(String userId) async { ... }
+  void clearError() {
+    _error = null;
+    notifyListeners();
+  }
 }
-

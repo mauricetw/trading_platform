@@ -1,93 +1,139 @@
-// --- FILE: lib/services/cart_service.dart ---
+// lib/services/cart_service.dart
+import 'package:flutter/foundation.dart';
 import '../models/user/cart_item.dart';
 import 'api_client.dart';
 
 class CartService {
   final ApiClient _apiClient;
-  // CartService 依賴於 ApiClient 來完成所有網路請求
+
   CartService(this._apiClient);
 
   /// 從後端獲取當前登入使用者的購物車列表。
-  ///
-  /// 此方法會呼叫後端的 `GET /cart` 端點。
-  /// 成功時回傳一個 `List<CartItem>`，每個項目都包含完整的商品資訊。
   Future<List<CartItem>> fetchCartItems() async {
-    // 呼叫 ApiClient 的 get 方法，路徑與後端 router 一致
-    final responseBody = await _apiClient.get('/cart');
+    try {
+      debugPrint('CartService: Fetching cart items...');
+      final responseBody = await _apiClient.get('/cart');
 
-    // ApiClient 會自動處理錯誤和 JSON 解析，我們只需要處理型別轉換
-    final List<dynamic> itemsJson = responseBody;
-    return itemsJson.map((json) => CartItem.fromJson(json)).toList();
+      // 檢查回應是否為 null 或空
+      if (responseBody == null) {
+        debugPrint('CartService: Received null response');
+        return [];
+      }
+
+      // 確保回應是 List 型別
+      if (responseBody is! List) {
+        debugPrint('CartService: Unexpected response type: ${responseBody.runtimeType}');
+        throw Exception('Expected List but got ${responseBody.runtimeType}');
+      }
+
+      final List<dynamic> itemsJson = responseBody;
+      debugPrint('CartService: Received ${itemsJson.length} cart items');
+
+      // 逐一解析每個項目，並捕獲個別錯誤
+      final List<CartItem> cartItems = [];
+      for (int i = 0; i < itemsJson.length; i++) {
+        try {
+          final itemJson = itemsJson[i];
+          if (itemJson is Map<String, dynamic>) {
+            final cartItem = CartItem.fromJson(itemJson);
+            cartItems.add(cartItem);
+          } else {
+            debugPrint('CartService: Item $i is not a Map: ${itemJson.runtimeType}');
+          }
+        } catch (e) {
+          debugPrint('CartService: Error parsing cart item $i: $e');
+          debugPrint('CartService: Problematic item data: ${itemsJson[i]}');
+          // 繼續處理其他項目，而不是完全失敗
+        }
+      }
+
+      debugPrint('CartService: Successfully parsed ${cartItems.length} cart items');
+      return cartItems;
+
+    } catch (e) {
+      debugPrint('CartService: Error fetching cart items: $e');
+      rethrow;
+    }
   }
 
   /// 將商品添加到後端購物車。
-  ///
-  /// 此方法會呼叫後端的 `POST /cart` 端點。
-  /// [productId] 是要加入的商品 ID，[quantity] 是要加入的數量。
-  /// 成功時回傳後端更新或建立的 `CartItem` 物件。
   Future<CartItem> addItemToCart(int productId, int quantity) async {
-    // 請求的 body 格式與後端 CartItemCreate schema 一致
-    final responseBody = await _apiClient.post(
-      '/cart',
-      body: {
-        'product_id': productId,
-        'quantity': quantity
-      },
-    );
-    return CartItem.fromJson(responseBody);
+    try {
+      debugPrint('CartService: Adding item to cart - productId: $productId, quantity: $quantity');
+
+      final responseBody = await _apiClient.post(
+        '/cart',
+        body: {
+          'product_id': productId,
+          'quantity': quantity
+        },
+      );
+
+      if (responseBody == null) {
+        throw Exception('Received null response when adding item to cart');
+      }
+
+      final cartItem = CartItem.fromJson(responseBody as Map<String, dynamic>);
+      debugPrint('CartService: Successfully added item to cart');
+      return cartItem;
+
+    } catch (e) {
+      debugPrint('CartService: Error adding item to cart: $e');
+      rethrow;
+    }
   }
 
   /// 更新後端購物車中商品的數量。
-  ///
-  /// 此方法會呼叫後端的 `PUT /cart/{product_id}` 端點。
-  /// [productId] 是要更新的商品 ID，[newQuantity] 是新的數量。
-  /// 成功時回傳更新後的 `CartItem` 物件。
   Future<CartItem> updateCartItemQuantity(int productId, int newQuantity) async {
-    // 請求的 body 格式與後端 CartItemUpdate schema 一致
-    final responseBody = await _apiClient.put(
-      '/cart/$productId',
-      body: {'quantity': newQuantity},
-    );
-    return CartItem.fromJson(responseBody);
+    try {
+      debugPrint('CartService: Updating cart item quantity - productId: $productId, newQuantity: $newQuantity');
+
+      final responseBody = await _apiClient.put(
+        '/cart/$productId',
+        body: {'quantity': newQuantity},
+      );
+
+      if (responseBody == null) {
+        throw Exception('Received null response when updating cart item quantity');
+      }
+
+      final cartItem = CartItem.fromJson(responseBody as Map<String, dynamic>);
+      debugPrint('CartService: Successfully updated cart item quantity');
+      return cartItem;
+
+    } catch (e) {
+      debugPrint('CartService: Error updating cart item quantity: $e');
+      rethrow;
+    }
   }
 
   /// 從後端購物車中移除商品。
-  ///
-  /// 此方法會呼叫後端的 `DELETE /cart/{product_id}` 端點。
-  /// [productId] 是要移除的商品 ID。
   Future<void> removeItemFromCart(int productId) async {
-    // 將 productId 放在 URL 路徑中，與後端 router 一致
-    await _apiClient.delete('/cart/$productId');
+    try {
+      debugPrint('CartService: Removing item from cart - productId: $productId');
+
+      await _apiClient.delete('/cart/$productId');
+
+      debugPrint('CartService: Successfully removed item from cart');
+
+    } catch (e) {
+      debugPrint('CartService: Error removing item from cart: $e');
+      rethrow;
+    }
   }
 
   /// 清空後端當前用戶的購物車。
-  ///
-  /// 此方法會呼叫後端的 `DELETE /cart` 端點。
   Future<void> clearRemoteCart() async {
-    await _apiClient.delete('/cart');
-  }
+    try {
+      debugPrint('CartService: Clearing remote cart...');
 
-// --- 選項：批量同步購物車 ---
-// 如果您的後端支持一次性發送整個購物車狀態（例如，在用戶登錄後或網絡恢復時）
-// Future<List<CartItem>> syncCartWithBackend(String userId, List<CartItem> localCartItems) async {
-//   final url = Uri.parse('$_apiBaseUrl/users/$userId/cart/sync'); // 示例端點
-//   try {
-//     final headers = await _getHeaders();
-//     // 將 localCartItems 轉換為後端期望的格式
-//     final body = json.encode(localCartItems.map((item) => item.toJson()).toList());
-//
-//     final response = await http.post(url, headers: headers, body: body);
-//
-//     if (response.statusCode == 200) {
-//       final List<dynamic> responseData = json.decode(response.body);
-//       return responseData.map((data) => CartItem.fromJson(data)).toList();
-//     } else {
-//       print('Failed to sync cart: ${response.statusCode} ${response.body}');
-//       throw Exception('Failed to sync cart: ${response.body}');
-//     }
-//   } catch (error) {
-//     print('Error syncing cart: $error');
-//     throw Exception('Error syncing cart: $error');
-//   }
-// }
+      await _apiClient.delete('/cart');
+
+      debugPrint('CartService: Successfully cleared remote cart');
+
+    } catch (e) {
+      debugPrint('CartService: Error clearing remote cart: $e');
+      rethrow;
+    }
+  }
 }
