@@ -13,7 +13,7 @@ class ProductService {
     try {
       debugPrint('ProductService: 開始獲取商品分類...');
 
-      final responseBody = await _apiClient.get('/categories');
+      final responseBody = await _apiClient.get('/products/categories');
       debugPrint('ProductService: 分類 API 響應: $responseBody');
 
       final List<dynamic> categoryListJson = responseBody;

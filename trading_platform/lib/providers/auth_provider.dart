@@ -1,17 +1,17 @@
+// --- FILE: lib/providers/auth_provider.dart ---
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../models/user/user.dart';
 import '../models/auth/auth_response.dart';
-import '../services/api_client.dart'; // 引入 ApiClient
-import '../services/auth_service.dart'; // 引入 AuthService
-import '../services/user_service.dart'; // 引入 UserService
+import '../services/api_client.dart';
+import '../services/auth_service.dart';
+import '../services/user_service.dart';
 
 class AuthProvider with ChangeNotifier {
-  // --- 依賴注入 ---
   final AuthService _authService;
   final UserService _userService;
-  final ApiClient _apiClient; // 用於設定 token
+  final ApiClient _apiClient;
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
   User? _currentUser;
@@ -21,35 +21,88 @@ class AuthProvider with ChangeNotifier {
   String? get token => _token;
   bool get isLoggedIn => _token != null && _currentUser != null;
 
-  // 建構函式，AuthService 現在不需要 ApiClient
   AuthProvider(this._authService, this._userService, this._apiClient);
 
-  // --- 登入 ---
+  // --- 內部輔助方法，作為獲取使用者資料的唯一入口 ---
+  Future<void> _fetchAndSetCurrentUser() async {
+    try {
+      // 透過 UserService 獲取最新的使用者資料
+      final user = await _userService.getMyProfile();
+      _currentUser = user;
+    } catch (e) {
+      // 如果獲取失敗 (例如 token 過期)，則登出
+      await logout();
+      rethrow; // 重新拋出錯誤，讓呼叫者知道發生了問題
+    }
+  }
+
+  // --- 處理登入/註冊成功後的通用邏輯 ---
+  Future<void> _handleAuthSuccess(AuthResponse authResponse) async {
+    // 1. 先設定 token
+    _token = authResponse.token.accessToken;
+    _apiClient.setAuthToken(_token);
+    await _storage.write(key: 'auth_token', value: _token);
+
+    // 2. 使用新的 token 來獲取完整的使用者資料
+    //    這裡不再使用 authResponse.user，因為它可能不是最新的
+    await _fetchAndSetCurrentUser();
+
+    // 3. 通知 UI 更新
+    notifyListeners();
+  }
+
+  // --- 公開方法 ---
+
   Future<void> login(String identifier, String password) async {
     try {
-      // 呼叫 AuthService 的 login 方法
       final authResponse = await _authService.login(identifier, password);
+      // _handleAuthSuccess 會處理後續所有事情
       await _handleAuthSuccess(authResponse);
     } catch (e) {
       rethrow;
     }
+  }
+
+  Future<void> register(String username, String email, String password, String code) async {
+    try {
+      // 註冊成功後，後端回傳的結構與登入相同
+      final authResponse = await _authService.register(username, email, password, code);
+      await _handleAuthSuccess(authResponse);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<bool> tryAutoLogin() async {
+    final storedToken = await _storage.read(key: 'auth_token');
+    if (storedToken == null) return false;
+
+    _token = storedToken;
+    _apiClient.setAuthToken(_token);
+
+    try {
+      // 重用獲取使用者的邏輯
+      await _fetchAndSetCurrentUser();
+      notifyListeners();
+      return true;
+    } catch (e) {
+      // 如果自動登入失敗 (token 失效)，_fetchAndSetCurrentUser 內部會自動呼叫 logout
+      return false;
+    }
+  }
+
+  Future<void> logout() async {
+    _currentUser = null;
+    _token = null;
+    _apiClient.setAuthToken(null);
+    await _storage.delete(key: 'auth_token');
+    notifyListeners();
   }
 
   // --- 發送註冊驗證碼 ---
   Future<void> sendVerificationCode(String email) async {
     // 呼叫 AuthService 的方法
     await _authService.sendVerificationCode(email);
-  }
-
-  // --- 註冊 ---
-  Future<void> register(String username, String email, String password, String code) async {
-    try {
-      // 呼叫 AuthService 的方法
-      final authResponse = await _authService.register(username, email, password, code);
-      await _handleAuthSuccess(authResponse);
-    } catch (e) {
-      rethrow;
-    }
   }
 
   // --- 忘記密碼 ---
@@ -83,39 +136,6 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  // --- 處理登入/註冊成功後的通用邏輯 ---
-  Future<void> _handleAuthSuccess(AuthResponse authResponse) async {
-    _currentUser = authResponse.user;
-    _token = authResponse.token.accessToken;
-
-    // 將 token 傳遞給底層的 ApiClient 供後續所有請求使用
-    _apiClient.setAuthToken(_token);
-
-    // 將 token 安全地儲存在手機上
-    await _storage.write(key: 'auth_token', value: _token);
-    notifyListeners();
-  }
-
-  // --- App 啟動時嘗試自動登入 ---
-  Future<bool> tryAutoLogin() async {
-    final storedToken = await _storage.read(key: 'auth_token');
-    if (storedToken == null) return false;
-
-    _token = storedToken;
-    _apiClient.setAuthToken(_token);
-
-    try {
-      // 透過 UserService 獲取最新的使用者資料
-      final user = await _userService.getMyProfile();
-      _currentUser = user;
-      notifyListeners();
-      return true;
-    } catch (e) {
-      await logout();
-      return false;
-    }
-  }
-
   // --- 更新使用者資料 ---
   Future<void> updateUserProfile({
     required String username,
@@ -137,14 +157,5 @@ class AuthProvider with ChangeNotifier {
     } catch (e) {
       rethrow;
     }
-  }
-
-  // --- 登出 ---
-  Future<void> logout() async {
-    _currentUser = null;
-    _token = null;
-    _apiClient.setAuthToken(null);
-    await _storage.delete(key: 'auth_token');
-    notifyListeners();
   }
 }
