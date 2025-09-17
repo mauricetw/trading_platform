@@ -45,7 +45,7 @@ void main() {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(
-          create: (_) => AuthProvider(authService, userService, apiClient),
+          create: (_) => AuthProvider(authService, userService, apiClient, uploadService),
         ),
         ChangeNotifierProvider(
           create: (_) => ProductProvider(productService, uploadService),

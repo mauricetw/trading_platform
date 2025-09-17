@@ -1,5 +1,6 @@
 // --- FILE: lib/models/user/user.dart ---
 import 'package:json_annotation/json_annotation.dart';
+import '../../config/api_config.dart'; // 1. 引入 API 設定檔
 
 part 'user.g.dart';
 
@@ -16,7 +17,11 @@ class User {
   final String username;
   final String email;
   final String? phoneNumber;
+
+  // --- 關鍵修正：加入 fromJson 轉換器 ---
+  @JsonKey(fromJson: _prefixUrl)
   final String? avatarUrl;
+
   final DateTime registeredAt;
   final DateTime? lastLoginAt;
   final String? bio;
@@ -81,7 +86,10 @@ class User {
       email: json['email'] as String? ?? '',
       registeredAt: json['registered_at'] != null ? DateTime.parse(json['registered_at'] as String) : DateTime.now(),
       phoneNumber: json['phone_number'] as String?,
-      avatarUrl: json['avatar_url'] as String?,
+
+      // 2. 在解析時呼叫轉換器
+      avatarUrl: _prefixUrl(json['avatar_url'] as String?),
+
       lastLoginAt: json['last_login_at'] != null ? DateTime.parse(json['last_login_at'] as String) : null,
       bio: json['bio'] as String?,
       schoolName: json['school_name'] as String?,
@@ -154,5 +162,16 @@ class User {
       isSchoolPublic: isSchoolPublic ?? this.isSchoolPublic,
     );
   }
+}
+
+// 3. 建立輔助函式 (放在 User class 外部)
+String? _prefixUrl(String? relativeUrl) {
+  if (relativeUrl == null || relativeUrl.isEmpty) {
+    return null;
+  }
+  if (relativeUrl.startsWith('http')) {
+    return relativeUrl;
+  }
+  return '${APIConfig.baseUrl}$relativeUrl';
 }
 
