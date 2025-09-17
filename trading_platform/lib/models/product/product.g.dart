@@ -8,15 +8,15 @@ part of 'product.dart';
 
 SellerInfo _$SellerInfoFromJson(Map<String, dynamic> json) => SellerInfo(
   id: (json['id'] as num).toInt(),
-  username: json['nickname'] as String,
+  username: json['username'] as String?,
   avatarUrl: json['avatar_url'] as String?,
 );
 
 Map<String, dynamic> _$SellerInfoToJson(SellerInfo instance) =>
     <String, dynamic>{
       'id': instance.id,
-      'nickname': instance.username,
       'avatar_url': instance.avatarUrl,
+      'username': instance.username,
     };
 
 Map<String, dynamic> _$ProductToJson(Product instance) => <String, dynamic>{

@@ -18,7 +18,7 @@ class AuthProvider with ChangeNotifier {
   String? _token;
 
   User? get currentUser => _currentUser;
-  User? get user => _currentUser; // 新增這個 getter 來修復 CartProvider 的錯誤
+  User? get user => _currentUser; // 增加這個 getter 來修復 CartProvider 的錯誤
   String? get token => _token;
   bool get isLoggedIn => _token != null && _currentUser != null;
 

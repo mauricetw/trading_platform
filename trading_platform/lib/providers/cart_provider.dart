@@ -1,4 +1,4 @@
-// lib/providers/cart_provider.dart - 臨時版本
+// lib/providers/cart_provider.dart
 import 'package:flutter/foundation.dart';
 import '../models/user/cart_item.dart';
 import '../models/product/product.dart';
@@ -77,14 +77,12 @@ class CartProvider with ChangeNotifier {
 
       _items = {};
 
-      // 使用 productId 作為 key，而不是 id（因為 id 可能為 null）
       for (var item in fetchedItems) {
         debugPrint('CartProvider: Processing item - ProductID: ${item.productId}, Name: ${item.product.name}');
         _items[item.productId] = item;
       }
 
       debugPrint('CartProvider: Successfully stored ${_items.length} cart items');
-      debugPrint('CartProvider: Items keys: ${_items.keys.toList()}');
 
     } catch (e, stackTrace) {
       _error = e.toString();
@@ -110,7 +108,6 @@ class CartProvider with ChangeNotifier {
     try {
       debugPrint('CartProvider: Adding item to cart - productId: $productId, quantity: $quantityToAdd');
 
-      // 直接呼叫 API，不進行樂觀更新
       final updatedItem = await _cartService.addItemToCart(productId, quantityToAdd);
       _items[productId] = updatedItem;
       notifyListeners();
@@ -155,7 +152,6 @@ class CartProvider with ChangeNotifier {
       return;
     }
 
-    // 樂觀更新
     _items[productId] = originalItem.copyWith(quantity: newQuantity);
     notifyListeners();
 

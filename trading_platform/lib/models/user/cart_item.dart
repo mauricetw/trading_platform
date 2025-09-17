@@ -5,23 +5,6 @@ import '../product/product.dart';
 
 part 'cart_item.g.dart';
 
-class DataQualityIssue {
-  final String field;
-  final String issue;
-  final dynamic receivedValue;
-  final dynamic usedValue;
-
-  DataQualityIssue({
-    required this.field,
-    required this.issue,
-    required this.receivedValue,
-    required this.usedValue,
-  });
-
-  @override
-  String toString() => 'Field: $field, Issue: $issue, Received: $receivedValue, Used: $usedValue';
-}
-
 @JsonSerializable(fieldRename: FieldRename.snake, explicitToJson: true, createFactory: false)
 class CartItem {
   final int? id;
@@ -34,10 +17,6 @@ class CartItem {
   @JsonKey(includeFromJson: false, includeToJson: false)
   bool isSelected;
 
-  // 記錄解析過程中發現的資料品質問題
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  final List<DataQualityIssue> dataIssues = [];
-
   CartItem({
     this.id,
     required this.userId,
@@ -48,206 +27,61 @@ class CartItem {
     this.isSelected = false,
   });
 
-  // 有資料品質問題嗎？
-  bool get hasDataIssues => dataIssues.isNotEmpty;
-
   factory CartItem.fromJson(Map<String, dynamic> json) {
-    final issues = <DataQualityIssue>[];
-
     try {
-      debugPrint('=== CartItem 解析開始 ===');
-      debugPrint('原始 JSON: $json');
+      debugPrint('CartItem: 開始解析 - ${json['product']?['name'] ?? 'Unknown'}');
 
-      // 嚴格但不崩潰的轉換函數
-      int strictInt(dynamic value, String fieldName, int fallback) {
-        if (value == null) {
-          issues.add(DataQualityIssue(
-            field: fieldName,
-            issue: 'CRITICAL: Field is null',
-            receivedValue: value,
-            usedValue: fallback,
-          ));
-          return fallback;
-        }
-
+      // 安全的數值轉換
+      int safeInt(dynamic value, int defaultValue) {
+        if (value == null) return defaultValue;
         if (value is int) return value;
-
-        if (value is num) {
-          final intValue = value.toInt();
-          if (value != intValue) {
-            issues.add(DataQualityIssue(
-              field: fieldName,
-              issue: 'WARNING: Non-integer number converted',
-              receivedValue: value,
-              usedValue: intValue,
-            ));
-          }
-          return intValue;
-        }
-
-        if (value is String) {
-          final parsed = int.tryParse(value);
-          if (parsed != null) {
-            issues.add(DataQualityIssue(
-              field: fieldName,
-              issue: 'WARNING: String converted to int',
-              receivedValue: value,
-              usedValue: parsed,
-            ));
-            return parsed;
-          } else {
-            issues.add(DataQualityIssue(
-              field: fieldName,
-              issue: 'CRITICAL: Invalid string, cannot convert to int',
-              receivedValue: value,
-              usedValue: fallback,
-            ));
-            return fallback;
-          }
-        }
-
-        issues.add(DataQualityIssue(
-          field: fieldName,
-          issue: 'CRITICAL: Unexpected type ${value.runtimeType}',
-          receivedValue: value,
-          usedValue: fallback,
-        ));
-        return fallback;
+        if (value is num) return value.toInt();
+        if (value is String) return int.tryParse(value) ?? defaultValue;
+        return defaultValue;
       }
 
-      // 解析各欄位
-      final id = json['id'] != null ? strictInt(json['id'], 'id', 0) : null;
-      final userId = strictInt(json['user_id'], 'user_id', 0);
-      final productId = strictInt(json['product_id'], 'product_id', 0);
-      final quantity = strictInt(json['quantity'], 'quantity', 1);
+      // 解析基本欄位
+      final id = json['id'] != null ? safeInt(json['id'], 0) : null;
+      final userId = safeInt(json['user_id'], 0);
+      final quantity = safeInt(json['quantity'], 1);
 
-      // 檢查關鍵欄位
-      if (userId == 0) {
-        issues.add(DataQualityIssue(
-          field: 'user_id',
-          issue: 'CRITICAL: user_id is 0, indicates authentication issue',
-          receivedValue: json['user_id'],
-          usedValue: 0,
-        ));
-      }
-
-      if (productId == 0) {
-        issues.add(DataQualityIssue(
-          field: 'product_id',
-          issue: 'CRITICAL: product_id is 0, invalid product reference',
-          receivedValue: json['product_id'],
-          usedValue: 0,
-        ));
+      // 智能獲取 product_id
+      int productId;
+      if (json['product_id'] != null) {
+        productId = safeInt(json['product_id'], 0);
+      } else {
+        // 從 product.id 獲取
+        final productData = json['product'];
+        if (productData is Map<String, dynamic> && productData['id'] != null) {
+          productId = safeInt(productData['id'], 0);
+        } else {
+          productId = 0;
+        }
       }
 
       // 解析日期
       DateTime addedAt;
       try {
-        if (json['added_at'] != null) {
-          addedAt = DateTime.parse(json['added_at'] as String);
-        } else {
-          addedAt = DateTime.now();
-          issues.add(DataQualityIssue(
-            field: 'added_at',
-            issue: 'WARNING: added_at is null, using current time',
-            receivedValue: json['added_at'],
-            usedValue: addedAt.toIso8601String(),
-          ));
-        }
+        addedAt = json['added_at'] != null
+            ? DateTime.parse(json['added_at'] as String)
+            : DateTime.now();
       } catch (e) {
         addedAt = DateTime.now();
-        issues.add(DataQualityIssue(
-          field: 'added_at',
-          issue: 'CRITICAL: Invalid date format',
-          receivedValue: json['added_at'],
-          usedValue: addedAt.toIso8601String(),
-        ));
       }
 
       // 解析 Product
       Product product;
       final productData = json['product'];
 
-      if (productData == null) {
-        issues.add(DataQualityIssue(
-          field: 'product',
-          issue: 'CRITICAL: Product data is completely missing',
-          receivedValue: productData,
-          usedValue: 'fallback_product',
-        ));
-
-        product = Product(
-          id: productId,
-          name: '【資料缺失】未知商品',
-          description: '商品資料完全缺失，請檢查後端 API',
-          price: 0.0,
-          categoryId: 0,
-          category: '錯誤',
-          imageUrls: const [],
-          stockQuantity: 0,
-          status: 'data_missing',
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-          salesCount: 0,
-          reviewCount: 0,
-          sellerId: 0,
-          isFavorite: false,
-        );
-      } else if (productData is Map<String, dynamic>) {
+      if (productData is Map<String, dynamic>) {
         try {
           product = Product.fromJson(productData);
         } catch (e) {
-          issues.add(DataQualityIssue(
-            field: 'product',
-            issue: 'CRITICAL: Product parsing failed',
-            receivedValue: 'complex_object',
-            usedValue: 'fallback_product',
-          ));
-
-          // 嘗試部分解析
-          product = Product(
-            id: productId,
-            name: (productData['name'] as String?) ?? '【解析失敗】商品',
-            description: '商品資料解析失敗: $e',
-            price: (productData['price'] as num?)?.toDouble() ?? 0.0,
-            categoryId: 0,
-            category: '解析錯誤',
-            imageUrls: const [],
-            stockQuantity: 0,
-            status: 'parse_error',
-            createdAt: DateTime.now(),
-            updatedAt: DateTime.now(),
-            salesCount: 0,
-            reviewCount: 0,
-            sellerId: 0,
-            isFavorite: false,
-          );
+          debugPrint('Product 標準解析失敗，使用備用解析: $e');
+          product = _createProductFromBackendData(productData, productId);
         }
       } else {
-        issues.add(DataQualityIssue(
-          field: 'product',
-          issue: 'CRITICAL: Product data has wrong type',
-          receivedValue: productData.runtimeType.toString(),
-          usedValue: 'fallback_product',
-        ));
-
-        product = Product(
-          id: productId,
-          name: '【格式錯誤】商品',
-          description: '商品資料格式不正確',
-          price: 0.0,
-          categoryId: 0,
-          category: '格式錯誤',
-          imageUrls: const [],
-          stockQuantity: 0,
-          status: 'format_error',
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-          salesCount: 0,
-          reviewCount: 0,
-          sellerId: 0,
-          isFavorite: false,
-        );
+        product = _createFallbackProduct(productId);
       }
 
       final cartItem = CartItem(
@@ -260,76 +94,112 @@ class CartItem {
         isSelected: false,
       );
 
-      // 將問題記錄加入 CartItem
-      cartItem.dataIssues.addAll(issues);
-
-      // 立即報告嚴重問題
-      final criticalIssues = issues.where((issue) => issue.issue.contains('CRITICAL')).toList();
-      if (criticalIssues.isNotEmpty) {
-        debugPrint('🚨 CartItem 嚴重資料問題 🚨');
-        for (final issue in criticalIssues) {
-          debugPrint('❌ $issue');
-        }
-        debugPrint('原始 JSON: $json');
-        debugPrint('請立即檢查後端 API！');
-      }
-
-      final warningIssues = issues.where((issue) => issue.issue.contains('WARNING')).toList();
-      if (warningIssues.isNotEmpty) {
-        debugPrint('⚠️  CartItem 資料品質警告');
-        for (final issue in warningIssues) {
-          debugPrint('⚠️  $issue');
-        }
-      }
-
-      if (issues.isEmpty) {
-        debugPrint('✅ CartItem 解析完美：${cartItem.product.name}');
-      }
-
+      debugPrint('CartItem: 解析成功 - ${cartItem.product.name}');
       return cartItem;
 
     } catch (e, stackTrace) {
-      debugPrint('💥 CartItem 解析完全失敗 💥');
-      debugPrint('錯誤: $e');
+      debugPrint('CartItem: 解析失敗 - $e');
       debugPrint('原始 JSON: $json');
-      debugPrint('堆疊: $stackTrace');
 
-      // 即使完全失敗，也要回傳可用的物件
-      final emergencyItem = CartItem(
+      return CartItem(
         id: null,
         userId: 0,
         productId: 0,
         quantity: 1,
         addedAt: DateTime.now(),
-        product: Product(
-          id: 0,
-          name: '【緊急錯誤】無法解析',
-          description: '嚴重錯誤: $e',
-          price: 0.0,
-          categoryId: 0,
-          category: '系統錯誤',
-          imageUrls: const [],
-          stockQuantity: 0,
-          status: 'system_error',
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-          salesCount: 0,
-          reviewCount: 0,
-          sellerId: 0,
-          isFavorite: false,
-        ),
+        product: _createFallbackProduct(0),
         isSelected: false,
       );
-
-      emergencyItem.dataIssues.add(DataQualityIssue(
-        field: 'entire_object',
-        issue: 'CRITICAL: Complete parsing failure',
-        receivedValue: json,
-        usedValue: 'emergency_fallback',
-      ));
-
-      return emergencyItem;
     }
+  }
+
+  // 從後端資料建立 Product
+  static Product _createProductFromBackendData(Map<String, dynamic> data, int fallbackId) {
+    try {
+      // 處理圖片
+      List<String> imageUrls = [];
+      final images = data['images'] as List?;
+      if (images != null) {
+        for (var img in images) {
+          if (img is Map<String, dynamic>) {
+            final imageUrl = img['image_url'] as String?;
+            if (imageUrl != null) {
+              if (imageUrl.startsWith('http')) {
+                imageUrls.add(imageUrl);
+              } else {
+                imageUrls.add('http://10.0.2.2:8000$imageUrl');
+              }
+            }
+          }
+        }
+      }
+
+      // 處理分類
+      String categoryName = '未分類';
+      int categoryId = 0;
+      final category = data['category'];
+      if (category is Map<String, dynamic>) {
+        categoryName = category['name'] as String? ?? '未分類';
+        categoryId = category['id'] as int? ?? 0;
+      }
+
+      // 處理賣家資訊
+      SellerInfo? seller;
+      final sellerData = data['seller'];
+      if (sellerData is Map<String, dynamic>) {
+        seller = SellerInfo(
+          id: sellerData['id'] as int? ?? 0,
+          username: sellerData['username'] as String? ?? '未知賣家',
+          avatarUrl: sellerData['avatar_url'] as String?,
+        );
+      }
+
+      return Product(
+        id: (data['id'] as int?) ?? fallbackId,
+        name: (data['name'] as String?) ?? '未知商品',
+        description: (data['description'] as String?) ?? '',
+        price: (data['price'] as num?)?.toDouble() ?? 0.0,
+        originalPrice: (data['original_price'] as num?)?.toDouble(),
+        categoryId: categoryId,
+        category: categoryName,
+        imageUrls: imageUrls,
+        stockQuantity: (data['stock_quantity'] as int?) ?? 0,
+        status: (data['status'] as String?) ?? 'unknown',
+        createdAt: DateTime.tryParse(data['created_at'] as String? ?? '') ?? DateTime.now(),
+        updatedAt: DateTime.tryParse(data['updated_at'] as String? ?? '') ?? DateTime.now(),
+        salesCount: (data['sales_count'] as int?) ?? 0,
+        averageRating: (data['average_rating'] as num?)?.toDouble(),
+        reviewCount: (data['review_count'] as int?) ?? 0,
+        tags: (data['tags'] as List?)?.map((e) => e.toString()).toList(),
+        sellerId: (data['seller_id'] as int?) ?? 0,
+        seller: seller,
+        isFavorite: false,
+      );
+    } catch (e) {
+      debugPrint('備用 Product 解析失敗: $e');
+      return _createFallbackProduct(fallbackId);
+    }
+  }
+
+  // 建立預設 Product
+  static Product _createFallbackProduct(int id) {
+    return Product(
+      id: id,
+      name: '商品解析失敗',
+      description: '無法解析商品資訊',
+      price: 0.0,
+      categoryId: 0,
+      category: '錯誤',
+      imageUrls: const [],
+      stockQuantity: 0,
+      status: 'error',
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      salesCount: 0,
+      reviewCount: 0,
+      sellerId: 0,
+      isFavorite: false,
+    );
   }
 
   Map<String, dynamic> toJson() {
