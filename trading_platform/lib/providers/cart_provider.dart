@@ -57,28 +57,43 @@ class CartProvider with ChangeNotifier {
   // --- 核心業務邏輯 ---
 
   Future<void> fetchUserCart({bool forceRefresh = false}) async {
-    if (!(_authProvider?.isLoggedIn ?? false)) return;
-    if (_isLoading && !forceRefresh) return;
+    if (!(_authProvider?.isLoggedIn ?? false)) {
+      debugPrint('CartProvider: User not logged in, skipping fetch');
+      return;
+    }
+    if (_isLoading && !forceRefresh) {
+      debugPrint('CartProvider: Already loading, skipping fetch');
+      return;
+    }
 
+    debugPrint('CartProvider: Starting to fetch user cart (forceRefresh: $forceRefresh)');
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
       final fetchedItems = await _cartService.fetchCartItems();
+      debugPrint('CartProvider: Received ${fetchedItems.length} items from service');
+
       _items = {};
 
+      // 使用 productId 作為 key，而不是 id（因為 id 可能為 null）
       for (var item in fetchedItems) {
+        debugPrint('CartProvider: Processing item - ProductID: ${item.productId}, Name: ${item.product.name}');
         _items[item.productId] = item;
       }
 
-      debugPrint('CartProvider: Successfully fetched ${_items.length} cart items');
-    } catch (e) {
+      debugPrint('CartProvider: Successfully stored ${_items.length} cart items');
+      debugPrint('CartProvider: Items keys: ${_items.keys.toList()}');
+
+    } catch (e, stackTrace) {
       _error = e.toString();
       debugPrint('CartProvider: Error fetching cart: $_error');
+      debugPrint('CartProvider: Stack trace: $stackTrace');
     } finally {
       _isLoading = false;
       notifyListeners();
+      debugPrint('CartProvider: Fetch cart completed, loading: $_isLoading, error: $_error');
     }
   }
 
