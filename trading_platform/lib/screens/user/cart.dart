@@ -1,5 +1,4 @@
-// 請將此內容完全替換到你的 lib/screens/user/cart.dart 檔案中
-
+// lib/screens/user/cart.dart
 import 'package:first_flutter_project/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -363,7 +362,7 @@ class _CartPageState extends State<CartPage> {
       ),
     );
   }
-
+  
   Widget _buildBottomAppBar(BuildContext context, CartProvider cartProvider) {
     final themeColors = Theme.of(context).colorScheme;
 
@@ -399,29 +398,34 @@ class _CartPageState extends State<CartPage> {
               ),
             ),
 
-            // 合計金額
+            // 合計金額 - 只修正佈局溢出，保持所有原始尺寸
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12.0),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min, // 只加這一行來限制 Column 高度
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text(
-                      '合計 (已選 ${cartProvider.selectedItemCount} 件):',
-                      style: TextStyle(fontSize: 12, color: themeColors.onSurfaceVariant),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
+                    Flexible( // 只包裝 Flexible，保持原始樣式
                       child: Text(
-                        'NT\$${cartProvider.totalSelectedAmount.toStringAsFixed(0)}',
-                        style: TextStyle(
-                            fontSize: 18.0,
-                            fontWeight: FontWeight.bold,
-                            color: themeColors.primary),
-                        maxLines: 1,
+                        '合計 (已選 ${cartProvider.selectedItemCount} 件):',
+                        style: TextStyle(fontSize: 12, color: themeColors.onSurfaceVariant), // 保持原始字體大小
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(height: 2), // 保持原始間距
+                    Flexible( // 只包裝 Flexible，保持原始樣式
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          'NT\$${cartProvider.totalSelectedAmount.toStringAsFixed(0)}',
+                          style: TextStyle(
+                              fontSize: 18.0, // 保持原始字體大小
+                              fontWeight: FontWeight.bold,
+                              color: themeColors.primary),
+                          maxLines: 1,
+                        ),
                       ),
                     ),
                   ],
@@ -429,13 +433,13 @@ class _CartPageState extends State<CartPage> {
               ),
             ),
 
-            // 結算按鈕
+            // 結算按鈕 - 保持完全原樣
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: cartProvider.selectedItemCount > 0 ? themeColors.primary : Colors.grey[400],
                 foregroundColor: cartProvider.selectedItemCount > 0 ? themeColors.onPrimary : Colors.grey[700],
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12), // 保持原始 padding
+                textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold), // 保持原始字體
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
               ),
               onPressed: cartProvider.selectedItemCount > 0
