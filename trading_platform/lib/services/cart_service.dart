@@ -81,7 +81,7 @@ class CartService {
       debugPrint('CartService: 添加商品到購物車 - productId: $productId, quantity: $quantity');
 
       final responseBody = await _apiClient.post(
-        '/cart',
+        '/cart/items',
         body: {
           'product_id': productId,
           'quantity': quantity
@@ -118,7 +118,7 @@ class CartService {
       debugPrint('CartService: 更新商品數量 - productId: $productId, newQuantity: $newQuantity');
 
       final responseBody = await _apiClient.put(
-        '/cart/$productId',
+        '/cart/items/$productId',
         body: {'quantity': newQuantity},
       );
 
@@ -148,7 +148,7 @@ class CartService {
     try {
       debugPrint('CartService: 移除商品 - productId: $productId');
 
-      await _apiClient.delete('/cart/$productId');
+      await _apiClient.delete('/cart/items/$productId');
 
       debugPrint('CartService: 成功移除商品');
 

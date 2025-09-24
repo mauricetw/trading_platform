@@ -1,6 +1,4 @@
-import 'package:first_flutter_project/providers/auth_provider.dart';
-import 'package:first_flutter_project/providers/cart_provider.dart';
-import 'package:first_flutter_project/services/address_service.dart';
+// --- FILE: lib/screens/user/checkout.dart ---
 import 'package:first_flutter_project/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -20,144 +18,135 @@ class CheckoutScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final cartProvider = Provider.of<CartProvider>(context, listen: false);
+    // --- 關鍵修正：移除了本地的 Provider 和 Service 實例化 ---
+    // 現在這個頁面會直接使用由 main.dart 提供的 CheckoutProvider
 
-    final orderService = OrderService();
-    final addressService = AddressService();
-
-    return ChangeNotifierProvider(
-      create: (_) => CheckoutProvider(
-        orderService,
-        addressService,
-        authProvider,
-        cartProvider,
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: AppBar(
+        title: const Text('結帳'),
+        centerTitle: true,
+        backgroundColor: primaryCS.primary,
+        foregroundColor: primaryCS.onPrimary,
+        elevation: 6,
+        shape: const FullBottomConcaveAppBarShape(
+          curveHeight: 25,
+          topCornerRadius: 15,
+        ),
       ),
-      child: Scaffold(
-        // 用通用底色，避免 M3 專屬 API
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        appBar: AppBar(
-          title: const Text('結帳'),
-          centerTitle: true,
-          backgroundColor: primaryCS.primary,
-          foregroundColor: primaryCS.onPrimary,
-          elevation: 6,
-          shape: const FullBottomConcaveAppBarShape(
-            curveHeight: 25,
-            topCornerRadius: 15,
-          ),
-        ),
-        body: Consumer<CheckoutProvider>(
-          builder: (context, provider, child) {
-            // 首屏載入地址
-            if (provider.isLoadingAddresses && provider.availableAddresses.isEmpty) {
-              return const Center(child: CircularProgressIndicator());
-            }
+      body: Consumer<CheckoutProvider>(
+        builder: (context, provider, child) {
+          // 首次進入頁面時，觸發一次資料載入
+          // 這裡的邏輯已移至 CheckoutProvider 的建構函式中，更為簡潔
 
-            // 致命錯誤畫面
-            if (provider.checkoutError != null &&
-                provider.availableAddresses.isEmpty &&
-                !provider.isLoadingAddresses) {
-              return _FatalErrorView(error: provider.checkoutError!);
-            }
+          // 首屏載入地址
+          if (provider.isLoadingAddresses && provider.availableAddresses.isEmpty) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-            return Stack(
-              children: [
-                SingleChildScrollView(
-                  padding: const EdgeInsets.only(
-                    top: 16,
-                    bottom: _kBottomSummaryHeightEstimate + 16,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // 非致命提示（不再呼叫 provider.clearError()）
-                      if (provider.checkoutError != null &&
-                          provider.checkoutError!.isNotEmpty &&
-                          (provider.availableAddresses.isNotEmpty || provider.isLoadingAddresses))
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          child: Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.orange.withOpacity(0.12),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(provider.checkoutError!, style: const TextStyle(fontSize: 13)),
+          // 致命錯誤畫面
+          if (provider.checkoutError != null &&
+              provider.availableAddresses.isEmpty &&
+              !provider.isLoadingAddresses) {
+            return _FatalErrorView(error: provider.checkoutError!);
+          }
+
+          return Stack(
+            children: [
+              SingleChildScrollView(
+                padding: const EdgeInsets.only(
+                  top: 16,
+                  bottom: _kBottomSummaryHeightEstimate + 16,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // 非致命提示（不再呼叫 provider.clearError()）
+                    if (provider.checkoutError != null &&
+                        provider.checkoutError!.isNotEmpty &&
+                        (provider.availableAddresses.isNotEmpty || provider.isLoadingAddresses))
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(8),
                           ),
-                        ),
-
-                      // 1. 配送地址
-                      _SectionCard(
-                        title: '配送地址',
-                        trailing: TextButton(
-                          onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('跳轉到地址管理頁 (TODO)')),
-                            );
-                          },
-                          child: const Text('管理地址'),
-                        ),
-                        isLoading: provider.isLoadingAddresses,
-                        child: provider.selectedAddress != null
-                            ? _AddressTile(address: provider.selectedAddress!)
-                            : (provider.availableAddresses.isEmpty && !provider.isLoadingAddresses)
-                            ? const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 8),
-                          child: Text('請添加配送地址'),
-                        )
-                            : const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 8),
-                          child: Text('請選擇或添加配送地址'),
+                          child: Text(provider.checkoutError!, style: const TextStyle(fontSize: 13)),
                         ),
                       ),
 
-                      // 2. 配送方式
-                      _ShippingSectionCard(provider: provider),
-
-                      // 3. 商品摘要
-                      _SectionCard(
-                        title: '商品摘要',
-                        child: _CartSummary(
-                          items: provider.checkoutItems,
-                          itemsSubtotal: provider.itemsSubtotal,
-                        ),
+                    // 1. 配送地址
+                    _SectionCard(
+                      title: '配送地址',
+                      trailing: TextButton(
+                        onPressed: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('跳轉到地址管理頁 (TODO)')),
+                          );
+                        },
+                        child: const Text('管理地址'),
                       ),
-
-                      // 4. 優惠券
-                      _SectionCard(
-                        title: '優惠券',
-                        isLoading: provider.isApplyingCoupon,
-                        child: _CouponField(),
+                      isLoading: provider.isLoadingAddresses,
+                      child: provider.selectedAddress != null
+                          ? _AddressTile(address: provider.selectedAddress!)
+                          : (provider.availableAddresses.isEmpty && !provider.isLoadingAddresses)
+                          ? const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 8),
+                        child: Text('請添加配送地址'),
+                      )
+                          : const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 8),
+                        child: Text('請選擇或添加配送地址'),
                       ),
+                    ),
 
-                      // 5. 支付方式（暫時固定）
-                      _SectionCard(
-                        title: '支付方式',
-                        child: ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: const Icon(Icons.wallet_outlined),
-                          title: const Text('貨到付款'),
-                          trailing: const Radio<bool>(value: true, groupValue: true, onChanged: null),
-                        ),
+                    // 2. 配送方式
+                    _ShippingSectionCard(provider: provider),
+
+                    // 3. 商品摘要
+                    _SectionCard(
+                      title: '商品摘要',
+                      child: _CartSummary(
+                        items: provider.checkoutItems,
+                        itemsSubtotal: provider.itemsSubtotal,
                       ),
+                    ),
 
-                      const SizedBox(height: 16),
-                    ],
-                  ),
+                    // 4. 優惠券
+                    _SectionCard(
+                      title: '優惠券',
+                      isLoading: provider.isApplyingCoupon,
+                      child: _CouponField(),
+                    ),
+
+                    // 5. 支付方式（暫時固定）
+                    _SectionCard(
+                      title: '支付方式',
+                      child: ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.wallet_outlined),
+                        title: const Text('貨到付款'),
+                        trailing: const Radio<bool>(value: true, groupValue: true, onChanged: null),
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+                  ],
                 ),
+              ),
 
-                // 底部結算欄
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: _BottomSummaryBar(),
-                ),
-              ],
-            );
-          },
-        ),
+              // 底部結算欄
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: _BottomSummaryBar(),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -232,7 +221,7 @@ class _AddressTile extends StatelessWidget {
       contentPadding: EdgeInsets.zero,
       leading: const Icon(Icons.location_on_outlined),
       title: Text(
-        '${address.recipientName ?? 'N/A'}（${address.phoneNumber ?? 'N/A'}）',
+        '${address.recipientName}（${address.phoneNumber}）',
         style: const TextStyle(fontWeight: FontWeight.w600),
       ),
       subtitle: Text(address.displayAddress, maxLines: 2, overflow: TextOverflow.ellipsis),
@@ -479,7 +468,7 @@ class _BottomSummaryBar extends StatelessWidget {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         backgroundColor: Colors.green,
-                        content: Text('訂單已創建！ID: ${order.orderId ?? 'N/A'}'),
+                        content: Text('訂單已創建！ID: ${order.orderId}'),
                       ),
                     );
                     Navigator.of(context).popUntil((route) => route.isFirst);

@@ -1,6 +1,11 @@
+// --- FILE: lib/screens/user/orderlist.dart ---
 import 'package:first_flutter_project/theme/app_theme.dart';
 import 'package:flutter/material.dart';
-import 'package:first_flutter_project/models/order/order.dart';
+import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+
+import '../../models/order/order.dart';
+import '../../providers/order_provider.dart';
 import 'order_tracking.dart';
 
 class OrderListScreen extends StatefulWidget {
@@ -10,6 +15,7 @@ class OrderListScreen extends StatefulWidget {
   State<OrderListScreen> createState() => _OrderListScreenState();
 }
 
+// --- 以下 Enums 和 Helpers 完整保留組員的設計 ---
 enum OrderListFilterValue {
   all,
   established,
@@ -23,13 +29,13 @@ String orderListFilterValueToString(OrderListFilterValue filterVal) {
     case OrderListFilterValue.all:
       return '全部';
     case OrderListFilterValue.established:
-      return orderStatusToDisplayString(OrderStatus.established); // 使用 orderStatusToDisplayString
+      return orderStatusToDisplayString(OrderStatus.established);
     case OrderListFilterValue.delivering:
-      return orderStatusToDisplayString(OrderStatus.delivering); // 使用 orderStatusToDisplayString
+      return orderStatusToDisplayString(OrderStatus.delivering);
     case OrderListFilterValue.completed:
-      return orderStatusToDisplayString(OrderStatus.completed); // 使用 orderStatusToDisplayString
+      return orderStatusToDisplayString(OrderStatus.completed);
     case OrderListFilterValue.cancelled:
-      return orderStatusToDisplayString(OrderStatus.cancelled); // 使用 orderStatusToDisplayString
+      return orderStatusToDisplayString(OrderStatus.cancelled);
   }
 }
 
@@ -47,15 +53,11 @@ OrderStatus? orderListFilterToOrderStatus(OrderListFilterValue filterVal) {
       return OrderStatus.cancelled;
   }
 }
-
+// --- Helpers 結束 ---
 
 class _OrderListScreenState extends State<OrderListScreen> {
-  List<OrderModel> _allFetchedOrders = []; // 存儲從API獲取的完整列表
-  bool _isLoading = true;
-  String _error = '';
-  OrderListFilterValue _currentFilter = OrderListFilterValue.all; // 當前選中的篩選條件
+  OrderListFilterValue _currentFilter = OrderListFilterValue.all;
 
-  // 預定義的篩選選項及其順序
   final List<OrderListFilterValue> _filterOptions = [
     OrderListFilterValue.all,
     OrderListFilterValue.delivering,
@@ -67,136 +69,85 @@ class _OrderListScreenState extends State<OrderListScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchOrders();
+    // 確保 build 完成後再獲取資料，避免錯誤
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // 頁面初始化時，立即從後端獲取訂單列表
+      _refreshOrders();
+    });
   }
 
-  Future<void> _fetchOrders() async {
-    if (!mounted) return;
-    setState(() {
-      _isLoading = true;
-      _error = '';
-    });
-
+  // REFACTORED: 抽離出刷新邏輯，呼叫 Provider
+  Future<void> _refreshOrders() async {
     try {
-      await Future.delayed(const Duration(seconds: 1));
-      final fetchedOrdersFromServer = [
-        OrderModel(
-          orderId: 'ORD-20231027-001',
-          productName: 'Flutter開發實戰手冊 (第2版)',
-          totalPrice: 49.99,
-          orderDate: DateTime.now().subtract(const Duration(days: 5)),
-          currentStatus: OrderStatus.completed,
-          statusHistory: [
-            OrderStatusUpdate(status: OrderStatus.established, timestamp: DateTime.now().subtract(const Duration(days: 5, hours: 2))),
-            OrderStatusUpdate(status: OrderStatus.delivering, timestamp: DateTime.now().subtract(const Duration(days: 4)), description: "已發貨"),
-            OrderStatusUpdate(status: OrderStatus.completed, timestamp: DateTime.now().subtract(const Duration(days: 3)), description: "已簽收"),
-          ],
-        ),
-        OrderModel(
-          orderId: 'ORD-20231026-003',
-          productName: 'Dart編程高級指南 + 配套鼠標墊',
-          totalPrice: 79.50,
-          orderDate: DateTime.now().subtract(const Duration(days: 2)),
-          currentStatus: OrderStatus.delivering,
-          statusHistory: [
-            OrderStatusUpdate(status: OrderStatus.established, timestamp: DateTime.now().subtract(const Duration(days: 2, hours: 2))),
-            OrderStatusUpdate(status: OrderStatus.delivering, timestamp: DateTime.now().subtract(const Duration(hours: 5)), description: "您的包裹已由快遞員攬收"),
-          ],
-        ),
-        OrderModel(
-            orderId: 'ORD-20231028-001',
-            productName: '酷炫無線藍牙耳機Pro Max',
-            totalPrice: 129.00,
-            orderDate: DateTime.now().subtract(const Duration(hours: 3)),
-            currentStatus: OrderStatus.established,
-            statusHistory: [
-              OrderStatusUpdate(status: OrderStatus.established, timestamp: DateTime.now().subtract(const Duration(hours: 3))),
-            ]
-        ),
-        OrderModel(
-          orderId: 'ORD-20231025-002',
-          productName: '精美UI設計模板包 (企業版)',
-          totalPrice: 25.00,
-          orderDate: DateTime.now().subtract(const Duration(days: 10)),
-          currentStatus: OrderStatus.cancelled,
-        ),
-        OrderModel(
-            orderId: 'ORD-20231029-001',
-            productName: '智能家居控制中心',
-            totalPrice: 199.00,
-            orderDate: DateTime.now().subtract(const Duration(minutes: 30)),
-            currentStatus: OrderStatus.established,
-            statusHistory: [
-              OrderStatusUpdate(status: OrderStatus.established, timestamp: DateTime.now().subtract(const Duration(minutes: 30))),
-            ]
-        ),
-        OrderModel(
-          orderId: 'ORD-20231020-005',
-          productName: '經典文學名著全集',
-          totalPrice: 88.88,
-          orderDate: DateTime.now().subtract(const Duration(days: 15)),
-          currentStatus: OrderStatus.completed,
-        ),
-      ];
-
-      if (mounted) {
-        setState(() {
-          _allFetchedOrders = fetchedOrdersFromServer;
-          _isLoading = false;
-        });
-      }
+      await context.read<OrderProvider>().fetchMyOrders();
     } catch (e) {
       if (mounted) {
-        setState(() {
-          _error = '獲取訂單列表失敗: $e';
-          _isLoading = false;
-        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('無法載入訂單: $e'), backgroundColor: Colors.red),
+        );
       }
     }
   }
 
-  List<OrderModel> get _displayedOrders {
-    final selectedOrderStatus = orderListFilterToOrderStatus(_currentFilter);
-    if (selectedOrderStatus == null) {
-      return _allFetchedOrders;
-    }
-    return _allFetchedOrders.where((order) => order.currentStatus == selectedOrderStatus).toList();
-  }
-
-  void _navigateToOrderTracking(BuildContext context, OrderModel order) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => OrderTrackingScreen(orderId: order.orderId),
-      ),
+  // REFACTORED: 導航到訂單追蹤頁
+  void _navigateToOrderTracking(BuildContext context, Order order) {
+    // TODO: 建立並導航到訂單詳情/追蹤頁面
+    // Navigator.push(
+    //   context,
+    //   MaterialPageRoute(
+    //     builder: (context) => OrderTrackingScreen(orderId: order.orderId),
+    //   ),
+    // );
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('查看訂單 #${order.orderId} (功能待實現)')),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('我的訂單'),
-        centerTitle: true,
-        backgroundColor: primaryCS.secondary,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _fetchOrders,
-            tooltip: '刷新列表',
-          )
-        ],
-      ),
-      body: Column(
-        children: [
-          _buildFilterBar(),
-          Expanded(child: _buildOrderList()),
-        ],
-      ),
+    // 使用 Consumer 來獲取並監聽 OrderProvider 的狀態
+    return Consumer<OrderProvider>(
+      builder: (context, provider, child) {
+        // REFACTORED: 根據 Provider 的狀態動態計算要顯示的訂單列表
+        final allOrders = provider.orders;
+        final displayedOrders = _getDisplayedOrders(allOrders);
+
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('我的訂單'),
+            centerTitle: true,
+            backgroundColor: primaryCS.secondary,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.refresh),
+                onPressed: _refreshOrders,
+                tooltip: '刷新列表',
+              )
+            ],
+          ),
+          body: Column(
+            children: [
+              _buildFilterBar(allOrders),
+              Expanded(child: _buildOrderList(provider, displayedOrders)),
+            ],
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildFilterBar() {
+  // REFACTORED: 本地篩選邏輯，處理來自 Provider 的資料
+  List<Order> _getDisplayedOrders(List<Order> allOrders) {
+    final selectedOrderStatus = orderListFilterToOrderStatus(_currentFilter);
+    if (selectedOrderStatus == null) {
+      return allOrders;
+    }
+    return allOrders.where((order) => order.status == selectedOrderStatus).toList();
+  }
+
+  // --- 以下 UI Builder Widgets 完整保留組員的設計，並適配新模型 ---
+
+  Widget _buildFilterBar(List<Order> allOrders) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
       color: Theme.of(context).canvasColor,
@@ -229,12 +180,12 @@ class _OrderListScreenState extends State<OrderListScreen> {
     );
   }
 
-  Widget _buildOrderList() {
-    if (_isLoading) {
+  Widget _buildOrderList(OrderProvider provider, List<Order> ordersToDisplay) {
+    if (provider.isLoading && ordersToDisplay.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (_error.isNotEmpty) {
+    if (provider.error != null && ordersToDisplay.isEmpty) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -243,10 +194,10 @@ class _OrderListScreenState extends State<OrderListScreen> {
             children: [
               const Icon(Icons.error_outline, color: Colors.red, size: 50),
               const SizedBox(height: 10),
-              Text(_error, textAlign: TextAlign.center, style: const TextStyle(color: Colors.red, fontSize: 16)),
+              Text(provider.error!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.red, fontSize: 16)),
               const SizedBox(height: 20),
               ElevatedButton.icon(
-                  onPressed: _fetchOrders,
+                  onPressed: _refreshOrders,
                   icon: const Icon(Icons.refresh),
                   label: const Text("重試")
               )
@@ -255,8 +206,6 @@ class _OrderListScreenState extends State<OrderListScreen> {
         ),
       );
     }
-
-    final ordersToDisplay = _displayedOrders;
 
     if (ordersToDisplay.isEmpty) {
       return Center(
@@ -274,14 +223,6 @@ class _OrderListScreenState extends State<OrderListScreen> {
                 style: TextStyle(fontSize: 18, color: Colors.grey[600]),
                 textAlign: TextAlign.center,
               ),
-              if (_currentFilter == OrderListFilterValue.all)
-                Padding(
-                  padding: const EdgeInsets.only(top:8.0),
-                  child: Text(
-                    '快去選購您喜歡的商品吧！',
-                    style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-                  ),
-                ),
             ],
           ),
         ),
@@ -289,7 +230,7 @@ class _OrderListScreenState extends State<OrderListScreen> {
     }
 
     return RefreshIndicator(
-      onRefresh: _fetchOrders,
+      onRefresh: _refreshOrders,
       child: ListView.builder(
         padding: const EdgeInsets.all(8.0),
         itemCount: ordersToDisplay.length,
@@ -301,16 +242,21 @@ class _OrderListScreenState extends State<OrderListScreen> {
     );
   }
 
-  Widget _buildOrderItemCard(BuildContext context, OrderModel order) {
+  Widget _buildOrderItemCard(BuildContext context, Order order) {
+    // REFACTORED: 適配新的 Order 模型
+    final firstItem = order.items.isNotEmpty ? order.items.first : null;
+    final firstProduct = firstItem?.product;
+    final displayProductName = firstProduct != null
+        ? '${firstProduct.name}${order.items.length > 1 ? '...等 ${order.items.length} 件商品' : ''}'
+        : '商品資訊錯誤';
+
     return Card(
       elevation: 2,
       margin: const EdgeInsets.symmetric(vertical: 7.0),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       child: InkWell(
         borderRadius: BorderRadius.circular(10),
-        onTap: () {
-          _navigateToOrderTracking(context, order);
-        },
+        onTap: () => _navigateToOrderTracking(context, order),
         child: Padding(
           padding: const EdgeInsets.all(12.0),
           child: Column(
@@ -322,13 +268,13 @@ class _OrderListScreenState extends State<OrderListScreen> {
                 children: [
                   Expanded(
                     child: Text(
-                      '訂單號: ${order.orderId}',
+                      '訂單號: #${order.orderId}',
                       style: TextStyle(fontSize: 12, color: Colors.grey[700]),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   const SizedBox(width: 8),
-                  _buildStatusChip(order.currentStatus),
+                  _buildStatusChip(order.status),
                 ],
               ),
               const Divider(height: 18),
@@ -341,8 +287,16 @@ class _OrderListScreenState extends State<OrderListScreen> {
                     decoration: BoxDecoration(
                       color: Colors.grey[200],
                       borderRadius: BorderRadius.circular(8),
+                      image: firstProduct != null && firstProduct.imageUrls.isNotEmpty
+                          ? DecorationImage(
+                        image: NetworkImage(firstProduct.imageUrls.first),
+                        fit: BoxFit.cover,
+                      )
+                          : null,
                     ),
-                    child: Icon(Icons.photo_size_select_actual_outlined, color: Colors.grey[500], size: 35),
+                    child: (firstProduct == null || firstProduct.imageUrls.isEmpty)
+                        ? Icon(Icons.photo_size_select_actual_outlined, color: Colors.grey[500], size: 35)
+                        : null,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -350,14 +304,14 @@ class _OrderListScreenState extends State<OrderListScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          order.productName,
+                          displayProductName,
                           style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 5),
                         Text(
-                          '下單於: ${order.orderDate.toLocal().toString().substring(0, 10)}',
+                          '下單於: ${DateFormat('yyyy-MM-dd').format(order.createdAt.toLocal())}',
                           style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                         ),
                       ],
@@ -369,7 +323,7 @@ class _OrderListScreenState extends State<OrderListScreen> {
               Align(
                 alignment: Alignment.centerRight,
                 child: Text(
-                  '合計: \$${order.totalPrice.toStringAsFixed(2)}',
+                  '合計: \$${order.totalAmount.toStringAsFixed(2)}',
                   style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.secondary),
                 ),
               ),
@@ -380,7 +334,7 @@ class _OrderListScreenState extends State<OrderListScreen> {
     );
   }
 
-  // MODIFIED HERE
+// MODIFIED HERE
   Widget _buildStatusChip(OrderStatus status) {
     Color chipColor;
     Color textColor = Colors.white;

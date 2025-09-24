@@ -1,299 +1,176 @@
 // --- FILE: lib/providers/checkout_provider.dart ---
 import 'package:flutter/foundation.dart';
+import '../models/user/address.dart';
+import '../models/user/shipping_option.dart';
+import '../models/user/cart_item.dart';
+import '../models/order/discount_info.dart';
+import '../models/order/order.dart';
+import '../services/order_service.dart';
+import '../services/address_service.dart';
 import 'auth_provider.dart';
 import 'cart_provider.dart';
 
 class CheckoutProvider with ChangeNotifier {
+  final OrderService _orderService;
+  final AddressService _addressService;
   AuthProvider? _authProvider;
   CartProvider? _cartProvider;
 
-  bool _isLoading = false;
+  // --- 狀態 (已全部改為強型別) ---
+  List<Address> _availableAddresses = [];
+  Address? _selectedAddress;
+  List<ShippingOption> _shippingOptions = [];
+  ShippingOption? _selectedShippingOption;
+  DiscountInfo? _discountInfo;
+  String? _lastAppliedCouponCode;
+
   bool _isLoadingAddresses = false;
   bool _isLoadingShippingOptions = false;
   bool _isApplyingCoupon = false;
   bool _isPlacingOrder = false;
   String? _checkoutError;
 
-  List<dynamic> _availableAddresses = [];
-  dynamic _selectedAddress;
-  List<dynamic> _shippingOptions = [];
-  dynamic _selectedShippingOption;
-  dynamic _discountInfo;
-
   // --- Getters ---
-  bool get isLoading => _isLoading;
+  List<CartItem> get checkoutItems => _cartProvider?.items.where((item) => item.isSelected).toList() ?? [];
+  List<Address> get availableAddresses => _availableAddresses;
+  Address? get selectedAddress => _selectedAddress;
+  List<ShippingOption> get shippingOptions => _shippingOptions;
+  ShippingOption? get selectedShippingOption => _selectedShippingOption;
+  DiscountInfo? get discountInfo => _discountInfo;
+  String? get lastAppliedCouponCode => _lastAppliedCouponCode;
+
   bool get isLoadingAddresses => _isLoadingAddresses;
   bool get isLoadingShippingOptions => _isLoadingShippingOptions;
   bool get isApplyingCoupon => _isApplyingCoupon;
   bool get isPlacingOrder => _isPlacingOrder;
-  String? get error => _checkoutError;
   String? get checkoutError => _checkoutError;
 
-  List<dynamic> get availableAddresses => _availableAddresses;
-  dynamic get selectedAddress => _selectedAddress;
-  List<dynamic> get shippingOptions => _shippingOptions;
-  dynamic get selectedShippingOption => _selectedShippingOption;
-  dynamic get discountInfo => _discountInfo;
-
-  dynamic get checkoutItems {
-    if (_cartProvider == null) return <dynamic>[];
-    try {
-      return _cartProvider!.items.where((item) => item.isSelected).toList();
-    } catch (e) {
-      return <dynamic>[];
-    }
-  }
-
-  double get itemsSubtotal {
-    if (checkoutItems.isEmpty) return 0.0;
-    return checkoutItems.fold(0.0, (sum, item) =>
-    sum + (item.product.price * item.quantity));
-  }
-
-  double get shippingCost {
-    if (_discountInfo?.isFreeShipping == true) return 0.0;
-    return _selectedShippingOption?.cost ?? 0.0;
-  }
-
+  double get itemsSubtotal => _cartProvider?.totalSelectedAmount ?? 0.0;
+  double get shippingCost => _discountInfo?.isFreeShipping == true ? 0.0 : _selectedShippingOption?.cost ?? 0.0;
   double get discountAmount => _discountInfo?.discountAmount ?? 0.0;
+  double get totalAmount => (itemsSubtotal + shippingCost - discountAmount).clamp(0.0, double.infinity);
 
-  double get totalAmount {
-    return (itemsSubtotal + shippingCost - discountAmount).clamp(0.0, double.infinity);
-  }
-
-  String? get lastAppliedCouponCode => _discountInfo?.appliedCouponCode;
-
-  CheckoutProvider(
-      dynamic orderService,
-      dynamic addressService,
-      AuthProvider? authProvider,
-      CartProvider? cartProvider
-      ) : _authProvider = authProvider, _cartProvider = cartProvider {
-    _initializeCheckoutData();
-  }
-
-  void update(AuthProvider? newAuthProvider, CartProvider? newCartProvider) {
-    _authProvider = newAuthProvider;
-    _cartProvider = newCartProvider;
-    _initializeCheckoutData();
-    notifyListeners();
-  }
-
-  Future<void> _initializeCheckoutData() async {
-    if (_authProvider?.isLoggedIn ?? false) {
-      await fetchAddresses();
+  CheckoutProvider(this._orderService, this._addressService, this._authProvider, this._cartProvider) {
+    if (_authProvider?.isLoggedIn == true) {
+      loadInitialData();
     }
   }
 
-  Future<void> fetchAddresses() async {
-    if (!(_authProvider?.isLoggedIn ?? false)) return;
+  void update(AuthProvider auth, CartProvider cart) {
+    _authProvider = auth;
+    _cartProvider = cart;
+  }
 
+  Future<void> loadInitialData() async {
     _isLoadingAddresses = true;
+    _checkoutError = null;
     notifyListeners();
-
     try {
-      await Future.delayed(const Duration(milliseconds: 500));
-      // 模擬地址數據
-      _availableAddresses = [
-        MockAddress(
-          id: 1,
-          recipientName: "張三",
-          phoneNumber: "0912345678",
-          displayAddress: "台北市大安區忠孝東路四段123號5樓",
-        ),
-      ];
+      _availableAddresses = await _addressService.getMyAddresses();
       if (_availableAddresses.isNotEmpty) {
-        _selectedAddress = _availableAddresses.first;
-        await fetchShippingMethods();
+        final defaultAddress = _availableAddresses.firstWhere((a) => a.isDefault, orElse: () => _availableAddresses.first);
+        await selectAddress(defaultAddress);
       }
     } catch (e) {
-      _checkoutError = "加載地址失敗: $e";
+      _checkoutError = "無法載入地址: $e";
     } finally {
       _isLoadingAddresses = false;
       notifyListeners();
     }
   }
 
-  void selectAddress(dynamic address) {
+  Future<void> selectAddress(Address address) async {
     _selectedAddress = address;
-    _shippingOptions = [];
     _selectedShippingOption = null;
     notifyListeners();
-    if (checkoutItems.isNotEmpty) {
-      fetchShippingMethods();
-    }
+    await fetchShippingOptions();
   }
 
-  Future<void> fetchShippingMethods() async {
-    if (_selectedAddress == null || checkoutItems.isEmpty) return;
-
+  Future<void> fetchShippingOptions() async {
+    if (_selectedAddress == null) return;
     _isLoadingShippingOptions = true;
+    _checkoutError = null;
     notifyListeners();
-
     try {
+      // TODO: 未來在此處呼叫真實的後端 API
       await Future.delayed(const Duration(milliseconds: 500));
-      // 模擬配送選項
+      // --- 關鍵修正：確保模擬資料符合 ShippingOption 模型 ---
       _shippingOptions = [
-        MockShippingOption(
-          id: "standard",
-          name: "標準配送",
-          description: "3-5個工作天",
-          cost: 60.0,
-          isEnabled: true,
-        ),
-        MockShippingOption(
-          id: "express",
-          name: "快速配送",
-          description: "1-2個工作天",
-          cost: 120.0,
-          isEnabled: true,
-        ),
+        ShippingOption(id: '1', name: '標準配送', cost: 60.0, description: '約 3-5 個工作天', createdAt: DateTime.now()),
+        ShippingOption(id: '2', name: '快速到貨', cost: 120.0, description: '24 小時內送達', createdAt: DateTime.now()),
       ];
       if (_shippingOptions.isNotEmpty) {
-        _selectedShippingOption = _shippingOptions.first;
+        _selectedShippingOption = _shippingOptions.firstWhere((opt) => opt.isEnabled, orElse: () => _shippingOptions.first);
       }
     } catch (e) {
-      _checkoutError = "加載配送方式失敗: $e";
+      _checkoutError = "無法載入運送方式: $e";
     } finally {
       _isLoadingShippingOptions = false;
       notifyListeners();
     }
   }
 
-  void selectShippingOption(dynamic option) {
+  void selectShippingOption(ShippingOption option) {
     _selectedShippingOption = option;
     notifyListeners();
   }
 
   Future<void> applyCoupon(String code) async {
-    if (code.isEmpty || checkoutItems.isEmpty) return;
-
+    if (code.isEmpty) return;
     _isApplyingCoupon = true;
+    _checkoutError = null;
+    _lastAppliedCouponCode = code;
     notifyListeners();
-
     try {
-      await Future.delayed(const Duration(milliseconds: 800));
-      // 模擬優惠券驗證
-      if (code.toLowerCase() == "discount10") {
-        _discountInfo = MockDiscountInfo(
-          discountAmount: itemsSubtotal * 0.1,
-          appliedCouponCode: code,
-          message: "優惠券已套用！享受10%折扣",
-          isFreeShipping: false,
-        );
+      // TODO: 未來在此處呼叫真實的後端 API
+      await Future.delayed(const Duration(seconds: 1));
+      if (code.toUpperCase() == "SALE50") {
+        _discountInfo = DiscountInfo(discountAmount: 50, message: "已成功折抵 NT\$50", appliedCouponCode: code);
       } else {
-        _discountInfo = MockDiscountInfo(
-          discountAmount: 0.0,
-          appliedCouponCode: null,
-          message: "無效的優惠券代碼",
-          isFreeShipping: false,
-        );
+        // --- 關鍵修正：為無效的優惠券補上 discountAmount: 0 ---
+        _discountInfo = DiscountInfo(discountAmount: 0, message: "無效的優惠券代碼", appliedCouponCode: code);
       }
     } catch (e) {
-      _checkoutError = "套用優惠券失敗: $e";
+      _discountInfo = DiscountInfo(discountAmount: 0, message: "驗證優惠券失敗: $e", appliedCouponCode: code);
     } finally {
       _isApplyingCoupon = false;
       notifyListeners();
     }
   }
 
-  Future<dynamic> placeOrder({String paymentMethodId = "default"}) async {
-    if (!(_authProvider?.isLoggedIn ?? false)) {
-      _checkoutError = "請先登入";
+  Future<Order?> placeOrder() async {
+    if (_isPlacingOrder || _selectedAddress == null || _selectedShippingOption == null || checkoutItems.isEmpty) {
+      _checkoutError = "請確認所有欄位皆已選擇";
       notifyListeners();
       return null;
     }
-
-    if (_selectedAddress == null || _selectedShippingOption == null || checkoutItems.isEmpty) {
-      _checkoutError = "請完成所有必填選項：地址、配送方式和商品。";
-      notifyListeners();
-      return null;
-    }
-
     _isPlacingOrder = true;
     _checkoutError = null;
     notifyListeners();
 
     try {
-      await Future.delayed(const Duration(seconds: 2));
-
-      if (_cartProvider != null) {
-        await _cartProvider!.clearSelectedItems();
+      // --- 關鍵修正：將 String 類型的 ID 轉換為 int ---
+      final shippingId = int.tryParse(_selectedShippingOption!.id);
+      if (shippingId == null) {
+        throw Exception("無效的運送方式 ID");
       }
 
-      // 返回模擬訂單
-      final order = MockOrder(
-        orderId: "ORD${DateTime.now().millisecondsSinceEpoch}",
-        totalAmount: totalAmount,
+      final order = await _orderService.createOrder(
+        addressId: _selectedAddress!.id,
+        shippingOptionId: shippingId,
+        cartItemIds: checkoutItems.map((item) => item.id!).toList(),
+        couponCode: _discountInfo?.appliedCouponCode,
       );
 
+      _cartProvider?.clearLocalCart();
       return order;
+
     } catch (e) {
-      _checkoutError = "創建訂單失敗: $e";
+      _checkoutError = "下單失敗: $e";
       return null;
     } finally {
       _isPlacingOrder = false;
       notifyListeners();
     }
   }
-
-  void clearError() {
-    _checkoutError = null;
-    notifyListeners();
-  }
-}
-
-// 模擬類
-class MockAddress {
-  final int id;
-  final String recipientName;
-  final String phoneNumber;
-  final String displayAddress;
-
-  MockAddress({
-    required this.id,
-    required this.recipientName,
-    required this.phoneNumber,
-    required this.displayAddress,
-  });
-}
-
-class MockShippingOption {
-  final String id;
-  final String name;
-  final String description;
-  final double cost;
-  final bool isEnabled;
-
-  MockShippingOption({
-    required this.id,
-    required this.name,
-    required this.description,
-    required this.cost,
-    required this.isEnabled,
-  });
-}
-
-class MockDiscountInfo {
-  final double discountAmount;
-  final String? appliedCouponCode;
-  final String? message;
-  final bool isFreeShipping;
-
-  MockDiscountInfo({
-    required this.discountAmount,
-    required this.appliedCouponCode,
-    required this.message,
-    required this.isFreeShipping,
-  });
-}
-
-class MockOrder {
-  final String orderId;
-  final double totalAmount;
-
-  MockOrder({
-    required this.orderId,
-    required this.totalAmount,
-  });
 }

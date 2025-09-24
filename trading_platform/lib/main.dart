@@ -10,6 +10,7 @@ import 'providers/wishlist_provider.dart';
 import 'providers/cart_provider.dart';
 import 'providers/checkout_provider.dart';
 import 'providers/announcement_provider.dart';
+import 'providers/order_provider.dart'; // 1. 引入 OrderProvider
 
 import 'services/api_client.dart';
 import 'services/auth_service.dart';
@@ -38,8 +39,8 @@ void main() {
   final WishlistService wishlistService = WishlistService(apiClient);
   final AnnouncementService announcementService = AnnouncementService(apiClient);
   final UploadService uploadService = UploadService(apiClient);
-  final OrderService orderService = OrderService();
-  final AddressService addressService = AddressService();
+  final OrderService orderService = OrderService(apiClient);
+  final AddressService addressService = AddressService(apiClient);
 
   runApp(
     MultiProvider(
@@ -75,6 +76,15 @@ void main() {
           update: (_, auth, cart, previousCheckout) {
             previousCheckout?.update(auth, cart);
             return previousCheckout ?? CheckoutProvider(orderService, addressService, auth, cart);
+          },
+        ),
+        // --- 關鍵新增：加入 OrderProvider ---
+        // 使用 ChangeNotifierProxyProvider，讓它能監聽登入狀態的變化
+        ChangeNotifierProxyProvider<AuthProvider, OrderProvider>(
+          create: (_) => OrderProvider(orderService, null),
+          update: (_, auth, previousOrders) {
+            previousOrders?.update(auth);
+            return previousOrders ?? OrderProvider(orderService, auth);
           },
         ),
       ],

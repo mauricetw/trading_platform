@@ -1,49 +1,72 @@
+// --- FILE: lib/models/user/address.dart ---
 import 'package:json_annotation/json_annotation.dart';
 
 part 'address.g.dart';
 
 @JsonSerializable(
+  fieldRename: FieldRename.snake, // 確保與後端蛇形命名匹配
   explicitToJson: true,
-  includeIfNull: false,
 )
 class Address {
-  final String id;
-  final String? userId;
-  final String? recipientName;
-  final String? phoneNumber;
+  // --- 關鍵修正：ID 類型改為 int ---
+  final int id;
+  final int userId;
+
+  // --- 關鍵修正：核心欄位設為必填 ---
+  final String recipientName;
+  final String phoneNumber;
+  final String city;
+  final String postalCode;
+  final String streetAddress1;
+
+  // --- 保留的可選欄位 ---
   final String? country;
   final String? province;
-  final String? city;
   final String? district;
-  final String? streetAddress1;
   final String? streetAddress2;
-  final String? postalCode;
   final bool isDefault;
   final Map<String, dynamic>? additionalInfo;
 
   Address({
     required this.id,
-    this.userId,
-    this.recipientName,
-    this.phoneNumber,
+    required this.userId,
+    required this.recipientName,
+    required this.phoneNumber,
+    required this.city,
+    required this.postalCode,
+    required this.streetAddress1,
     this.country,
     this.province,
-    this.city,
     this.district,
-    this.streetAddress1,
     this.streetAddress2,
-    this.postalCode,
     this.isDefault = false,
     this.additionalInfo,
   });
+
+  /// 便利的 getter，用於在 UI 中顯示格式化的完整地址
+  String get displayAddress {
+    // 保留您組員設計的顯示邏輯
+    final parts = [
+      postalCode,
+      country,
+      province,
+      city,
+      district,
+      streetAddress1,
+      streetAddress2,
+    ];
+    // 過濾掉 null 或空字串的欄位，然後用空格連接
+    return parts.where((p) => p != null && p.isNotEmpty).join(' ');
+  }
 
   factory Address.fromJson(Map<String, dynamic> json) => _$AddressFromJson(json);
 
   Map<String, dynamic> toJson() => _$AddressToJson(this);
 
+  // copyWith 方法對於狀態管理很有用，予以保留
   Address copyWith({
-    String? id,
-    String? userId,
+    int? id,
+    int? userId,
     String? recipientName,
     String? phoneNumber,
     String? country,
@@ -72,23 +95,4 @@ class Address {
       additionalInfo: additionalInfo ?? this.additionalInfo,
     );
   }
-
-  String get displayAddress {
-    List<String> parts = [];
-    // 您可以根據需要調整顯示的順序和包含的字段
-    if (country != null && country!.isNotEmpty) parts.add(country!);
-    if (province != null && province!.isNotEmpty) parts.add(province!);
-    if (city != null && city!.isNotEmpty) parts.add(city!);
-    if (district != null && district!.isNotEmpty) parts.add(district!);
-    if (streetAddress1 != null && streetAddress1!.isNotEmpty) parts.add(streetAddress1!);
-    if (streetAddress2 != null && streetAddress2!.isNotEmpty) parts.add(streetAddress2!);
-    if (postalCode != null && postalCode!.isNotEmpty) parts.add('($postalCode)'); // 郵編可以加括號
-    if (recipientName != null && recipientName!.isNotEmpty) parts.add('收件人: $recipientName');
-    if (phoneNumber != null && phoneNumber!.isNotEmpty) parts.add('電話: $phoneNumber');
-
-    return parts.where((part) => part.isNotEmpty).join(' ').trim();
-  }
-
-
 }
-

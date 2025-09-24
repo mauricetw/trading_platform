@@ -54,6 +54,14 @@ class CartProvider with ChangeNotifier {
     }
   }
 
+  // --- 關鍵新增：清空本地購物車狀態的方法 ---
+  /// 當訂單成功建立後，由 CheckoutProvider 呼叫，只清空前端的狀態
+  void clearLocalCart() {
+    // 只移除那些被選中並成功結帳的商品
+    _items.removeWhere((key, value) => value.isSelected);
+    notifyListeners();
+  }
+
   // --- 核心業務邏輯 ---
 
   Future<void> fetchUserCart({bool forceRefresh = false}) async {
