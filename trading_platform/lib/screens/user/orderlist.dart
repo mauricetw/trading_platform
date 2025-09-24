@@ -89,17 +89,13 @@ class _OrderListScreenState extends State<OrderListScreen> {
     }
   }
 
-  // REFACTORED: 導航到訂單追蹤頁
+  // --- 關鍵修正：實現真實的導航 ---
   void _navigateToOrderTracking(BuildContext context, Order order) {
-    // TODO: 建立並導航到訂單詳情/追蹤頁面
-    // Navigator.push(
-    //   context,
-    //   MaterialPageRoute(
-    //     builder: (context) => OrderTrackingScreen(orderId: order.orderId),
-    //   ),
-    // );
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('查看訂單 #${order.orderId} (功能待實現)')),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => OrderTrackingScreen(orderId: order.orderId),
+      ),
     );
   }
 
@@ -181,11 +177,11 @@ class _OrderListScreenState extends State<OrderListScreen> {
   }
 
   Widget _buildOrderList(OrderProvider provider, List<Order> ordersToDisplay) {
-    if (provider.isLoading && ordersToDisplay.isEmpty) {
+    if (provider.isListLoading && ordersToDisplay.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (provider.error != null && ordersToDisplay.isEmpty) {
+    if (provider.listError != null && ordersToDisplay.isEmpty) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -194,7 +190,7 @@ class _OrderListScreenState extends State<OrderListScreen> {
             children: [
               const Icon(Icons.error_outline, color: Colors.red, size: 50),
               const SizedBox(height: 10),
-              Text(provider.error!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.red, fontSize: 16)),
+              Text(provider.listError!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.red, fontSize: 16)),
               const SizedBox(height: 20),
               ElevatedButton.icon(
                   onPressed: _refreshOrders,
