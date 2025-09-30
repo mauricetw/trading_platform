@@ -3,6 +3,7 @@ import 'package:first_flutter_project/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../seller/shipping_setting_page.dart';
 
 import '../../providers/checkout_provider.dart';
 import '../../services/order_service.dart';
@@ -82,9 +83,7 @@ class CheckoutScreen extends StatelessWidget {
                       title: '配送地址',
                       trailing: TextButton(
                         onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('跳轉到地址管理頁 (TODO)')),
-                          );
+                          Navigator.push(context, MaterialPageRoute(builder: (context) => ShippingSettingsPage()));
                         },
                         child: const Text('管理地址'),
                       ),
