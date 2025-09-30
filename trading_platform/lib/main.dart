@@ -10,7 +10,8 @@ import 'providers/wishlist_provider.dart';
 import 'providers/cart_provider.dart';
 import 'providers/checkout_provider.dart';
 import 'providers/announcement_provider.dart';
-import 'providers/order_provider.dart'; // 1. 引入 OrderProvider
+import 'providers/order_provider.dart';
+import 'providers/seller_provider.dart';
 
 import 'services/api_client.dart';
 import 'services/auth_service.dart';
@@ -45,6 +46,11 @@ void main() {
   runApp(
     MultiProvider(
       providers: [
+        // --- 將 OrderService 實例提供給整個 App ---
+        // 我們使用 Provider 而不是 ChangeNotifierProvider，因為 OrderService 不需要通知 UI 監聽變化
+        Provider<OrderService>(
+          create: (_) => orderService,
+        ),
         ChangeNotifierProvider(
           create: (_) => AuthProvider(authService, userService, apiClient, uploadService),
         ),
@@ -85,6 +91,15 @@ void main() {
           update: (_, auth, previousOrders) {
             previousOrders?.update(auth);
             return previousOrders ?? OrderProvider(orderService, auth);
+          },
+        ),
+        // --- 加入 SellerProvider ---
+        // 它依賴 AuthProvider 來確認登入狀態
+        ChangeNotifierProxyProvider<AuthProvider, SellerProvider>(
+          create: (_) => SellerProvider(orderService, null),
+          update: (_, auth, previous) {
+            previous?.update(auth);
+            return previous ?? SellerProvider(orderService, auth);
           },
         ),
       ],

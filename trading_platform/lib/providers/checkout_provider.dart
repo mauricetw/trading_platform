@@ -30,7 +30,7 @@ class CheckoutProvider with ChangeNotifier {
   bool _isPlacingOrder = false;
   String? _checkoutError;
 
-  // --- Getters ---
+  // --- Getters (維持不變) ---
   List<CartItem> get checkoutItems => _cartProvider?.items.where((item) => item.isSelected).toList() ?? [];
   List<Address> get availableAddresses => _availableAddresses;
   Address? get selectedAddress => _selectedAddress;
@@ -50,6 +50,7 @@ class CheckoutProvider with ChangeNotifier {
   double get discountAmount => _discountInfo?.discountAmount ?? 0.0;
   double get totalAmount => (itemsSubtotal + shippingCost - discountAmount).clamp(0.0, double.infinity);
 
+  // --- 核心邏輯 (已串接真實服務) ---
   CheckoutProvider(this._orderService, this._addressService, this._authProvider, this._cartProvider) {
     if (_authProvider?.isLoggedIn == true) {
       loadInitialData();
@@ -66,8 +67,10 @@ class CheckoutProvider with ChangeNotifier {
     _checkoutError = null;
     notifyListeners();
     try {
+      // 呼叫真實的 AddressService
       _availableAddresses = await _addressService.getMyAddresses();
       if (_availableAddresses.isNotEmpty) {
+        // 預設選擇標記為 isDefault 的地址，如果沒有，則選擇第一個
         final defaultAddress = _availableAddresses.firstWhere((a) => a.isDefault, orElse: () => _availableAddresses.first);
         await selectAddress(defaultAddress);
       }
@@ -87,23 +90,30 @@ class CheckoutProvider with ChangeNotifier {
   }
 
   Future<void> fetchShippingOptions() async {
-    if (_selectedAddress == null) return;
+    if (_selectedAddress == null || checkoutItems.isEmpty) {
+      _shippingOptions = [];
+      notifyListeners();
+      return;
+    }
+
     _isLoadingShippingOptions = true;
     _checkoutError = null;
     notifyListeners();
+
     try {
-      // TODO: 未來在此處呼叫真實的後端 API
-      await Future.delayed(const Duration(milliseconds: 500));
-      // --- 關鍵修正：確保模擬資料符合 ShippingOption 模型 ---
-      _shippingOptions = [
-        ShippingOption(id: '1', name: '標準配送', cost: 60.0, description: '約 3-5 個工作天', createdAt: DateTime.now()),
-        ShippingOption(id: '2', name: '快速到貨', cost: 120.0, description: '24 小時內送達', createdAt: DateTime.now()),
-      ];
+      final sellerId = checkoutItems.first.product.sellerId;
+      final options = await _orderService.getAvailableShippingMethods(sellerId);
+      _shippingOptions = options;
+
       if (_shippingOptions.isNotEmpty) {
-        _selectedShippingOption = _shippingOptions.firstWhere((opt) => opt.isEnabled, orElse: () => _shippingOptions.first);
+        _selectedShippingOption = _shippingOptions.firstWhere(
+                (opt) => opt.isEnabled,
+            orElse: () => _shippingOptions.first
+        );
       }
     } catch (e) {
       _checkoutError = "無法載入運送方式: $e";
+      _shippingOptions = [];
     } finally {
       _isLoadingShippingOptions = false;
       notifyListeners();
@@ -127,7 +137,6 @@ class CheckoutProvider with ChangeNotifier {
       if (code.toUpperCase() == "SALE50") {
         _discountInfo = DiscountInfo(discountAmount: 50, message: "已成功折抵 NT\$50", appliedCouponCode: code);
       } else {
-        // --- 關鍵修正：為無效的優惠券補上 discountAmount: 0 ---
         _discountInfo = DiscountInfo(discountAmount: 0, message: "無效的優惠券代碼", appliedCouponCode: code);
       }
     } catch (e) {
@@ -149,16 +158,11 @@ class CheckoutProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      // --- 關鍵修正：將 String 類型的 ID 轉換為 int ---
-      final shippingId = int.tryParse(_selectedShippingOption!.id);
-      if (shippingId == null) {
-        throw Exception("無效的運送方式 ID");
-      }
-
+      // --- 直接使用 int 類型的 ID ---
       final order = await _orderService.createOrder(
         addressId: _selectedAddress!.id,
-        shippingOptionId: shippingId,
-        cartItemIds: checkoutItems.map((item) => item.id!).toList(),
+        shippingOptionId: _selectedShippingOption!.id, // id 已經是 int
+        cartItemIds: checkoutItems.map((item) => item.id!).where((id) => id != null).toList(), // 確保 id 不為 null
         couponCode: _discountInfo?.appliedCouponCode,
       );
 

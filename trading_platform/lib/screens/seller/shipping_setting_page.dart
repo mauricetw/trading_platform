@@ -1,18 +1,12 @@
+// --- FILE: lib/screens/seller/shipping_setting_page.dart ---
 import 'package:flutter/material.dart';
-import '../../models/user/user.dart';
-import 'package:first_flutter_project/services/auth_service.dart'; // 如果 getCurrentUserId 來自這裡
+import 'package:provider/provider.dart'; // 1. 引入 Provider
+
+import '../../providers/seller_provider.dart'; // 2. 引入我們新建的 SellerProvider
 import '../../widgets/upsert_shipping_option_dialog.dart';
 import '../../models/user/shipping_option.dart';
-import '../../services/shipping_api_service.dart';
 import '../../widgets/FullBottomConcaveAppBarShape.dart';
-import '../../widgets/BottomConvexArcWidget.dart';
-
-// 模擬獲取當前用戶ID (你需要用你實際的認證邏輯替換)
-String getCurrentUserId() {
-  // TODO: 替換為從你的認證服務中獲取實際用戶ID的邏輯
-  // 例如: return AuthService.instance.currentUser?.uid ?? '';
-  return 'test_seller_id_http'; // 替換為實際的用戶ID獲取方式
-}
+import '../../theme/app_theme.dart';
 
 class ShippingSettingsPage extends StatefulWidget {
   const ShippingSettingsPage({super.key});
@@ -22,85 +16,61 @@ class ShippingSettingsPage extends StatefulWidget {
 }
 
 class _ShippingSettingsPageState extends State<ShippingSettingsPage> {
-  late final String _currentUserId;
-  final ShippingApiService _apiService = ShippingApiService(); // 實例化 API 服務
-
-  List<ShippingOption> _shippingOptions = [];
-  bool _isLoading = true;
-  String? _errorMessage;
-
   @override
   void initState() {
     super.initState();
-    _currentUserId = getCurrentUserId();
-    if (_currentUserId.isEmpty) {
-      setState(() {
-        _isLoading = false;
-        _errorMessage = "錯誤：用戶未登錄或無法獲取用戶ID";
-      });
-      print("錯誤：用戶未登錄或無法獲取用戶ID");
-    } else {
-      _loadShippingOptions();
-    }
+    // 確保 build 完成後再獲取資料，避免錯誤
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // 頁面初始化時，立即從後端獲取運送選項
+      _refreshOptions();
+    });
   }
 
-  Future<void> _loadShippingOptions() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+  // 抽離出刷新邏輯，呼叫 Provider
+  Future<void> _refreshOptions() async {
     try {
-      final options = await _apiService.getShippingOptions(_currentUserId);
-      if (mounted) {
-        setState(() {
-          _shippingOptions = options;
-          _isLoading = false;
-        });
-      }
+      await context.read<SellerProvider>().fetchShippingOptions();
     } catch (e) {
       if (mounted) {
-        setState(() {
-          _errorMessage = "加載運送方式失敗: $e";
-          _isLoading = false;
-        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('無法載入運送方式: $e'), backgroundColor: Colors.red),
+        );
       }
-      print("Error loading shipping options: $e");
     }
   }
 
-  Future<void> _navigateToUpsertShippingOptionPage({ShippingOption? option}) async {
+  // 導航到新增/編輯對話框
+  Future<void> _navigateToUpsertDialog({ShippingOption? option}) async {
     final result = await showDialog<ShippingOption?>(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
-        // UpsertShippingOptionDialog 現在將使用 apiService
+        // Dialog 現在會自動從 Provider 體系中獲取 OrderService
         return UpsertShippingOptionDialog(
-          apiService: _apiService, // 傳遞 apiService
           shippingOption: option,
-          userId: _currentUserId,
         );
       },
     );
 
-    if (result != null) {
-      // 成功新增或更新後，重新加載列表以顯示最新數據
-      _loadShippingOptions();
+    if (result != null && mounted) {
+      // 成功新增或更新後，Provider 會自動更新列表，我們只需顯示一個提示
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(option == null ? '運送方式已新增' : '運送方式已更新'),
-          duration: const Duration(seconds: 2),
+          backgroundColor: Colors.green,
         ),
       );
     }
   }
 
+  // 刪除運送方式
   Future<void> _deleteShippingOption(ShippingOption option) async {
-    bool confirmDelete = await showDialog(
+    final confirmDelete = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('確認刪除'),
-          content: Text('您確定要刪除 "${option.name}" 嗎？此操作無法復原。'),
+          content: Text('您確定要刪除 "${option.name}" 嗎？'),
           actions: <Widget>[
             TextButton(
               child: const Text('取消'),
@@ -116,45 +86,79 @@ class _ShippingSettingsPageState extends State<ShippingSettingsPage> {
       },
     ) ?? false;
 
-    if (confirmDelete) {
+    if (confirmDelete && mounted) {
       try {
-        await _apiService.deleteShippingOption(option.id);
+        await context.read<SellerProvider>().deleteShippingOption(option.id);
         if (mounted) {
-          // 成功刪除後，重新加載列表
-          _loadShippingOptions();
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('運送方式已刪除'), duration: Duration(seconds: 2)),
+            const SnackBar(content: Text('運送方式已刪除'), backgroundColor: Colors.green),
           );
         }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('刪除失敗: $e'), duration: const Duration(seconds: 2)),
+            SnackBar(content: Text('刪除失敗: $e'), backgroundColor: Colors.red),
           );
         }
-        print("Error deleting shipping option: $e");
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    // 使用 Consumer 來獲取並監聽 SellerProvider 的狀態
+    return Consumer<SellerProvider>(
+      builder: (context, provider, child) {
+        final colorScheme = Theme.of(context).colorScheme;
+        final textTheme = Theme.of(context).textTheme;
 
-    Widget bodyContent;
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('運送設定'),
+            shape: const FullBottomConcaveAppBarShape(curveHeight: 20.0),
+            backgroundColor: colorScheme.primary,
+            foregroundColor: colorScheme.onPrimary, // 修正顏色以確保可見性
+            centerTitle: true,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.refresh),
+                onPressed: _refreshOptions,
+                tooltip: '刷新列表',
+              )
+            ],
+          ),
+          body: _buildBodyContent(provider, textTheme, colorScheme),
+          floatingActionButton: FloatingActionButton.extended(
+            onPressed: () => _navigateToUpsertDialog(),
+            label: const Text('新增運送方式'),
+            icon: const Icon(Icons.add_circle_outline),
+            backgroundColor: colorScheme.secondary,
+            foregroundColor: colorScheme.onSecondary,
+            elevation: 4,
+          ),
+        );
+      },
+    );
+  }
 
-    if (_isLoading) {
-      bodyContent = const Center(child: CircularProgressIndicator());
-    } else if (_errorMessage != null) {
-      bodyContent = Center(
+  // --- 以下 UI Builder Widgets 完整保留組員的設計，並適配 Provider ---
+
+  Widget _buildBodyContent(SellerProvider provider, TextTheme textTheme, ColorScheme colorScheme) {
+    if (provider.isLoading && provider.shippingOptions.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (provider.error != null) {
+      return Center(
           child: Padding(
             padding: const EdgeInsets.all(16.0),
-            child: Text(_errorMessage!, style: TextStyle(color: colorScheme.error, fontSize: 16), textAlign: TextAlign.center),
+            child: Text(provider.error!, style: TextStyle(color: colorScheme.error, fontSize: 16), textAlign: TextAlign.center),
           )
       );
-    } else if (_shippingOptions.isEmpty) {
-      bodyContent = Center(
+    }
+
+    if (provider.shippingOptions.isEmpty) {
+      return Center(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
           child: Column(
@@ -165,7 +169,7 @@ class _ShippingSettingsPageState extends State<ShippingSettingsPage> {
               Text('尚未設定任何運送方式', style: textTheme.headlineSmall),
               const SizedBox(height: 8),
               Text(
-                '點擊右下角的「新增運送方式」按鈕，開始設定您可以提供的運送服務吧！',
+                '點擊右下角的「新增」按鈕，開始設定您可以提供的運送服務吧！',
                 style: textTheme.bodyMedium,
                 textAlign: TextAlign.center,
               ),
@@ -173,15 +177,15 @@ class _ShippingSettingsPageState extends State<ShippingSettingsPage> {
           ),
         ),
       );
-    } else {
-      bodyContent = ListView.builder(
-        padding: const EdgeInsets.all(8.0),
-        itemCount: _shippingOptions.length,
+    }
+
+    return RefreshIndicator(
+      onRefresh: _refreshOptions,
+      child: ListView.builder(
+        padding: const EdgeInsets.fromLTRB(8, 8, 8, 80), // 增加底部 padding，避免被 FAB 遮擋
+        itemCount: provider.shippingOptions.length,
         itemBuilder: (context, index) {
-          // 為了確保列表更新，最好對列表進行排序（如果API未排序）
-          // 或者在 _loadShippingOptions 成功後對 _shippingOptions 排序
-          // 例如: _shippingOptions.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-          final option = _shippingOptions[index];
+          final option = provider.shippingOptions[index];
           return Card(
             elevation: 2,
             margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
@@ -197,14 +201,14 @@ class _ShippingSettingsPageState extends State<ShippingSettingsPage> {
                 children: [
                   const SizedBox(height: 4),
                   Text(
-                    '運費: \$${option.cost.toStringAsFixed(0)}', // 假設 cost 仍然是 double
+                    '運費: \$${option.cost.toStringAsFixed(0)}',
                     style: textTheme.bodyMedium,
                   ),
-                  if (option.description.isNotEmpty)
+                  if (option.description != null && option.description!.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 4.0),
                       child: Text(
-                        option.description,
+                        option.description!,
                         style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
@@ -238,7 +242,7 @@ class _ShippingSettingsPageState extends State<ShippingSettingsPage> {
                   IconButton(
                     icon: Icon(Icons.edit_note, color: colorScheme.primary, size: 26),
                     tooltip: '編輯',
-                    onPressed: () => _navigateToUpsertShippingOptionPage(option: option),
+                    onPressed: () => _navigateToUpsertDialog(option: option),
                   ),
                   IconButton(
                     icon: Icon(Icons.delete_forever_outlined, color: colorScheme.error, size: 26),
@@ -251,33 +255,7 @@ class _ShippingSettingsPageState extends State<ShippingSettingsPage> {
             ),
           );
         },
-      );
-    }
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(''),
-        shape: FullBottomConcaveAppBarShape(curveHeight: 20.0),
-        backgroundColor: colorScheme.primary,
-        foregroundColor: colorScheme.onSurface,
-        centerTitle: true,
-        actions: [ // 添加刷新按鈕以便測試
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _currentUserId.isNotEmpty ? _loadShippingOptions : null,
-            tooltip: '刷新列表',
-          )
-        ],
       ),
-      body: bodyContent,
-      floatingActionButton: _currentUserId.isNotEmpty ? FloatingActionButton.extended(
-        onPressed: () => _navigateToUpsertShippingOptionPage(),
-        label: const Text('新增運送方式'),
-        icon: const Icon(Icons.add_circle_outline),
-        backgroundColor: colorScheme.secondary,
-        foregroundColor: colorScheme.onSecondary,
-        elevation: 4,
-      ) : null,
     );
   }
 }

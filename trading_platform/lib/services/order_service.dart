@@ -40,14 +40,95 @@ class OrderService {
     }
   }
 
-  // --- (createOrder 和其他模擬方法保持不變) ---
+  /// --- 根據賣家 ID 獲取真實的運送方式 ---
+  Future<List<ShippingOption>> getAvailableShippingMethods(int sellerId) async {
+    debugPrint('[OrderService] API: Getting shipping methods for sellerId: $sellerId');
+    try {
+      final responseBody = await _apiClient.get(
+        '/shipping-options',
+        queryParams: {'seller_id': sellerId.toString()},
+      );
+      final List<dynamic> optionsJson = responseBody;
+      final options = optionsJson.map((json) => ShippingOption.fromJson(json)).toList();
+      debugPrint('[OrderService] API: Successfully fetched ${options.length} shipping options.');
+      return options;
+    } catch (e) {
+      debugPrint('[OrderService] API: Failed to get shipping options: $e');
+      rethrow;
+    }
+  }
+
+  // --- 獲取賣家自己的運送方式 ---
+  Future<List<ShippingOption>> getMyShippingOptions() async {
+    debugPrint('[OrderService] API: Getting MY shipping options...');
+    try {
+
+      final responseBody = await _apiClient.get('/shipping-options/me');
+      final List<dynamic> optionsJson = responseBody;
+      return optionsJson.map((json) => ShippingOption.fromJson(json)).toList();
+    } catch (e) {
+      debugPrint('[OrderService] API: Failed to get MY shipping options: $e');
+      rethrow;
+    }
+  }
+
+  /// --- 為當前賣家新增一個運送方式 ---
+  Future<ShippingOption> addShippingOption(Map<String, dynamic> data) async {
+    debugPrint('[OrderService] API: Adding new shipping option...');
+    try {
+      final responseBody = await _apiClient.post('/shipping-options', body: data);
+      return ShippingOption.fromJson(responseBody);
+    } catch (e) {
+      debugPrint('[OrderService] API: Failed to add shipping option: $e');
+      rethrow;
+    }
+  }
+
+  /// --- 更新一個已存在的運送方式 ---
+  Future<ShippingOption> updateShippingOption(int optionId, Map<String, dynamic> data) async {
+    debugPrint('[OrderService] API: Updating shipping option #$optionId...');
+    try {
+      final responseBody = await _apiClient.put('/shipping-options/$optionId', body: data);
+      return ShippingOption.fromJson(responseBody);
+    } catch (e) {
+      debugPrint('[OrderService] API: Failed to update shipping option #$optionId: $e');
+      rethrow;
+    }
+  }
+
+  /// --- 刪除一個運送方式 ---
+  Future<void> deleteShippingOption(int optionId) async {
+    debugPrint('[OrderService] API: Deleting shipping option #$optionId...');
+    try {
+      // 呼叫後端的 DELETE API，成功時後端會回傳 204 No Content
+      await _apiClient.delete('/shipping-options/$optionId');
+      debugPrint('[OrderService] API: Successfully deleted shipping option #$optionId.');
+    } catch (e) {
+      debugPrint('[OrderService] API: Failed to delete shipping option #$optionId: $e');
+      rethrow;
+    }
+  }
+
+  /// 驗證並套用優惠券代碼 (保留模擬邏輯)
+  Future<DiscountInfo> applyCoupon(String couponCode, List<CartItem> items) async {
+    debugPrint('[OrderService] Mock: Applying coupon: $couponCode');
+    // TODO: 未來在此處呼叫真實的後端 API - POST /coupons/apply
+    await Future.delayed(const Duration(seconds: 1));
+    if (couponCode.toUpperCase() == "SALE50") {
+      return DiscountInfo(discountAmount: 50, message: "已成功折抵 NT\$50", appliedCouponCode: couponCode);
+    } else {
+      return DiscountInfo(discountAmount: 0, message: "無效的優惠券代碼", appliedCouponCode: couponCode);
+    }
+  }
+
+  /// 建立一筆新訂單
   Future<Order> createOrder({
     required int addressId,
     required int shippingOptionId,
     required List<int> cartItemIds,
     String? couponCode,
   }) async {
-    debugPrint('[OrderService] API: Creating order...');
+    debugPrint('[OrderService] Real: Creating order with addressId: $addressId, shippingOptionId: $shippingOptionId');
     try {
       final responseBody = await _apiClient.post(
         '/orders',
@@ -59,33 +140,11 @@ class OrderService {
         },
       );
       final createdOrder = Order.fromJson(responseBody);
-      debugPrint('[OrderService] API: Successfully created order: ${createdOrder.orderId}');
+      debugPrint('[OrderService] Real: Successfully created order: ${createdOrder.orderId}');
       return createdOrder;
     } catch (e) {
-      debugPrint('[OrderService] API: Order creation failed: $e');
+      debugPrint('[OrderService] Real: Order creation failed: $e');
       rethrow;
-    }
-  }
-
-  Future<List<ShippingOption>> getAvailableShippingMethods(
-      Address destination, List<CartItem> items) async {
-    // 暫時保留模擬資料
-    debugPrint('[OrderService] Mock: Getting shipping methods for ${destination.displayAddress}');
-    await Future.delayed(const Duration(milliseconds: 500));
-    return [
-      ShippingOption(id: '1', name: '標準配送', cost: 60.0, description: '約 3-5 個工作天', createdAt: DateTime.now()),
-      ShippingOption(id: '2', name: '快速到貨', cost: 120.0, description: '24 小時內送達', createdAt: DateTime.now()),
-    ];
-  }
-
-  Future<DiscountInfo> applyCoupon(String couponCode, List<CartItem> items) async {
-    // 暫時保留模擬資料
-    debugPrint('[OrderService] Mock: Applying coupon: $couponCode');
-    await Future.delayed(const Duration(seconds: 1));
-    if (couponCode.toUpperCase() == "SALE50") {
-      return DiscountInfo(discountAmount: 50, message: "已成功折抵 NT\$50", appliedCouponCode: couponCode);
-    } else {
-      return DiscountInfo(discountAmount: 0, message: "無效的優惠券代碼", appliedCouponCode: couponCode);
     }
   }
 }
