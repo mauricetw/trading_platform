@@ -3,9 +3,11 @@ import 'package:json_annotation/json_annotation.dart';
 
 part 'address.g.dart';
 
+// 雖然我們手動實現 fromJson，但 toJson 仍然可以由 build_runner 產生
 @JsonSerializable(
-  fieldRename: FieldRename.snake, // 確保與後端蛇形命名匹配
+  fieldRename: FieldRename.snake,
   explicitToJson: true,
+  createFactory: false, // 告訴產生器：fromJson 由我們自己處理
 )
 class Address {
   final int id;
@@ -14,15 +16,12 @@ class Address {
   final String phoneNumber;
   final String city;
   final String postalCode;
-
-  // fieldRename: FieldRename.snake 會自動將 streetAddress1 映射到後端的 street_address_1
   final String streetAddress1;
-  final String? streetAddress2;
 
-  // --- 保留的可選欄位 ---
   final String? country;
   final String? province;
   final String? district;
+  final String? streetAddress2;
   final bool isDefault;
   final Map<String, dynamic>? additionalInfo;
 
@@ -34,10 +33,10 @@ class Address {
     required this.city,
     required this.postalCode,
     required this.streetAddress1,
-    this.streetAddress2,
     this.country,
     this.province,
     this.district,
+    this.streetAddress2,
     this.isDefault = false,
     this.additionalInfo,
   });
@@ -53,14 +52,34 @@ class Address {
       streetAddress1,
       streetAddress2,
     ];
+    // 過濾掉 null 或空字串的欄位，然後用空格連接
     return parts.where((p) => p != null && p.isNotEmpty).join(' ');
   }
 
-  factory Address.fromJson(Map<String, dynamic> json) => _$AddressFromJson(json);
+  // --- 手動實現 fromJson，確保最高程度的健壯性 ---
+  factory Address.fromJson(Map<String, dynamic> json) {
+    return Address(
+      id: json['id'] as int? ?? 0,
+      userId: json['user_id'] as int? ?? 0,
+      recipientName: json['recipient_name'] as String? ?? 'N/A',
+      phoneNumber: json['phone_number'] as String? ?? 'N/A',
+      city: json['city'] as String? ?? '',
+      postalCode: json['postal_code'] as String? ?? '',
+      // 明確地從 street_address_1 和 street_address_2 讀取
+      streetAddress1: json['street_address_1'] as String? ?? '',
+      streetAddress2: json['street_address_2'] as String?,
+      country: json['country'] as String?,
+      province: json['province'] as String?,
+      district: json['district'] as String?,
+      isDefault: json['is_default'] as bool? ?? false,
+      additionalInfo: json['additional_info'] as Map<String, dynamic>?,
+    );
+  }
 
+  // toJson 方法將由 build_runner 根據我們的欄位自動產生
   Map<String, dynamic> toJson() => _$AddressToJson(this);
 
-  // copyWith 方法對於狀態管理很有用
+  // copyWith 方法保持不變
   Address copyWith({
     int? id,
     int? userId,
