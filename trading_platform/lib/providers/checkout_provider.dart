@@ -57,9 +57,20 @@ class CheckoutProvider with ChangeNotifier {
     }
   }
 
+  // --- 讓 update 方法能夠響應登入狀態的變化 ---
   void update(AuthProvider auth, CartProvider cart) {
+    // 檢查登入狀態是否從「未登入」變為「已登入」
+    bool wasLoggedOut = !(_authProvider?.isLoggedIn ?? false);
+    bool isNowLoggedIn = auth.isLoggedIn;
+
+    // 更新內部的 provider 引用
     _authProvider = auth;
     _cartProvider = cart;
+
+    // 如果使用者是剛剛登入，則觸發初始資料的載入
+    if (wasLoggedOut && isNowLoggedIn) {
+      loadInitialData();
+    }
   }
 
   Future<void> loadInitialData() async {
@@ -89,6 +100,7 @@ class CheckoutProvider with ChangeNotifier {
     await fetchShippingOptions();
   }
 
+  /// --- 關鍵修正：fetchShippingOptions 現在會呼叫真實的 API ---
   Future<void> fetchShippingOptions() async {
     if (_selectedAddress == null || checkoutItems.isEmpty) {
       _shippingOptions = [];
@@ -101,10 +113,14 @@ class CheckoutProvider with ChangeNotifier {
     notifyListeners();
 
     try {
+      // 從購物車的第一個商品中，提取出賣家 ID
       final sellerId = checkoutItems.first.product.sellerId;
+
+      // 呼叫 OrderService，並傳入賣家 ID 以獲取真實的運送方式
       final options = await _orderService.getAvailableShippingMethods(sellerId);
       _shippingOptions = options;
 
+      // 自動選擇第一個可用的選項
       if (_shippingOptions.isNotEmpty) {
         _selectedShippingOption = _shippingOptions.firstWhere(
                 (opt) => opt.isEnabled,

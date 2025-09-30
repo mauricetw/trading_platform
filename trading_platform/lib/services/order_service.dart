@@ -40,7 +40,7 @@ class OrderService {
     }
   }
 
-  /// --- 根據賣家 ID 獲取真實的運送方式 ---
+  /// --- 獲取指定賣家的可用運送方式 (給結帳頁使用) ---
   Future<List<ShippingOption>> getAvailableShippingMethods(int sellerId) async {
     debugPrint('[OrderService] API: Getting shipping methods for sellerId: $sellerId');
     try {
@@ -49,20 +49,18 @@ class OrderService {
         queryParams: {'seller_id': sellerId.toString()},
       );
       final List<dynamic> optionsJson = responseBody;
-      final options = optionsJson.map((json) => ShippingOption.fromJson(json)).toList();
-      debugPrint('[OrderService] API: Successfully fetched ${options.length} shipping options.');
-      return options;
+      return optionsJson.map((json) => ShippingOption.fromJson(json)).toList();
     } catch (e) {
-      debugPrint('[OrderService] API: Failed to get shipping options: $e');
+      debugPrint('[OrderService] API: Failed to get available shipping options: $e');
       rethrow;
     }
   }
 
-  // --- 獲取賣家自己的運送方式 ---
+  /// --- 獲取賣家自己的所有運送方式 (給設定頁使用) ---
   Future<List<ShippingOption>> getMyShippingOptions() async {
     debugPrint('[OrderService] API: Getting MY shipping options...');
     try {
-
+      // 呼叫新的 /me 端點，不再需要傳遞任何參數
       final responseBody = await _apiClient.get('/shipping-options/me');
       final List<dynamic> optionsJson = responseBody;
       return optionsJson.map((json) => ShippingOption.fromJson(json)).toList();
