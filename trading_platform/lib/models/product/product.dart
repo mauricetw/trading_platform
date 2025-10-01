@@ -7,19 +7,15 @@ import '../../config/api_config.dart';
 part 'product.g.dart';
 
 /// ===============
-/// SellerInfo - 改進版
+/// SellerInfo - (保留組員的健壯版本)
 /// ===============
 @JsonSerializable(fieldRename: FieldRename.snake)
 class SellerInfo {
   final int id;
-
-  /// 使用 nullable String 並提供預設值
   @JsonKey(name: 'nickname')
   final String? _username;
-
   final String? avatarUrl;
 
-  // Getter 確保永遠不會返回 null
   String get username => _username ?? '未知賣家';
 
   SellerInfo({
@@ -32,21 +28,12 @@ class SellerInfo {
     try {
       return SellerInfo(
         id: (json['id'] as int?) ?? 0,
-        username: (json['nickname'] as String?) ??
-            (json['username'] as String?) ??
-            '未知賣家',
-        avatarUrl: json['avatar_url'] as String?,
+        username: (json['nickname'] as String?) ?? (json['username'] as String?),
+        avatarUrl: _prefixUrl(json['avatar_url'] as String?),
       );
     } catch (e) {
       debugPrint('SellerInfo.fromJson 錯誤: $e');
-      debugPrint('原始 JSON: $json');
-
-      // 返回安全的預設實例
-      return SellerInfo(
-        id: (json['id'] as int?) ?? 0,
-        username: '未知賣家',
-        avatarUrl: null,
-      );
+      return SellerInfo(id: (json['id'] as int?) ?? 0, username: '未知賣家');
     }
   }
 
@@ -57,15 +44,10 @@ class SellerInfo {
   };
 }
 
+
 /// ===============
 /// Product
 /// ===============
-///
-/// - `description` 改為非空字串，UI 端不用再 `?? ''`
-/// - `fromJson` 做兼容：
-///   - category 可能是物件或分離欄位
-///   - images 可能是字串陣列或物件陣列（image_url/url）
-/// - `category` 僅供前端顯示（不輸出到後端）
 @JsonSerializable(
   fieldRename: FieldRename.snake,
   explicitToJson: true,
@@ -74,21 +56,14 @@ class SellerInfo {
 class Product {
   final int id;
   final String name;
-
-  /// 非空字串（給預設空字串）
   final String description;
-
   final double price;
   final double? originalPrice;
-
   final int categoryId;
 
-  /// 只給前端顯示用；不輸出到後端
   @JsonKey(includeToJson: false)
   final String category;
-
   final List<String> imageUrls;
-
   final int stockQuantity;
   final String status;
   final int salesCount;
@@ -99,14 +74,10 @@ class Product {
   final DateTime updatedAt;
   final int sellerId;
   final SellerInfo? seller;
-
   final ShippingInformation? shippingInfo;
 
-  /// 前端狀態，不參與序列化
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  bool isFavorite;
+  // --- 關鍵修正：isFavorite 欄位已完全移除 ---
 
-  /// 便利屬性
   bool get isSold => stockQuantity == 0 || status == 'sold';
 
   Product({
@@ -129,97 +100,62 @@ class Product {
     required this.sellerId,
     this.seller,
     this.shippingInfo,
-    this.isFavorite = false,
   });
 
-  /// 自訂 fromJson：兼容多種後端輸出形態，加強錯誤處理
+  /// 自訂 fromJson：完整保留組員設計的健壯性邏輯
   factory Product.fromJson(Map<String, dynamic> json) {
     try {
-      debugPrint('解析 Product JSON: ${json.toString()}'); // 調試用
-
       // 1) category 相容處理
       int resolvedCategoryId = 0;
       String resolvedCategoryName = '未分類';
       final categoryData = json['category'];
-
       if (categoryData is Map<String, dynamic>) {
         resolvedCategoryId = categoryData['id'] as int? ?? 0;
         resolvedCategoryName = categoryData['name'] as String? ?? '未分類';
-      } else {
-        // 後端可能直接給欄位
-        resolvedCategoryId = (json['category_id'] as int?) ?? 0;
-        resolvedCategoryName = (json['category_name'] as String?) ??
-            (json['category'] as String?) ??
-            '未分類';
       }
 
-      // 2) images 相容處理，並將相對路徑轉換為絕對路徑
+      // 2) images 相容處理並轉換為絕對路徑
       final rawImages = (json['images'] as List?) ?? const [];
-      final resolvedImageUrls = rawImages.map((e) {
-        String? relativeUrl;
-        if (e is String) {
-          relativeUrl = e;
-        } else if (e is Map<String, dynamic>) {
-          relativeUrl = (e['image_url'] as String?) ?? (e['url'] as String?);
+      final resolvedImageUrls = rawImages
+          .map((e) {
+        if (e is Map<String, dynamic>) {
+          return _prefixUrl(e['image_url'] as String?);
         }
-
-        if (relativeUrl != null && relativeUrl.isNotEmpty) {
-          // 如果 URL 已經是完整的 http/https 連結，直接使用
-          if (relativeUrl.startsWith('http')) {
-            return relativeUrl;
-          }
-          // 否則，拼接 APIConfig.baseUrl
-          return '${APIConfig.baseUrl}$relativeUrl';
-        }
-        return '';
-      }).where((s) => s.isNotEmpty).toList();
+        return null;
+      })
+          .where((s) => s != null)
+          .cast<String>()
+          .toList();
 
       // 3) DateTime 安全解析
       DateTime parseDateTime(dynamic dateValue, DateTime fallback) {
-        if (dateValue == null) return fallback;
         if (dateValue is String) {
-          try {
-            return DateTime.parse(dateValue);
-          } catch (e) {
-            debugPrint('DateTime 解析失敗: $dateValue, 錯誤: $e');
-            return fallback;
-          }
+          return DateTime.tryParse(dateValue) ?? fallback;
         }
         return fallback;
       }
 
       final now = DateTime.now();
 
-      // 4) 數值安全轉換 - 修正版本
+      // 4) 數值安全轉換
       double safeDouble(dynamic value, double defaultValue) {
-        if (value == null) return defaultValue;
         if (value is num) return value.toDouble();
-        if (value is String) {
-          return double.tryParse(value) ?? defaultValue;
-        }
+        if (value is String) return double.tryParse(value) ?? defaultValue;
         return defaultValue;
       }
-
       double? safeNullableDouble(dynamic value) {
-        if (value == null) return null;
         if (value is num) return value.toDouble();
-        if (value is String) {
-          return double.tryParse(value);
-        }
+        if (value is String) return double.tryParse(value);
         return null;
       }
-
       int safeInt(dynamic value, int defaultValue) {
-        if (value == null) return defaultValue;
         if (value is num) return value.toInt();
-        if (value is String) {
-          return int.tryParse(value) ?? defaultValue;
-        }
+        if (value is String) return int.tryParse(value) ?? defaultValue;
         return defaultValue;
       }
 
       // 5) 建立 Product 實例
-      final product = Product(
+      return Product(
         id: safeInt(json['id'], 0),
         name: (json['name'] as String?) ?? '未知商品',
         description: (json['description'] as String?) ?? '',
@@ -233,10 +169,7 @@ class Product {
         salesCount: safeInt(json['sales_count'], 0),
         averageRating: safeNullableDouble(json['average_rating']),
         reviewCount: safeInt(json['review_count'], 0),
-        tags: (json['tags'] as List?)
-            ?.map((e) => e.toString())
-            .where((s) => s.isNotEmpty)
-            .toList(),
+        tags: (json['tags'] as List?)?.map((e) => e.toString()).toList(),
         createdAt: parseDateTime(json['created_at'], now),
         updatedAt: parseDateTime(json['updated_at'], now),
         sellerId: safeInt(json['seller_id'], 0),
@@ -246,21 +179,12 @@ class Product {
         shippingInfo: (json['shipping_info'] is Map<String, dynamic>)
             ? _safeShippingInfoFromJson(json['shipping_info'] as Map<String, dynamic>)
             : null,
-        isFavorite: (json['is_favorite'] as bool?) ?? false,
       );
-
-      debugPrint('成功解析 Product: ${product.name}, ID: ${product.id}');
-      return product;
-
     } catch (e, stackTrace) {
-      debugPrint('Product.fromJson 解析失敗:');
-      debugPrint('錯誤: $e');
-      debugPrint('原始 JSON: $json');
-      debugPrint('堆疊追蹤: $stackTrace');
-
+      debugPrint('Product.fromJson 解析失敗: $e\n$stackTrace');
       // 返回一個最小可用的 Product 實例，避免完全失敗
       return Product(
-        id: 0,
+        id: (json['id'] as int?) ?? 0,
         name: '解析失敗的商品',
         description: '資料解析時發生錯誤: $e',
         price: 0.0,
@@ -274,39 +198,31 @@ class Product {
         salesCount: 0,
         reviewCount: 0,
         sellerId: 0,
-        isFavorite: false,
       );
     }
   }
 
-  /// 安全的 SellerInfo 解析
+  /// 安全的 SellerInfo 解析 (保留組員的設計)
   static SellerInfo? _safeSellerInfoFromJson(Map<String, dynamic> json) {
     try {
-      debugPrint('解析 SellerInfo: $json');
       return SellerInfo.fromJson(json);
-    } catch (e, stackTrace) {
+    } catch (e) {
       debugPrint('SellerInfo 解析失敗: $e');
-      debugPrint('原始 JSON: $json');
-      debugPrint('堆疊追蹤: $stackTrace');
-
-      // 嘗試手動建構
       return SellerInfo(
         id: (json['id'] as int?) ?? 0,
-        username: (json['username'] as String?) ??
-            (json['nickname'] as String?) ??
-            '未知賣家',
-        avatarUrl: json['avatar_url'] as String?,
+        username: (json['nickname'] as String?) ?? '未知賣家',
+        avatarUrl: (json['avatar_url'] as String?),
       );
     }
   }
 
-  /// 安全的 ShippingInformation 解析
+  /// 安全的 ShippingInformation 解析 (保留組員的設計)
   static ShippingInformation? _safeShippingInfoFromJson(Map<String, dynamic> json) {
     try {
       return ShippingInformation.fromJson(json);
     } catch (e) {
       debugPrint('ShippingInformation 解析失敗: $e');
-      return null; // 運送資訊不是必要的，失敗時返回 null
+      return null;
     }
   }
 
@@ -333,7 +249,6 @@ class Product {
     int? sellerId,
     SellerInfo? seller,
     ShippingInformation? shippingInfo,
-    bool? isFavorite,
   }) {
     return Product(
       id: id ?? this.id,
@@ -355,7 +270,17 @@ class Product {
       sellerId: sellerId ?? this.sellerId,
       seller: seller ?? this.seller,
       shippingInfo: shippingInfo ?? this.shippingInfo,
-      isFavorite: isFavorite ?? this.isFavorite,
     );
   }
+}
+
+// 輔助函式 (放在檔案底部)
+String? _prefixUrl(String? relativeUrl) {
+  if (relativeUrl == null || relativeUrl.isEmpty) {
+    return null;
+  }
+  if (relativeUrl.startsWith('http')) {
+    return relativeUrl;
+  }
+  return '${APIConfig.baseUrl}$relativeUrl';
 }

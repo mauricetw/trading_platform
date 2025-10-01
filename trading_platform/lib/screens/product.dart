@@ -66,13 +66,15 @@ class _ProductScreenState extends State<ProductScreen> {
     }
   }
 
-  /// 處理收藏/取消收藏的邏輯
+  /// --- 關鍵修正：處理收藏/取消收藏的邏輯 ---
   void _toggleFavorite(Product product) async {
     try {
       final wishlistProvider = context.read<WishlistProvider>();
-      final isCurrentlyInWishlist = wishlistProvider.isProductInWishlist(product);
+      // 1. 修正：使用 isFavorite(int) 方法
+      final isCurrentlyInWishlist = wishlistProvider.isFavorite(product.id);
 
       if (isCurrentlyInWishlist) {
+        // 2. 修正：傳入 int 型別的 product.id
         await wishlistProvider.removeFromWishlist(product.id);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -80,7 +82,8 @@ class _ProductScreenState extends State<ProductScreen> {
           );
         }
       } else {
-        await wishlistProvider.addToWishlist(product);
+        // 3. 修正：傳入 int 型別的 product.id
+        await wishlistProvider.addToWishlist(product.id);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('${product.name} 已加入收藏')),
@@ -124,16 +127,9 @@ class _ProductScreenState extends State<ProductScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.error_outline,
-                    size: 64,
-                    color: Colors.grey[400],
-                  ),
+                  Icon(Icons.error_outline, size: 64, color: Colors.grey[400]),
                   const SizedBox(height: 16),
-                  Text(
-                    '載入失敗',
-                    style: Theme.of(context).textTheme.headlineSmall,
-                  ),
+                  Text('載入失敗', style: Theme.of(context).textTheme.headlineSmall),
                   const SizedBox(height: 8),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -159,16 +155,9 @@ class _ProductScreenState extends State<ProductScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.shopping_bag_outlined,
-                    size: 64,
-                    color: Colors.grey[400],
-                  ),
+                  Icon(Icons.shopping_bag_outlined, size: 64, color: Colors.grey[400]),
                   const SizedBox(height: 16),
-                  Text(
-                    '找不到商品資料',
-                    style: Theme.of(context).textTheme.headlineSmall,
-                  ),
+                  Text('找不到商品資料', style: Theme.of(context).textTheme.headlineSmall),
                   const SizedBox(height: 24),
                   ElevatedButton(
                     onPressed: () => Navigator.of(context).pop(),
@@ -180,7 +169,8 @@ class _ProductScreenState extends State<ProductScreen> {
           }
 
           final product = productProvider.selectedProduct!;
-          final isFavorite = wishlistProvider.isProductInWishlist(product);
+          // --- 關鍵修正：使用 isFavorite(int) 方法 ---
+          final isFavorite = wishlistProvider.isFavorite(product.id);
 
           return CustomScrollView(
             slivers: [
@@ -235,6 +225,7 @@ class _ProductScreenState extends State<ProductScreen> {
     );
   }
 
+  // --- (所有 UI Builder Widgets 保持不變) ---
   SliverAppBar _buildSliverAppBar(Product product, bool isFavorite) {
     return SliverAppBar(
       expandedHeight: 300.0,
@@ -250,11 +241,7 @@ class _ProductScreenState extends State<ProductScreen> {
           ),
           child: Text(
             product.name,
-            style: const TextStyle(
-              fontSize: 16.0,
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
-            ),
+            style: const TextStyle(fontSize: 16.0, color: Colors.white, fontWeight: FontWeight.w600),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -305,12 +292,8 @@ class _ProductScreenState extends State<ProductScreen> {
                   ],
                 ),
               ),
-            // 漸層遮罩
             Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              height: 100,
+              bottom: 0, left: 0, right: 0, height: 100,
               child: Container(
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
@@ -343,7 +326,6 @@ class _ProductScreenState extends State<ProductScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          // 價格區域
           Row(
             children: [
               Expanded(
@@ -376,29 +358,17 @@ class _ProductScreenState extends State<ProductScreen> {
                 ),
                 child: Text(
                   _getStatusText(product.status),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 24),
-
-          // 賣家資訊
           _buildSellerCard(product),
           const SizedBox(height: 24),
-
-          // 商品資訊
           _buildProductInfo(context, product),
           const SizedBox(height: 24),
-
-          // 商品描述
           _buildDescription(context, product),
-
-          // 底部留白，避免被底部按鈕遮擋
           const SizedBox(height: 80),
         ],
       ),

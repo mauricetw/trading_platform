@@ -1,4 +1,4 @@
-// lib/screens/user/cart.dart
+// --- FILE: lib/screens/user/cart.dart ---
 import 'package:first_flutter_project/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -129,9 +129,6 @@ class _CartPageState extends State<CartPage> {
                 if (Navigator.canPop(context)) {
                   Navigator.of(context).popUntil((route) => route.isFirst);
                 }
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('正在前往商品頁... (請替換為實際導航)')),
-                );
               },
             ),
           ],
@@ -316,29 +313,9 @@ class _CartPageState extends State<CartPage> {
                       final int originalQuantity = item.quantity;
                       final bool originalIsSelected = item.isSelected;
 
-                      // 重新創建 Product 對象用於撤銷
-                      final productToRestore = Product(
-                        id: item.product.id,
-                        name: item.product.name,
-                        description: item.product.description,
-                        price: item.product.price,
-                        originalPrice: item.product.originalPrice,
-                        categoryId: item.product.categoryId,
-                        category: item.product.category,
-                        stockQuantity: item.product.stockQuantity,
-                        status: item.product.status,
-                        imageUrls: item.product.imageUrls,
-                        createdAt: item.product.createdAt,
-                        updatedAt: item.product.updatedAt,
-                        salesCount: item.product.salesCount,
-                        averageRating: item.product.averageRating,
-                        reviewCount: item.product.reviewCount,
-                        tags: item.product.tags,
-                        sellerId: item.product.sellerId,
-                        seller: item.product.seller,
-                        shippingInfo: item.product.shippingInfo,
-                        isFavorite: item.product.isFavorite,
-                      );
+                      // --- 關鍵修正：不再需要手動重建 Product 物件 ---
+                      // 直接使用 item.product，因為它已經是完整的 Product 物件
+                      final productToRestore = item.product;
 
                       // 重新添加商品到購物車
                       cartProvider.addItem(
@@ -362,7 +339,7 @@ class _CartPageState extends State<CartPage> {
       ),
     );
   }
-  
+
   Widget _buildBottomAppBar(BuildContext context, CartProvider cartProvider) {
     final themeColors = Theme.of(context).colorScheme;
 
@@ -398,30 +375,30 @@ class _CartPageState extends State<CartPage> {
               ),
             ),
 
-            // 合計金額 - 只修正佈局溢出，保持所有原始尺寸
+            // 合計金額
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12.0),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min, // 只加這一行來限制 Column 高度
+                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Flexible( // 只包裝 Flexible，保持原始樣式
+                    Flexible(
                       child: Text(
                         '合計 (已選 ${cartProvider.selectedItemCount} 件):',
-                        style: TextStyle(fontSize: 12, color: themeColors.onSurfaceVariant), // 保持原始字體大小
+                        style: TextStyle(fontSize: 12, color: themeColors.onSurfaceVariant),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    const SizedBox(height: 2), // 保持原始間距
-                    Flexible( // 只包裝 Flexible，保持原始樣式
+                    const SizedBox(height: 2),
+                    Flexible(
                       child: FittedBox(
                         fit: BoxFit.scaleDown,
                         child: Text(
                           'NT\$${cartProvider.totalSelectedAmount.toStringAsFixed(0)}',
                           style: TextStyle(
-                              fontSize: 18.0, // 保持原始字體大小
+                              fontSize: 18.0,
                               fontWeight: FontWeight.bold,
                               color: themeColors.primary),
                           maxLines: 1,
@@ -433,13 +410,13 @@ class _CartPageState extends State<CartPage> {
               ),
             ),
 
-            // 結算按鈕 - 保持完全原樣
+            // 結算按鈕
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: cartProvider.selectedItemCount > 0 ? themeColors.primary : Colors.grey[400],
                 foregroundColor: cartProvider.selectedItemCount > 0 ? themeColors.onPrimary : Colors.grey[700],
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12), // 保持原始 padding
-                textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold), // 保持原始字體
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
               ),
               onPressed: cartProvider.selectedItemCount > 0

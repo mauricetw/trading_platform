@@ -1,5 +1,6 @@
 // --- FILE: lib/services/user_service.dart ---
 import '../models/user/user.dart';
+import '../models/product/product.dart';
 import 'api_client.dart';
 import '../config/api_config.dart';
 
@@ -11,6 +12,13 @@ class UserService {
   Future<User> getMyProfile() async {
     final responseBody = await _apiClient.get('/users/me');
     return User.fromJson(responseBody);
+  }
+
+  /// --- 根據賣家 ID 獲取其所有公開的商品 ---
+  Future<List<Product>> getProductsBySellerId(String userId) async {
+    final responseBody = await _apiClient.get('/users/$userId/products');
+    final List<dynamic> productsJson = responseBody;
+    return productsJson.map((json) => Product.fromJson(json)).toList();
   }
 
   /// 根據 ID 獲取其他使用者的公開個人資料。

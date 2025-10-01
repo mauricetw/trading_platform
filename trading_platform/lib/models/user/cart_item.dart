@@ -173,7 +173,7 @@ class CartItem {
         tags: (data['tags'] as List?)?.map((e) => e.toString()).toList(),
         sellerId: (data['seller_id'] as int?) ?? 0,
         seller: seller,
-        isFavorite: false,
+        //isFavorite: false,
       );
     } catch (e) {
       debugPrint('備用 Product 解析失敗: $e');
@@ -198,7 +198,7 @@ class CartItem {
       salesCount: 0,
       reviewCount: 0,
       sellerId: 0,
-      isFavorite: false,
+      //isFavorite: false,
     );
   }
 

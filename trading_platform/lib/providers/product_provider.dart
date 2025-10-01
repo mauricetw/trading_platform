@@ -31,10 +31,12 @@ class ProductProvider with ChangeNotifier {
   // --- Getters ---
   List<Product> get products => _products;
   bool get isListLoading => _isListLoading;
+  String? get listError => _listError;
   int? get selectedCategoryId => _selectedCategoryId;
 
   List<Product> get sellerProducts => _sellerProducts;
   bool get isSellerListLoading => _isSellerListLoading;
+  String? get sellerListError => _sellerListError;
 
   List<Category> get categories => _categories;
   bool get areCategoriesLoading => _areCategoriesLoading;
@@ -42,30 +44,23 @@ class ProductProvider with ChangeNotifier {
   Product? get selectedProduct => _selectedProduct;
   bool get isDetailLoading => _isDetailLoading;
   String? get detailError => _detailError;
-  String? get listError => _listError;
 
   ProductProvider(this._productService, this._uploadService) {
     fetchProducts();
     fetchCategories();
   }
 
-  // --- 核心業務邏輯 ---
+  // --- 關鍵修正：移除 toggleFavoriteStatus 方法 ---
+  // 收藏狀態的邏輯現在完全由 WishlistProvider 負責，
+  // 以確保狀態的單一事實來源 (Single Source of Truth)。
+  /*
   void toggleFavoriteStatus(int productId) {
-    final i = _products.indexWhere((p) => p.id == productId);
-    if (i != -1) {
-      final p = _products[i];
-      _products[i] = p.copyWith(isFavorite: !(p.isFavorite));
-      notifyListeners();
-    }
-    final si = _sellerProducts.indexWhere((p) => p.id == productId);
-    if (si != -1) {
-      final p = _sellerProducts[si];
-      _sellerProducts[si] = p.copyWith(isFavorite: !(p.isFavorite));
-      notifyListeners();
-    }
+    // ... 此方法已被移除 ...
   }
+  */
 
   Future<void> fetchCategories() async {
+    if (_areCategoriesLoading) return;
     _areCategoriesLoading = true;
     notifyListeners();
     try {
@@ -78,20 +73,19 @@ class ProductProvider with ChangeNotifier {
     }
   }
 
-  /// 修正版本：支援搜索查詢
   Future<void> fetchProducts({int? categoryId, String? searchQuery}) async {
     _isListLoading = true;
     _listError = null;
+    _selectedCategoryId = categoryId;
     notifyListeners();
     try {
       final fetchedProducts = await _productService.getProducts(
         categoryId: categoryId,
-        search: searchQuery, // 注意：ProductService 使用 'search' 參數
+        search: searchQuery,
       );
       _products = fetchedProducts;
     } catch (e) {
       _listError = e.toString();
-      debugPrint('獲取商品列表失敗: $e');
     } finally {
       _isListLoading = false;
       notifyListeners();
@@ -99,78 +93,22 @@ class ProductProvider with ChangeNotifier {
   }
 
   void filterByCategory(int categoryId) {
-    _selectedCategoryId = (_selectedCategoryId == categoryId) ? null : categoryId;
-    fetchProducts(categoryId: _selectedCategoryId);
+    final newCategoryId = (_selectedCategoryId == categoryId) ? null : categoryId;
+    fetchProducts(categoryId: newCategoryId);
   }
 
   Future<void> fetchProductById(int productId) async {
-    debugPrint('===============================');
-    debugPrint('ProductProvider: 開始獲取商品詳情');
-    debugPrint('ProductProvider: 商品 ID: $productId');
-    debugPrint('===============================');
-
     _isDetailLoading = true;
     _detailError = null;
     _selectedProduct = null;
     notifyListeners();
-
     try {
-      debugPrint('ProductProvider: 呼叫 ProductService.getProductById...');
-      final product = await _productService.getProductById(productId);
-
-      debugPrint('ProductProvider: 成功獲取商品:');
-      debugPrint('- 商品名稱: ${product.name}');
-      debugPrint('- 商品 ID: ${product.id}');
-      debugPrint('- 賣家 ID: ${product.sellerId}');
-      debugPrint('- 賣家資訊: ${product.seller?.username ?? '無'}');
-      debugPrint('- 圖片數量: ${product.imageUrls.length}');
-      debugPrint('- 狀態: ${product.status}');
-      debugPrint('- 價格: ${product.price}');
-
-      _selectedProduct = product;
-
-    } catch (e, stackTrace) {
-      debugPrint('===============================');
-      debugPrint('ProductProvider: 獲取商品詳情發生錯誤');
-      debugPrint('ProductProvider: 商品 ID: $productId');
-      debugPrint('ProductProvider: 錯誤類型: ${e.runtimeType}');
-      debugPrint('ProductProvider: 錯誤訊息: $e');
-      debugPrint('===============================');
-      debugPrint('ProductProvider: 完整堆疊追蹤:');
-      debugPrint('$stackTrace');
-      debugPrint('===============================');
-
-      // 根據不同錯誤類型提供友好的錯誤訊息
-      if (e.toString().contains('FormatException') ||
-          e.toString().contains('type \'Null\' is not a subtype')) {
-        _detailError = '商品資料格式錯誤，請稍後再試';
-        debugPrint('ProductProvider: 診斷 - 這是資料格式或類型轉換問題');
-      } else if (e.toString().contains('404')) {
-        _detailError = '找不到此商品，可能已被刪除';
-        debugPrint('ProductProvider: 診斷 - HTTP 404 錯誤');
-      } else if (e.toString().contains('SocketException') ||
-          e.toString().contains('network') ||
-          e.toString().contains('connection')) {
-        _detailError = '網路連接問題，請檢查網路狀態';
-        debugPrint('ProductProvider: 診斷 - 網路連接問題');
-      } else if (e.toString().contains('TimeoutException')) {
-        _detailError = '請求超時，請稍後再試';
-        debugPrint('ProductProvider: 診斷 - 請求超時');
-      } else {
-        _detailError = '載入商品失敗: ${e.toString()}';
-        debugPrint('ProductProvider: 診斷 - 未知錯誤類型');
-      }
+      _selectedProduct = await _productService.getProductById(productId);
+    } catch (e) {
+      _detailError = "無法載入商品詳情: $e";
     } finally {
       _isDetailLoading = false;
       notifyListeners();
-
-      debugPrint('===============================');
-      debugPrint('ProductProvider: 商品詳情獲取流程結束');
-      debugPrint('ProductProvider: 最終狀態:');
-      debugPrint('- 載入中: $_isDetailLoading');
-      debugPrint('- 錯誤訊息: $_detailError');
-      debugPrint('- 商品資料: ${_selectedProduct?.name ?? '無'}');
-      debugPrint('===============================');
     }
   }
 
@@ -182,7 +120,6 @@ class ProductProvider with ChangeNotifier {
       _sellerProducts = await _productService.getMyProducts();
     } catch (e) {
       _sellerListError = e.toString();
-      debugPrint('獲取賣家商品失敗: $e');
     } finally {
       _isSellerListLoading = false;
       notifyListeners();
@@ -194,7 +131,6 @@ class ProductProvider with ChangeNotifier {
       final imageUrl = await _uploadService.uploadImage(imageFile);
       return imageUrl;
     } catch (e) {
-      debugPrint('上傳商品圖片失敗: $e');
       rethrow;
     }
   }
@@ -205,7 +141,6 @@ class ProductProvider with ChangeNotifier {
       _sellerProducts.insert(0, newProduct);
       notifyListeners();
     } catch (e) {
-      debugPrint('新增商品失敗: $e');
       rethrow;
     }
   }
@@ -223,7 +158,6 @@ class ProductProvider with ChangeNotifier {
       }
       notifyListeners();
     } catch (e) {
-      debugPrint('更新商品失敗: $e');
       rethrow;
     }
   }
@@ -239,7 +173,6 @@ class ProductProvider with ChangeNotifier {
     try {
       await _productService.deleteProduct(productId);
     } catch (e) {
-      debugPrint('刪除商品失敗: $e');
       if (backupSellerProduct != null && originalSellerIndex != -1) {
         _sellerProducts.insert(originalSellerIndex, backupSellerProduct);
       }
@@ -248,15 +181,6 @@ class ProductProvider with ChangeNotifier {
     }
   }
 
-  /// 清除錯誤狀態 - 供 UI 重置用
-  void clearErrors() {
-    _detailError = null;
-    _listError = null;
-    _sellerListError = null;
-    notifyListeners();
-  }
-
-  /// 重置選中的商品 - 供頁面離開時清理用
   void clearSelectedProduct() {
     _selectedProduct = null;
     _detailError = null;

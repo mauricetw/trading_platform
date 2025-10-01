@@ -4,21 +4,26 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../models/product/product.dart';
+import '../models/product/category.dart'; // 1. 引入真實的 Category 模型
 import '../providers/product_provider.dart';
-import 'product.dart'; // 確保 ProductScreen 存在
+import '../providers/wishlist_provider.dart'; // 2. 引入 WishlistProvider
+import 'product.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // 使用 Consumer 來監聽 ProductProvider 的變化，並在狀態改變時自動重建 UI
-    return Consumer<ProductProvider>(
-      builder: (context, productProvider, child) {
+    // 3. 使用 Consumer 來同時監聽兩個 Provider
+    return Consumer2<ProductProvider, WishlistProvider>(
+      builder: (context, productProvider, wishlistProvider, child) {
         return Scaffold(
-          // 使用 RefreshIndicator 讓使用者可以下拉刷新商品列表
           body: RefreshIndicator(
-            onRefresh: () => productProvider.fetchProducts(),
+            onRefresh: () async {
+              // 下拉刷新時，同時更新商品和收藏列表
+              await productProvider.fetchProducts();
+              await wishlistProvider.fetchWishlistItems();
+            },
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -26,14 +31,16 @@ class HomePage extends StatelessWidget {
                 children: [
                   _buildSectionTitle('商品分類'),
                   const SizedBox(height: 16),
-                  // 分類網格現在會從 Provider 獲取狀態
+                  // 4. 分類網格現在會自動從 Provider 獲取狀態
                   const _CategoriesGrid(),
                   const SizedBox(height: 32),
-                  _buildSectionTitle(productProvider.selectedCategoryId == null
-                      ? '熱門商品'
-                      : _getCategoryName(productProvider.selectedCategoryId!)),
+                  _buildSectionTitle(
+                    // 5. 根據 Provider 的狀態動態獲取分類名稱
+                    productProvider.selectedCategoryId == null
+                        ? '熱門商品'
+                        : _getCategoryName(productProvider),
+                  ),
                   const SizedBox(height: 16),
-                  // 根據 Provider 的狀態（載入中、錯誤、空、有資料）顯示不同的 UI
                   _buildProductContent(context, productProvider),
                 ],
               ),
@@ -44,7 +51,7 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  // 根據 Provider 狀態決定顯示內容的輔助函式
+  // ( _buildProductContent 和 _buildSectionTitle 保持不變 )
   Widget _buildProductContent(BuildContext context, ProductProvider provider) {
     if (provider.isListLoading && provider.products.isEmpty) {
       return const Center(child: Padding(padding: EdgeInsets.all(32.0), child: CircularProgressIndicator()));
@@ -63,33 +70,35 @@ class HomePage extends StatelessWidget {
         ),
       );
     }
-    // 如果有資料，則建立商品網格
     return _ProductsGrid(products: provider.products);
   }
-
   Widget _buildSectionTitle(String title) {
     return Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87));
   }
 
-  // 輔助函式，用於從靜態列表中獲取分類名稱
-  String _getCategoryName(int categoryId) {
+  // 6. 輔助函式現在從 Provider 中查找分類名稱
+  String _getCategoryName(ProductProvider provider) {
     try {
-      return _categories.firstWhere((category) => category.id == categoryId).name;
+      return provider.categories.firstWhere((c) => c.id == provider.selectedCategoryId).name;
     } catch (e) {
       return "未知分類";
     }
   }
 }
 
-// --- 將分類網格提取為獨立 Widget，使其更清晰 ---
+// --- 分類網格 (已修正為使用 Provider) ---
 class _CategoriesGrid extends StatelessWidget {
   const _CategoriesGrid();
   @override
   Widget build(BuildContext context) {
-    // 使用 context.read 來觸發方法，因为它不會在 build 方法中改變
-    final productProvider = context.read<ProductProvider>();
-    // 使用 context.watch 來監聽 selectedCategoryId 的變化，以便 UI 可以更新
-    final selectedId = context.watch<ProductProvider>().selectedCategoryId;
+    // 7. 直接從 Provider 獲取分類列表和選中狀態
+    final productProvider = context.watch<ProductProvider>();
+    final categories = productProvider.categories;
+    final selectedId = productProvider.selectedCategoryId;
+
+    if (productProvider.areCategoriesLoading && categories.isEmpty) {
+      return const Center(child: Text('正在載入分類...'));
+    }
 
     return GridView.builder(
       shrinkWrap: true,
@@ -97,20 +106,21 @@ class _CategoriesGrid extends StatelessWidget {
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 3, crossAxisSpacing: 12, mainAxisSpacing: 12, childAspectRatio: 1.0,
       ),
-      itemCount: _categories.length,
+      itemCount: categories.length,
       itemBuilder: (context, index) {
-        final category = _categories[index];
+        final category = categories[index];
         bool isSelected = selectedId == category.id;
+        // 8. 傳遞真實的 Category 物件給 UI builder
         return _buildCategoryCard(context, category, isSelected, () {
-          // 點擊時呼叫 Provider 的方法來篩選商品
-          productProvider.filterByCategory(category.id);
+          context.read<ProductProvider>().filterByCategory(category.id);
         });
       },
     );
   }
 
-  // 採用了組員版本更精緻的 UI 設計
+  // UI Builder 現在接收真實的 Category 物件
   Widget _buildCategoryCard(BuildContext context, Category category, bool isSelected, VoidCallback onTap) {
+    // ... (UI 邏輯保持不變，但現在 count 和 icon 都是模擬的)
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
@@ -124,11 +134,11 @@ class _CategoriesGrid extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(width: 45, height: 45, decoration: BoxDecoration(gradient: LinearGradient(colors: isSelected ? [Theme.of(context).primaryColor, Theme.of(context).primaryColorDark] : [const Color(0xFF1E88E5), const Color(0xFF1565C0)], begin: Alignment.topLeft, end: Alignment.bottomRight), borderRadius: BorderRadius.circular(22.5)), child: Center(child: Text(category.icon, style: const TextStyle(fontSize: 22)))),
+            Container(width: 45, height: 45, decoration: BoxDecoration(gradient: LinearGradient(colors: isSelected ? [Theme.of(context).primaryColor, Theme.of(context).primaryColorDark] : [const Color(0xFF1E88E5), const Color(0xFF1565C0)], begin: Alignment.topLeft, end: Alignment.bottomRight), borderRadius: BorderRadius.circular(22.5)), child: Center(child: Text('🛍️', style: const TextStyle(fontSize: 22)))), // 使用通用圖示
             const SizedBox(height: 8),
             Text(category.name, style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.w500, fontSize: 12, color: isSelected ? Theme.of(context).primaryColor : Colors.black87), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
-            const SizedBox(height: 4),
-            Text('${category.count} 件', style: TextStyle(fontSize: 10, color: isSelected ? Theme.of(context).primaryColor.withOpacity(0.8) : Colors.grey[600])),
+            // const SizedBox(height: 4),
+            // Text('${category.count} 件', style: TextStyle(fontSize: 10, color: isSelected ? Theme.of(context).primaryColor.withOpacity(0.8) : Colors.grey[600])),
           ],
         ),
       ),
@@ -136,7 +146,7 @@ class _CategoriesGrid extends StatelessWidget {
   }
 }
 
-// --- 將商品網格提取為獨立 Widget ---
+// --- 商品網格 (保持不變) ---
 class _ProductsGrid extends StatelessWidget {
   final List<Product> products;
   const _ProductsGrid({required this.products});
@@ -157,60 +167,66 @@ class _ProductsGrid extends StatelessWidget {
   }
 }
 
-// --- 商品卡片 Widget ---
+// --- 商品卡片 (已修正為使用 WishlistProvider) ---
 class _ProductCard extends StatelessWidget {
   final Product product;
   const _ProductCard({required this.product});
 
   String _formatPrice(double price) {
-    final formatCurrency = NumberFormat.currency(locale: "zh_TW", symbol: "NT\$", decimalDigits: 0);
-    return formatCurrency.format(price);
+    return NumberFormat.currency(locale: "zh_TW", symbol: "NT\$", decimalDigits: 0).format(price);
   }
 
   @override
   Widget build(BuildContext context) {
-    String imageUrlToDisplay = 'https://via.placeholder.com/300x250/E0E0E0/000000?Text=No+Image';
-    if (product.imageUrls.isNotEmpty && product.imageUrls.first.isNotEmpty) {
-      imageUrlToDisplay = product.imageUrls.first;
-    }
+    // 9. 使用 Consumer 來監聽 WishlistProvider 的狀態
+    return Consumer<WishlistProvider>(
+      builder: (context, wishlistProvider, child) {
+        // 10. 根據 WishlistProvider 判斷商品是否已被收藏
+        final isFavorite = wishlistProvider.isFavorite(product.id);
 
-    return GestureDetector(
-      // 導航到商品詳情頁，並傳遞 productId
-      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ProductScreen(productId: product.id))),
-      child: Container(
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 8, offset: const Offset(0, 2))]),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(flex: 3, child: Stack(alignment: Alignment.topRight, children: [
-              Container(width: double.infinity, height: double.infinity, decoration: BoxDecoration(color: Colors.grey[100], borderRadius: const BorderRadius.vertical(top: Radius.circular(12))), child: ClipRRect(borderRadius: const BorderRadius.vertical(top: Radius.circular(12)), child: Image.network(imageUrlToDisplay, fit: BoxFit.cover, errorBuilder: (c, e, s) => Container(color: Colors.grey[200], child: Center(child: Icon(Icons.broken_image, size: 40, color: Colors.grey[400]))), loadingBuilder: (c, child, p) => p == null ? child : Center(child: CircularProgressIndicator(value: p.expectedTotalBytes != null ? p.cumulativeBytesLoaded / p.expectedTotalBytes! : null))))),
-              if (product.isSold) Positioned(top: 8, left: 8, child: Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: Colors.redAccent.withOpacity(0.9), borderRadius: BorderRadius.circular(12)), child: const Text('SOLD', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)))),
-              Padding(padding: const EdgeInsets.all(8.0), child: GestureDetector(onTap: () {
-                // 點擊愛心時，呼叫 Provider 的方法來切換收藏狀態
-                context.read<ProductProvider>().toggleFavoriteStatus(product.id);
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(product.isFavorite ? '已取消收藏' : '已加入收藏 ❤️'), duration: const Duration(seconds: 1)));
-              }, child: Container(padding: const EdgeInsets.all(6), decoration: BoxDecoration(color: Colors.black.withOpacity(0.3), shape: BoxShape.circle), child: Icon(product.isFavorite ? Icons.favorite : Icons.favorite_border, color: product.isFavorite ? Colors.redAccent : Colors.white, size: 18)))),
-            ])),
-            Expanded(flex: 2, child: Padding(padding: const EdgeInsets.all(10.0), child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              Text(product.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, height: 1.2), maxLines: 2, overflow: TextOverflow.ellipsis),
-              Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-                Text(_formatPrice(product.price), style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Theme.of(context).primaryColor)),
-                if (product.originalPrice != null && product.originalPrice! > product.price) Text(_formatPrice(product.originalPrice!), style: TextStyle(fontSize: 11, color: Colors.grey[600], decoration: TextDecoration.lineThrough)),
-              ]),
-            ]))),
-          ],
-        ),
-      ),
+        String imageUrlToDisplay = product.imageUrls.isNotEmpty ? product.imageUrls.first : 'https://via.placeholder.com/300x250';
+
+        return GestureDetector(
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ProductScreen(productId: product.id))),
+          child: Container(
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 8, offset: const Offset(0, 2))]),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(flex: 3, child: Stack(alignment: Alignment.topRight, children: [
+                  Container(width: double.infinity, height: double.infinity, decoration: BoxDecoration(color: Colors.grey[100], borderRadius: const BorderRadius.vertical(top: Radius.circular(12))), child: ClipRRect(borderRadius: const BorderRadius.vertical(top: Radius.circular(12)), child: Image.network(imageUrlToDisplay, fit: BoxFit.cover, errorBuilder: (c, e, s) => Container(color: Colors.grey[200], child: Center(child: Icon(Icons.broken_image, size: 40, color: Colors.grey[400])))))),
+                  if (product.isSold) Positioned(top: 8, left: 8, child: Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: Colors.redAccent.withOpacity(0.9), borderRadius: BorderRadius.circular(12)), child: const Text('SOLD', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)))),
+                  Padding(padding: const EdgeInsets.all(8.0), child: GestureDetector(
+                    // 11. 點擊愛心時，呼叫 WishlistProvider 的方法
+                      onTap: () {
+                        if (isFavorite) {
+                          wishlistProvider.removeFromWishlist(product.id);
+                        } else {
+                          wishlistProvider.addToWishlist(product.id);
+                        }
+                      },
+                      child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(color: Colors.black.withOpacity(0.3), shape: BoxShape.circle),
+                          // 12. 根據 isFavorite 狀態顯示不同的圖示和顏色
+                          child: Icon(isFavorite ? Icons.favorite : Icons.favorite_border, color: isFavorite ? Colors.redAccent : Colors.white, size: 18)
+                      )
+                  )),
+                ])),
+                Expanded(flex: 2, child: Padding(padding: const EdgeInsets.all(10.0), child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                  Text(product.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, height: 1.2), maxLines: 2, overflow: TextOverflow.ellipsis),
+                  Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                    Text(_formatPrice(product.price), style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Theme.of(context).primaryColor)),
+                    if (product.originalPrice != null && product.originalPrice! > product.price) Text(_formatPrice(product.originalPrice!), style: TextStyle(fontSize: 11, color: Colors.grey[600], decoration: TextDecoration.lineThrough)),
+                  ]),
+                ]))),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
 
-// --- 靜態的商品分類模型 ---
-// 在真實應用中，這個也可能從後端獲取
-class Category {
-  final int id; final String name; final String icon; final int count;
-  Category({required this.id, required this.name, required this.icon, required this.count});
-}
-final List<Category> _categories = [
-  Category(id: 1, name: '書籍文具', icon: '📚', count: 156), Category(id: 2, name: '電子產品', icon: '📱', count: 89), Category(id: 3, name: '服裝配件', icon: '👕', count: 234), Category(id: 4, name: '家居用品', icon: '🏠', count: 178), Category(id: 5, name: '美容保健', icon: '💄', count: 67), Category(id: 6, name: '運動戶外', icon: '⚽', count: 123),
-];
+// --- 靜態的商品分類模型 (已被移除) ---
