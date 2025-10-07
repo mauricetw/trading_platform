@@ -25,37 +25,46 @@ class PublicUserProfilePage extends StatefulWidget {
 }
 
 class _PublicUserProfilePageState extends State<PublicUserProfilePage> {
-  late Future<UserProfileData> _profileDataFuture;
+  Future<UserProfileData>? _profileDataFuture;
 
   @override
   void initState() {
     super.initState();
     // 使用 addPostFrameCallback 確保 context 已經準備好
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadAllData();
+      if (mounted) {
+        _loadAllData();
+      }
     });
   }
 
   // 將資料載入邏輯整合到一個 Future 中
   void _loadAllData() {
-    if (mounted) {
-      final userService = context.read<UserService>();
-      setState(() {
-        _profileDataFuture = Future.wait([
-          userService.getUserProfileById(widget.userId),
-          userService.getProductsBySellerId(widget.userId),
-        ]).then((results) {
-          return UserProfileData(
-            user: results[0] as User,
-            products: results[1] as List<Product>,
-          );
-        });
+    if (!mounted) return;
+
+    final userService = context.read<UserService>();
+    setState(() {
+      _profileDataFuture = Future.wait([
+        userService.getUserProfileById(widget.userId),
+        userService.getProductsBySellerId(widget.userId),
+      ]).then((results) {
+        return UserProfileData(
+          user: results[0] as User,
+          products: results[1] as List<Product>,
+        );
       });
-    }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    // 處理 Future 尚未初始化的情況
+    if (_profileDataFuture == null) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     // 使用 FutureBuilder 來處理載入、錯誤和成功狀態
     return FutureBuilder<UserProfileData>(
       future: _profileDataFuture,

@@ -46,23 +46,32 @@ void main() {
   runApp(
     MultiProvider(
       providers: [
+        // --- 🔥 關鍵新增：提供 UserService 給整個 App ---
+        Provider<UserService>(
+          create: (_) => userService,
+        ),
+
         // --- 將 OrderService 實例提供給整個 App ---
-        // 我們使用 Provider 而不是 ChangeNotifierProvider，因為 OrderService 不需要通知 UI 監聽變化
         Provider<OrderService>(
           create: (_) => orderService,
         ),
+
         ChangeNotifierProvider(
           create: (_) => AuthProvider(authService, userService, apiClient, uploadService),
         ),
+
         ChangeNotifierProvider(
           create: (_) => ProductProvider(productService, uploadService),
         ),
+
         ChangeNotifierProvider(
           create: (_) => CategoryProvider(),
         ),
+
         ChangeNotifierProvider(
           create: (_) => AnnouncementProvider(announcementService),
         ),
+
         ChangeNotifierProxyProvider<AuthProvider, CartProvider>(
           create: (_) => CartProvider(cartService, null),
           update: (_, auth, previousCart) {
@@ -70,6 +79,7 @@ void main() {
             return previousCart ?? CartProvider(cartService, auth);
           },
         ),
+
         ChangeNotifierProxyProvider<AuthProvider, WishlistProvider>(
           create: (_) => WishlistProvider(wishlistService, null),
           update: (_, auth, previousWishlist) {
@@ -77,6 +87,7 @@ void main() {
             return previousWishlist ?? WishlistProvider(wishlistService, auth);
           },
         ),
+
         ChangeNotifierProxyProvider2<AuthProvider, CartProvider, CheckoutProvider>(
           create: (_) => CheckoutProvider(orderService, addressService, null, null),
           update: (_, auth, cart, previousCheckout) {
@@ -84,8 +95,7 @@ void main() {
             return previousCheckout ?? CheckoutProvider(orderService, addressService, auth, cart);
           },
         ),
-        // --- 關鍵新增：加入 OrderProvider ---
-        // 使用 ChangeNotifierProxyProvider，讓它能監聽登入狀態的變化
+
         ChangeNotifierProxyProvider<AuthProvider, OrderProvider>(
           create: (_) => OrderProvider(orderService, null),
           update: (_, auth, previousOrders) {
@@ -93,8 +103,7 @@ void main() {
             return previousOrders ?? OrderProvider(orderService, auth);
           },
         ),
-        // --- 加入 SellerProvider ---
-        // 它依賴 AuthProvider 來確認登入狀態
+
         ChangeNotifierProxyProvider<AuthProvider, SellerProvider>(
           create: (_) => SellerProvider(orderService, null),
           update: (_, auth, previous) {
@@ -123,9 +132,6 @@ class MyApp extends StatelessWidget {
       routes: {
         '/login': (context) => const LoginMainPage(),
         '/home': (context) {
-          // --- 關鍵修正：不再需要檢查 currentUser 或手動傳遞 ---
-          // AuthProvider 的狀態會由 SplashScreen 或登入流程處理好
-          // 直接回傳 MainMarket 即可
           return const MainMarket();
         },
       },
