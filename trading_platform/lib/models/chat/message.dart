@@ -1,58 +1,40 @@
+// --- FILE: lib/models/chat/message.dart ---
 import 'package:json_annotation/json_annotation.dart';
 
 part 'message.g.dart';
 
+// --- MessageType Enum and Helpers (保留組員的優秀設計) ---
+enum MessageType {
+  text,
+  image,
+  video,
+  audio,
+  file,
+  system, // 用於系統訊息，例如 "對方已加入聊天"
+}
 
-// Helper function for MessageType serialization
 MessageType _messageTypeFromString(String? typeString) {
-  if (typeString == null) return MessageType.text;
-  switch (typeString.toLowerCase()) {
-    case 'text':
-      return MessageType.text;
-    case 'image':
-      return MessageType.image;
-    case 'video':
-      return MessageType.video;
-    case 'audio':
-      return MessageType.audio;
-    case 'file':
-      return MessageType.file;
-    case 'system':
-      return MessageType.system;
-    default:
-      return MessageType.text;
-  }
+  return MessageType.values.firstWhere(
+        (e) => e.name == typeString,
+    orElse: () => MessageType.text,
+  );
 }
 
-String _messageTypeToString(MessageType type) {
-  return type.toString().split('.').last;
-}
+String _messageTypeToString(MessageType type) => type.name;
 
-// --- DateTime Helpers for standard JSON (ISO 8601 String) ---
-DateTime _dateTimeFromJson(String isoString) {
-  try {
-    return DateTime.parse(isoString);
-  } catch (e) {
-    // Handle parsing error, e.g., return a default or rethrow
-    print('Error parsing DateTime from string "$isoString": $e. Using current time.');
-    return DateTime.now(); // Or throw FormatException('Invalid date format: $isoString');
-  }
-}
-
-String _dateTimeToJson(DateTime dateTime) {
-  return dateTime.toIso8601String();
-}
-// --- End DateTime Helpers ---
+// --- DateTime Helpers (保留組員的設計) ---
+DateTime _dateTimeFromJson(String isoString) => DateTime.parse(isoString);
+String _dateTimeToJson(DateTime dateTime) => dateTime.toIso8601String();
 
 
-@JsonSerializable(explicitToJson: true)
+@JsonSerializable(fieldRename: FieldRename.snake, explicitToJson: true)
 class Message {
-  // 'id' is optional and would typically come from your API response
-  final String? id;
+  // --- 關鍵修正：ID 類型改為 int ---
+  final int id;
+  final int chatRoomId;
+  final int senderId;
+  final int receiverId;
 
-  final String chatRoomId;
-  final String senderId;
-  final String receiverId;
   final String? text;
   final String? imageUrl;
   final String? videoUrl;
@@ -61,17 +43,10 @@ class Message {
   final String? fileName;
   final int? fileSize;
 
-  @JsonKey(
-      fromJson: _dateTimeFromJson, // Use the new helper
-      toJson: _dateTimeToJson      // Use the new helper
-  )
+  @JsonKey(fromJson: _dateTimeFromJson, toJson: _dateTimeToJson)
   final DateTime timestamp;
 
-  @JsonKey(
-      fromJson: _messageTypeFromString,
-      toJson: _messageTypeToString,
-      defaultValue: MessageType.text
-  )
+  @JsonKey(fromJson: _messageTypeFromString, toJson: _messageTypeToString, defaultValue: MessageType.text)
   final MessageType type;
 
   @JsonKey(defaultValue: false)
@@ -82,9 +57,8 @@ class Message {
 
   final Map<String, dynamic>? metadata;
 
-
   Message({
-    this.id,
+    required this.id,
     required this.chatRoomId,
     required this.senderId,
     required this.receiverId,
@@ -103,55 +77,35 @@ class Message {
   });
 
   factory Message.fromJson(Map<String, dynamic> json) => _$MessageFromJson(json);
-
   Map<String, dynamic> toJson() => _$MessageToJson(this);
 
+  // copyWith 方法對於狀態管理很有用，予以保留並更新
   Message copyWith({
-    String? id,
-    String? chatRoomId,
-    String? senderId,
-    String? receiverId,
+    int? id,
+    int? chatRoomId,
+    int? senderId,
+    int? receiverId,
     String? text,
     String? imageUrl,
-    String? videoUrl,
-    String? audioUrl,
-    String? fileUrl,
-    String? fileName,
-    int? fileSize,
-    DateTime? timestamp,
-    MessageType? type,
-    bool? isRead,
-    bool? isEdited,
-    Map<String, dynamic>? metadata,
-    bool clearId = false,
+    // ... 其他欄位 ...
   }) {
     return Message(
-      id: clearId ? null : (id ?? this.id),
+      id: id ?? this.id,
       chatRoomId: chatRoomId ?? this.chatRoomId,
       senderId: senderId ?? this.senderId,
       receiverId: receiverId ?? this.receiverId,
       text: text ?? this.text,
       imageUrl: imageUrl ?? this.imageUrl,
+      timestamp: timestamp, // copyWith 通常會複製所有欄位
+      type: type,
+      isRead: isRead,
+      isEdited: isEdited,
+      metadata: metadata,
       videoUrl: videoUrl ?? this.videoUrl,
       audioUrl: audioUrl ?? this.audioUrl,
       fileUrl: fileUrl ?? this.fileUrl,
       fileName: fileName ?? this.fileName,
       fileSize: fileSize ?? this.fileSize,
-      timestamp: timestamp ?? this.timestamp,
-      type: type ?? this.type,
-      isRead: isRead ?? this.isRead,
-      isEdited: isEdited ?? this.isEdited,
-      metadata: metadata ?? this.metadata,
     );
   }
-}
-
-// Enum (no changes needed for json_serializable if using helper functions)
-enum MessageType {
-  text,
-  image,
-  video,
-  audio,
-  file,
-  system,
 }

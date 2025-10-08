@@ -29,12 +29,11 @@ class WishlistService {
     return item;
   }
 
-  /// --- 關鍵修正：統一方法名稱 ---
   /// 從收藏清單中移除商品
   Future<void> removeFromWishlist(int productId) async {
     debugPrint('[WishlistService] API: Removing product #$productId from wishlist...');
     // API 路徑與組員版本一致
-    await _apiClient.delete('/wishlist//items/$productId');
+    await _apiClient.delete('/wishlist/items/$productId');
     debugPrint('[WishlistService] API: Successfully removed product #$productId.');
   }
 }

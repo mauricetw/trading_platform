@@ -24,7 +24,9 @@ class UserService {
   /// 根據 ID 獲取其他使用者的公開個人資料。
   Future<User> getUserProfileById(String userId) async {
     final responseBody = await _apiClient.get('/users/$userId');
-    return User.fromJson(responseBody['user']);
+    
+    // 後端 API 直接回傳 User 物件，而不是巢狀的 {"user": {...}}
+    return User.fromJson(responseBody);
   }
 
   /// 更新當前登入使用者的個人資料。

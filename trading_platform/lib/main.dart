@@ -12,6 +12,7 @@ import 'providers/checkout_provider.dart';
 import 'providers/announcement_provider.dart';
 import 'providers/order_provider.dart';
 import 'providers/seller_provider.dart';
+import 'providers/chat_provider.dart'; // 1. 引入 ChatProvider
 
 import 'services/api_client.dart';
 import 'services/auth_service.dart';
@@ -23,6 +24,8 @@ import 'services/order_service.dart';
 import 'services/address_service.dart';
 import 'services/announcement_service.dart';
 import 'services/upload_service.dart';
+import 'services/chat_service.dart';
+import 'services/websocket_service.dart';
 
 import 'screens/auth/login_main.dart';
 import 'screens/main_market.dart';
@@ -42,6 +45,8 @@ void main() {
   final UploadService uploadService = UploadService(apiClient);
   final OrderService orderService = OrderService(apiClient);
   final AddressService addressService = AddressService(apiClient);
+  final ChatService chatService = ChatService(apiClient);
+  final WebSocketService webSocketService = WebSocketService();
 
   runApp(
     MultiProvider(
@@ -85,6 +90,15 @@ void main() {
           update: (_, auth, previousWishlist) {
             previousWishlist?.update(auth);
             return previousWishlist ?? WishlistProvider(wishlistService, auth);
+          },
+        ),
+
+        // 使用 ChangeNotifierProxyProvider監聽登入狀態的變化
+        ChangeNotifierProxyProvider<AuthProvider, ChatProvider>(
+          create: (_) => ChatProvider(chatService, webSocketService, null),
+          update: (_, auth, previousChat) {
+            previousChat?.update(auth);
+            return previousChat ?? ChatProvider(chatService, webSocketService, auth);
           },
         ),
 
