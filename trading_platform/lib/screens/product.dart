@@ -21,15 +21,25 @@ class ProductScreen extends StatefulWidget {
 }
 
 class _ProductScreenState extends State<ProductScreen> {
+  // 新增：用於圖片輪播的 PageController
+  late PageController _pageController;
+  int _currentImageIndex = 0;
 
   @override
   void initState() {
     super.initState();
+    _pageController = PageController();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         Provider.of<ProductProvider>(context, listen: false).fetchProductById(widget.productId);
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
   }
 
   /// 處理加入購物車的邏輯
@@ -66,15 +76,13 @@ class _ProductScreenState extends State<ProductScreen> {
     }
   }
 
-  /// --- 關鍵修正：處理收藏/取消收藏的邏輯 ---
+  /// 處理收藏/取消收藏的邏輯
   void _toggleFavorite(Product product) async {
     try {
       final wishlistProvider = context.read<WishlistProvider>();
-      // 1. 修正：使用 isFavorite(int) 方法
       final isCurrentlyInWishlist = wishlistProvider.isFavorite(product.id);
 
       if (isCurrentlyInWishlist) {
-        // 2. 修正：傳入 int 型別的 product.id
         await wishlistProvider.removeFromWishlist(product.id);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -82,7 +90,6 @@ class _ProductScreenState extends State<ProductScreen> {
           );
         }
       } else {
-        // 3. 修正：傳入 int 型別的 product.id
         await wishlistProvider.addToWishlist(product.id);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -169,7 +176,6 @@ class _ProductScreenState extends State<ProductScreen> {
           }
 
           final product = productProvider.selectedProduct!;
-          // --- 關鍵修正：使用 isFavorite(int) 方法 ---
           final isFavorite = wishlistProvider.isFavorite(product.id);
 
           return CustomScrollView(
@@ -225,8 +231,10 @@ class _ProductScreenState extends State<ProductScreen> {
     );
   }
 
-  // --- (所有 UI Builder Widgets 保持不變) ---
+  // --- 修改後的 SliverAppBar，支援多圖輪播 ---
   SliverAppBar _buildSliverAppBar(Product product, bool isFavorite) {
+    final imageCount = product.imageUrls.length;
+
     return SliverAppBar(
       expandedHeight: 300.0,
       pinned: true,
@@ -249,34 +257,46 @@ class _ProductScreenState extends State<ProductScreen> {
         background: Stack(
           fit: StackFit.expand,
           children: [
-            if (product.imageUrls.isNotEmpty)
-              Image.network(
-                product.imageUrls.first,
-                fit: BoxFit.cover,
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return Container(
-                    color: Colors.grey[300],
-                    child: Center(
-                      child: CircularProgressIndicator(
-                        value: loadingProgress.expectedTotalBytes != null
-                            ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                            : null,
-                      ),
-                    ),
-                  );
+            // 圖片輪播
+            if (imageCount > 0)
+              PageView.builder(
+                controller: _pageController,
+                itemCount: imageCount,
+                onPageChanged: (index) {
+                  setState(() {
+                    _currentImageIndex = index;
+                  });
                 },
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    color: Colors.grey[300],
-                    child: const Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.image_not_supported, size: 50, color: Colors.grey),
-                        SizedBox(height: 8),
-                        Text('圖片載入失敗', style: TextStyle(color: Colors.grey)),
-                      ],
-                    ),
+                itemBuilder: (context, index) {
+                  return Image.network(
+                    product.imageUrls[index],
+                    fit: BoxFit.cover,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Container(
+                        color: Colors.grey[300],
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            value: loadingProgress.expectedTotalBytes != null
+                                ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                : null,
+                          ),
+                        ),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        color: Colors.grey[300],
+                        child: const Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.image_not_supported, size: 50, color: Colors.grey),
+                            SizedBox(height: 8),
+                            Text('圖片載入失敗', style: TextStyle(color: Colors.grey)),
+                          ],
+                        ),
+                      );
+                    },
                   );
                 },
               )
@@ -292,6 +312,8 @@ class _ProductScreenState extends State<ProductScreen> {
                   ],
                 ),
               ),
+
+            // 漸層遮罩
             Positioned(
               bottom: 0, left: 0, right: 0, height: 100,
               child: Container(
@@ -304,6 +326,85 @@ class _ProductScreenState extends State<ProductScreen> {
                 ),
               ),
             ),
+
+            // 圖片指示器（當有多張圖片時顯示）
+            if (imageCount > 1)
+              Positioned(
+                bottom: 16,
+                left: 0,
+                right: 0,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(
+                    imageCount,
+                        (index) => Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _currentImageIndex == index
+                            ? Colors.white
+                            : Colors.white.withOpacity(0.4),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+            // 左右切換按鈕（當有多張圖片時顯示）
+            if (imageCount > 1) ...[
+              // 左箭頭
+              if (_currentImageIndex > 0)
+                Positioned(
+                  left: 16,
+                  top: 0,
+                  bottom: 100,
+                  child: Center(
+                    child: IconButton(
+                      icon: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.5),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.chevron_left, color: Colors.white, size: 28),
+                      ),
+                      onPressed: () {
+                        _pageController.previousPage(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              // 右箭頭
+              if (_currentImageIndex < imageCount - 1)
+                Positioned(
+                  right: 16,
+                  top: 0,
+                  bottom: 100,
+                  child: Center(
+                    child: IconButton(
+                      icon: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.5),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.chevron_right, color: Colors.white, size: 28),
+                      ),
+                      onPressed: () {
+                        _pageController.nextPage(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                        );
+                      },
+                    ),
+                  ),
+                ),
+            ],
           ],
         ),
       ),
