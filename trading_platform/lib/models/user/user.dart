@@ -1,24 +1,21 @@
 // --- FILE: lib/models/user/user.dart ---
 import 'package:json_annotation/json_annotation.dart';
-import '../../config/api_config.dart'; // 1. 引入 API 設定檔
+import '../../config/api_config.dart';
 
 part 'user.g.dart';
 
 @JsonSerializable(
     fieldRename: FieldRename.snake,
     explicitToJson: true,
-    createFactory: false // 我們將手動實作 fromJson 工廠方法
+    createFactory: false
 )
 class User {
-  // --- 基礎欄位 (已完整保留) ---
   final int id;
-  // --- 關鍵修正：透過 JsonKey，將後端的 'nickname' 對應到前端的 'username' ---
   @JsonKey(name: 'nickname')
   final String username;
   final String email;
   final String? phoneNumber;
 
-  // --- 關鍵修正：加入 fromJson 轉換器 ---
   @JsonKey(fromJson: _prefixUrl)
   final String? avatarUrl;
 
@@ -26,10 +23,10 @@ class User {
   final DateTime? lastLoginAt;
   final String? bio;
   final String? schoolName;
+  final String? address; // ✅ 新增地址欄位
   final bool isVerified;
   final List<String> roles;
 
-  // --- 賣家相關屬性 (已完整保留) ---
   final bool isSeller;
   final String? sellerName;
   final String? sellerDescription;
@@ -37,11 +34,9 @@ class User {
   final double? buyerRating;
   final int productCount;
 
-  // --- 收藏狀態 (已完整保留) ---
   @JsonKey(defaultValue: [])
   final List<String> favoriteProductIds;
 
-  // --- 公開資訊欄位 (已完整保留) ---
   final String? publicDisplayName;
   final String? publicBio;
   final String? publicCoverPhotoUrl;
@@ -58,6 +53,7 @@ class User {
     this.lastLoginAt,
     this.bio,
     this.schoolName,
+    this.address, // ✅ 加入建構函式
     required this.isVerified,
     required this.roles,
     required this.isSeller,
@@ -73,10 +69,8 @@ class User {
     this.isSchoolPublic = false,
   });
 
-  // --- Helper getter (已保留) ---
   String get effectivePublicDisplayName => publicDisplayName?.isNotEmpty == true ? publicDisplayName! : username;
 
-  // --- 關鍵修正：強化 fromJson 的空值處理能力 ---
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
       id: json['id'] as int? ?? 0,
@@ -86,13 +80,11 @@ class User {
       email: json['email'] as String? ?? '',
       registeredAt: json['registered_at'] != null ? DateTime.parse(json['registered_at'] as String) : DateTime.now(),
       phoneNumber: json['phone_number'] as String?,
-
-      // 2. 在解析時呼叫轉換器
       avatarUrl: _prefixUrl(json['avatar_url'] as String?),
-
       lastLoginAt: json['last_login_at'] != null ? DateTime.parse(json['last_login_at'] as String) : null,
       bio: json['bio'] as String?,
       schoolName: json['school_name'] as String?,
+      address: json['address'] as String?, // ✅ 解析地址
       isVerified: json['is_verified'] as bool? ?? false,
       roles: (json['roles'] as List<dynamic>?)?.map((e) => e as String).toList() ?? ['user'],
       isSeller: json['is_seller'] as bool? ?? false,
@@ -109,10 +101,8 @@ class User {
     );
   }
 
-  /// toJson 方法會由 build_runner 自動產生
   Map<String, dynamic> toJson() => _$UserToJson(this);
 
-  // --- copyWith (已完整保留) ---
   User copyWith({
     int? id,
     String? username,
@@ -123,6 +113,7 @@ class User {
     DateTime? lastLoginAt,
     String? bio,
     String? schoolName,
+    String? address, // ✅ 加入 copyWith
     bool? isVerified,
     List<String>? roles,
     bool? isSeller,
@@ -147,6 +138,7 @@ class User {
       lastLoginAt: lastLoginAt ?? this.lastLoginAt,
       bio: bio ?? this.bio,
       schoolName: schoolName ?? this.schoolName,
+      address: address ?? this.address, // ✅ copyWith 實作
       isVerified: isVerified ?? this.isVerified,
       roles: roles ?? this.roles,
       isSeller: isSeller ?? this.isSeller,
@@ -164,7 +156,6 @@ class User {
   }
 }
 
-// 3. 建立輔助函式 (放在 User class 外部)
 String? _prefixUrl(String? relativeUrl) {
   if (relativeUrl == null || relativeUrl.isEmpty) {
     return null;
@@ -174,4 +165,3 @@ String? _prefixUrl(String? relativeUrl) {
   }
   return '${APIConfig.baseUrl}$relativeUrl';
 }
-

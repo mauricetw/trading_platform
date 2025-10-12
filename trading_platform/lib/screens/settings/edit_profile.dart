@@ -1,4 +1,4 @@
-// --- FILE: lib/screens/settings/edit_profile.dart (新建或覆蓋) ---
+// --- FILE: lib/screens/settings/edit_profile.dart ---
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -21,8 +21,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
   late TextEditingController _bioController;
   late TextEditingController _schoolNameController;
   late TextEditingController _phoneController;
+  late TextEditingController _addressController; // ✅ 新增
 
-  XFile? _newAvatarFile; // 用於儲存使用者新選擇的圖片檔案
+  XFile? _newAvatarFile;
   bool _isLoading = false;
 
   @override
@@ -32,14 +33,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _bioController = TextEditingController();
     _schoolNameController = TextEditingController();
     _phoneController = TextEditingController();
+    _addressController = TextEditingController(); // ✅ 初始化
 
-    // 從 AuthProvider 中獲取當前使用者資料來初始化表單
     final currentUser = context.read<AuthProvider>().currentUser;
     if (currentUser != null) {
       _nicknameController.text = currentUser.username;
       _bioController.text = currentUser.bio ?? '';
       _schoolNameController.text = currentUser.schoolName ?? '';
       _phoneController.text = currentUser.phoneNumber ?? '';
+      _addressController.text = currentUser.address ?? ''; // ✅ 載入地址
     }
   }
 
@@ -49,6 +51,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _bioController.dispose();
     _schoolNameController.dispose();
     _phoneController.dispose();
+    _addressController.dispose(); // ✅ 釋放資源
     super.dispose();
   }
 
@@ -70,12 +73,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
     setState(() { _isLoading = true; });
 
     try {
-      // 呼叫 AuthProvider 的 updateUserProfile 方法
       await context.read<AuthProvider>().updateUserProfile(
         nickname: _nicknameController.text.trim(),
         bio: _bioController.text.trim(),
         schoolName: _schoolNameController.text.trim(),
         phoneNumber: _phoneController.text.trim(),
+        address: _addressController.text.trim(), // ✅ 傳送地址
         newAvatarFile: _newAvatarFile,
       );
 
@@ -100,7 +103,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    // 使用 Consumer 來監聽 AuthProvider 的變化，確保大頭貼能即時更新
     return Consumer<AuthProvider>(
       builder: (context, authProvider, child) {
         final currentUser = authProvider.currentUser;
@@ -125,7 +127,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         children: [
                           CircleAvatar(
                             radius: 60,
-                            // 優先顯示新選擇的本地圖片，否則顯示網路圖片
                             backgroundImage: _newAvatarFile != null
                                 ? FileImage(File(_newAvatarFile!.path))
                                 : (currentUser?.avatarUrl != null && currentUser!.avatarUrl!.isNotEmpty)
@@ -169,6 +170,18 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       controller: _phoneController,
                       decoration: const InputDecoration(labelText: '手機號碼', border: OutlineInputBorder()),
                       keyboardType: TextInputType.phone,
+                    ),
+                    const SizedBox(height: 16),
+
+                    // ✅ 地址輸入欄位
+                    TextFormField(
+                      controller: _addressController,
+                      decoration: const InputDecoration(
+                        labelText: '地址',
+                        border: OutlineInputBorder(),
+                        hintText: '請輸入您的地址',
+                      ),
+                      maxLines: 2,
                     ),
                     const SizedBox(height: 32),
 
