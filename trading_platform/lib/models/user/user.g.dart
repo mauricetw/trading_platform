@@ -16,6 +16,7 @@ Map<String, dynamic> _$UserToJson(User instance) => <String, dynamic>{
   'last_login_at': instance.lastLoginAt?.toIso8601String(),
   'bio': instance.bio,
   'school_name': instance.schoolName,
+  'address': instance.address,
   'is_verified': instance.isVerified,
   'roles': instance.roles,
   'is_seller': instance.isSeller,

@@ -55,7 +55,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('訊息'),
+        title: const Text(''),
         shape: const FullBottomConcaveAppBarShape(curveHeight: 20.0),
         backgroundColor: colorScheme.secondary,
         foregroundColor: colorScheme.onSecondary,

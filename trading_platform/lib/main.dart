@@ -2,7 +2,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-// (imports 保持不變)
 import 'providers/auth_provider.dart';
 import 'providers/product_provider.dart';
 import 'providers/category_provider.dart';
@@ -12,7 +11,9 @@ import 'providers/checkout_provider.dart';
 import 'providers/announcement_provider.dart';
 import 'providers/order_provider.dart';
 import 'providers/seller_provider.dart';
-import 'providers/chat_provider.dart'; // 1. 引入 ChatProvider
+import 'providers/chat_provider.dart';
+import 'providers/wishpool_provider.dart';
+import 'providers/wishpool_invite_provider.dart';
 
 import 'services/api_client.dart';
 import 'services/auth_service.dart';
@@ -26,10 +27,13 @@ import 'services/announcement_service.dart';
 import 'services/upload_service.dart';
 import 'services/chat_service.dart';
 import 'services/websocket_service.dart';
+import 'services/wishpool_service.dart';
+import 'services/wishpool_invite_service.dart';
 
 import 'screens/auth/login_main.dart';
 import 'screens/main_market.dart';
 import 'screens/splash_screen.dart';
+import 'screens/wishpool/wishpool_main.dart';
 
 import 'theme/app_theme.dart';
 
@@ -125,6 +129,13 @@ void main() {
             return previous ?? SellerProvider(orderService, auth);
           },
         ),
+        ChangeNotifierProvider(
+          create: (_) => WishPoolProvider(WishPoolService()),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => WishPoolInviteProvider(WishPoolInviteService()),
+        ),
+
       ],
       child: const MyApp(),
     ),
@@ -142,7 +153,7 @@ class MyApp extends StatelessWidget {
       theme: appLightTheme,
       darkTheme: appDarkTheme,
       themeMode: ThemeMode.system,
-      home: const SplashScreen(),
+      home: const MainMarket(),
       routes: {
         '/login': (context) => const LoginMainPage(),
         '/home': (context) {

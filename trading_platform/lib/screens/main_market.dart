@@ -7,11 +7,9 @@ import 'chatlist/chat_list.dart';
 import 'home_page.dart';
 import '../widgets/market_search_bar.dart';
 import '../theme/app_theme.dart';
-// REFACTORED: 不再需要直接導入 User 模型，因為不再手動傳遞
-// import '../models/user/user.dart';
+import 'wishpool/wishpool_main.dart';
 
 class MainMarket extends StatefulWidget {
-  // --- 關鍵修正：不再需要從外部接收 currentUser ---
   const MainMarket({super.key});
 
   @override
@@ -23,13 +21,13 @@ class _MainMarketState extends State<MainMarket> {
   int _currentIndex = 0;
   final PageController _pageController = PageController(initialPage: 0);
 
-  // --- 關鍵修正：_pages 列表現在直接建立 Profile()，不需要任何參數 ---
-  // Profile 頁面自己會透過 Provider 獲取使用者資料
+  // ✅ 加入 WishPoolMainPage
   final List<Widget> _pages = const [
-    HomePage(),
-    ChatListScreen(),
-    AnnouncementListScreen(),
-    Profile(),
+    HomePage(),           // 0
+    WishPoolMain(),   // 1
+    ChatListScreen(),     // 2
+    AnnouncementListScreen(), // 3
+    Profile(),            // 4
   ];
 
   @override
@@ -91,7 +89,6 @@ class _MainMarketState extends State<MainMarket> {
           gradient: LinearGradient(
             colors: [
               primaryCS.primary,
-              // 修正：使用 withOpacity (或您自訂的 withValues)
               primaryCS.primary.withOpacity(0.9)
             ],
             begin: Alignment.topLeft,
@@ -117,6 +114,7 @@ class _MainMarketState extends State<MainMarket> {
           elevation: 0,
           items: const [
             BottomNavigationBarItem(icon: Icon(Icons.home), label: '首頁'),
+            BottomNavigationBarItem(icon: Icon(Icons.wb_incandescent_outlined), label: '許願池'), // ✅ 新的分頁
             BottomNavigationBarItem(icon: Icon(Icons.message), label: '訊息'),
             BottomNavigationBarItem(icon: Icon(Icons.notifications), label: '通知'),
             BottomNavigationBarItem(icon: Icon(Icons.person), label: '個人檔案'),
