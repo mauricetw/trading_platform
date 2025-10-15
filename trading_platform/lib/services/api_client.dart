@@ -264,4 +264,44 @@ class ApiClient {
       }
     }
   }
+
+  // --- PATCH 方法 ---
+  /// 發送 PATCH 請求，通常用於部分更新資源。
+  Future<dynamic> patch(String path, {required Map<String, dynamic> body}) async {
+    final url = Uri.parse('${APIConfig.baseUrl}$path');
+    final requestInfo = 'PATCH $url';
+
+    try {
+      debugPrint('===============================');
+      debugPrint('ApiClient: 發送 PATCH 請求');
+      debugPrint('URL: $url');
+      debugPrint('請求頭: ${_getHeaders()}');
+      debugPrint('請求體: $body');
+      debugPrint('===============================');
+
+      final response = await http.patch(
+          url,
+          headers: _getHeaders(),
+          body: jsonEncode(body)
+      ).timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          throw ApiException('請求超時，請檢查網路連線');
+        },
+      );
+
+      return _handleResponse(response, requestInfo);
+    } on SocketException catch (e) {
+      debugPrint('ApiClient: 網路連線錯誤: $e');
+      throw ApiException('無法連線到伺服器，請檢查您的網路：$e');
+    } catch (e) {
+      debugPrint('ApiClient: PATCH 請求發生未知錯誤: $e');
+      if (e is ApiException) {
+        rethrow;
+      } else {
+        throw ApiException('請求失敗：$e');
+      }
+    }
+  }
+
 }

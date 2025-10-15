@@ -1,6 +1,7 @@
 // --- FILE: lib/providers/seller_provider.dart ---
 import 'package:flutter/foundation.dart';
 import '../models/user/shipping_option.dart';
+import '../models/order/order.dart';
 import '../services/order_service.dart';
 import 'auth_provider.dart';
 
@@ -9,48 +10,67 @@ class SellerProvider with ChangeNotifier {
   AuthProvider? _authProvider;
 
   List<ShippingOption> _shippingOptions = [];
+  List<Order> _sellerOrders = [];
   bool _isLoading = false;
   String? _error;
 
   List<ShippingOption> get shippingOptions => _shippingOptions;
+  List<Order> get sellerOrders => _sellerOrders;
   bool get isLoading => _isLoading;
   String? get error => _error;
 
   SellerProvider(this._orderService, this._authProvider) {
-    if (_authProvider?.isLoggedIn == true) {
-      fetchShippingOptions();
-    }
+    _updateDependencies();
   }
 
   void update(AuthProvider newAuthProvider) {
     if (newAuthProvider.isLoggedIn != _authProvider?.isLoggedIn) {
       _authProvider = newAuthProvider;
-      if (newAuthProvider.isLoggedIn) {
-        fetchShippingOptions();
-      } else {
-        _shippingOptions = [];
-        notifyListeners();
-      }
+      _updateDependencies();
     }
   }
 
-  Future<void> fetchShippingOptions() async {
-    if (!(_authProvider?.isLoggedIn ?? false) || _isLoading) return;
+  void _updateDependencies() {
+    if (_authProvider?.isLoggedIn == true) {
+      // 2. 登入時，同時獲取所有賣家相關資料
+      fetchMySellerData();
+    } else {
+      _shippingOptions = [];
+      _sellerOrders = [];
+      notifyListeners();
+    }
+  }
 
+  /// 整合所有賣家資料的獲取
+  Future<void> fetchMySellerData() async {
+    if (!(_authProvider?.isLoggedIn ?? false)) return;
     _isLoading = true;
     _error = null;
     notifyListeners();
-
     try {
-      // 假設 OrderService 中有一個 getMyShippingOptions 方法
-      // 這需要我們稍後在 OrderService 中加入
-      _shippingOptions = await _orderService.getMyShippingOptions();
+      // 3. 使用 Future.wait 並行獲取，提升效率
+      await Future.wait([
+        _fetchShippingOptionsInternal(),
+        _fetchSellerOrdersInternal(),
+      ]);
     } catch (e) {
-      _error = "無法載入運送方式: $e";
+      _error = "無法載入賣家資料: $e";
     } finally {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  // --- (運送選項的 CRUD 方法保持不變) ---
+
+  Future<void> _fetchShippingOptionsInternal() async {
+    _shippingOptions = await _orderService.getMyShippingOptions();
+  }
+
+  Future<void> fetchShippingOptions() async {
+    // 外部呼叫的刷新方法
+    await _fetchShippingOptionsInternal();
+    notifyListeners();
   }
 
   Future<void> addShippingOption(Map<String, dynamic> data) async {
@@ -71,18 +91,55 @@ class SellerProvider with ChangeNotifier {
   Future<void> deleteShippingOption(int optionId) async {
     final index = _shippingOptions.indexWhere((opt) => opt.id == optionId);
     if (index == -1) return;
-
-    // 樂觀更新
     final backupOption = _shippingOptions.removeAt(index);
     notifyListeners();
-
     try {
       await _orderService.deleteShippingOption(optionId);
     } catch (e) {
-      // 如果 API 失敗，則復原
       _shippingOptions.insert(index, backupOption);
       notifyListeners();
       rethrow;
+    }
+  }
+
+  // --- 關鍵新增：獲取和更新賣家訂單的方法 ---
+
+  Future<void> _fetchSellerOrdersInternal({OrderStatus? status}) async {
+    _sellerOrders = await _orderService.getMySellerOrders(status: status);
+  }
+
+  Future<void> fetchSellerOrders({OrderStatus? status}) async {
+    if (!(_authProvider?.isLoggedIn ?? false)) return;
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      await _fetchSellerOrdersInternal(status: status);
+    } catch (e) {
+      _error = "無法載入收到的訂單: $e";
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> updateOrderStatus(int orderId, OrderStatus newStatus, {String? description}) async {
+    try {
+      final updatedOrder = await _orderService.updateOrderStatusAsSeller(
+        orderId: orderId,
+        newStatus: newStatus,
+        description: description,
+      );
+      // 更新本地列表中的訂單狀態
+      final index = _sellerOrders.indexWhere((o) => o.orderId == orderId);
+      if (index != -1) {
+        _sellerOrders[index] = updatedOrder;
+        notifyListeners();
+      }
+    } catch (e) {
+      _error = "更新訂單狀態失敗: $e";
+      notifyListeners();
+      rethrow; // 向上拋出，讓 UI 顯示提示
     }
   }
 }

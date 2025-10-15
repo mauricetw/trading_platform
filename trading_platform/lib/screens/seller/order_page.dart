@@ -1,32 +1,12 @@
+// --- FILE: lib/screens/seller/order_page.dart ---
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
-// 資料模型
-class Order {
-  final String id;
-  final String title;
-  final int price;
-  final int quantity;
-  final OrderStatus status;
-  final String dueTime;
-  final String paymentMethod;
+import '../../models/order/order.dart';      // 1. 引入官方的 Order 模型
+import '../../providers/seller_provider.dart'; // 2. 引入 SellerProvider
 
-  Order({
-    required this.id,
-    required this.title,
-    required this.price,
-    required this.quantity,
-    required this.status,
-    required this.dueTime,
-    required this.paymentMethod,
-  });
-}
-
-enum OrderStatus {
-  pending,    // 待出貨
-  failed,     // 不成立
-  completed,  // 已完成
-  rejected,   // 未接受
-}
+// 3. 移除本地的 Order 模型和 OrderStatus enum
 
 // 主要的訂單管理頁面
 class SellerOrderPage extends StatefulWidget {
@@ -37,183 +17,171 @@ class SellerOrderPage extends StatefulWidget {
 }
 
 class _SellerOrderPageState extends State<SellerOrderPage> {
-  int selectedFilterIndex = 0;
+  int _selectedFilterIndex = 0;
+  // 4. 更新篩選器以包含 "待確認"
+  final List<String> _filterOptions = ['待確認', '待出貨', '不成立', '已完成'];
 
-  final List<String> filterOptions = ['待出貨', '不成立', '已完成', '未接受'];
-
-  final List<Order> orders = [
-    Order(
-      id: '123456',
-      title: '大二下專業必修課...',
-      price: 1039,
-      quantity: 1,
-      status: OrderStatus.pending,
-      dueTime: '2024-12-31',
-      paymentMethod: '現場面交',
-    ),
-    Order(
-      id: '123457',
-      title: '高等微積分教科書...',
-      price: 850,
-      quantity: 1,
-      status: OrderStatus.failed,
-      dueTime: '2024-12-25',
-      paymentMethod: '銀行轉帳',
-    ),
-    Order(
-      id: '123458',
-      title: '計算機概論講義...',
-      price: 650,
-      quantity: 2,
-      status: OrderStatus.completed,
-      dueTime: '2024-12-20',
-      paymentMethod: '信用卡',
-    ),
-    Order(
-      id: '123459',
-      title: '統計學習教材...',
-      price: 750,
-      quantity: 1,
-      status: OrderStatus.rejected,
-      dueTime: '2024-12-28',
-      paymentMethod: '現場面交',
-    ),
+  // 5. 對應的 OrderStatus，注意順序要和 _filterOptions 一致
+  final List<OrderStatus?> _filterStatuses = [
+    OrderStatus.pending,    // 待確認
+    OrderStatus.preparing,  // 待出貨
+    OrderStatus.failed,     // 不成立
+    OrderStatus.completed,  // 已完成
   ];
 
-  List<Order> get filteredOrders {
-    switch (selectedFilterIndex) {
-      case 0:
-        return orders.where((order) => order.status == OrderStatus.pending).toList();
-      case 1:
-        return orders.where((order) => order.status == OrderStatus.failed).toList();
-      case 2:
-        return orders.where((order) => order.status == OrderStatus.completed).toList();
-      case 3:
-        return orders.where((order) => order.status == OrderStatus.rejected).toList();
-      default:
-        return orders;
+  @override
+  void initState() {
+    super.initState();
+    // 6. 頁面初始化時，從 Provider 獲取資料
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fetchFilteredOrders();
+    });
+  }
+
+  // 7. 獲取訂單的邏輯現在呼叫 Provider
+  Future<void> _fetchFilteredOrders() async {
+    try {
+      final provider = context.read<SellerProvider>();
+      // 將 UI 的篩選狀態傳遞給 Provider
+      await provider.fetchSellerOrders(status: _filterStatuses[_selectedFilterIndex]);
+    } catch (e) {
+      if(mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('載入訂單失敗: $e'), backgroundColor: Colors.red)
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[100],
-      appBar: AppBar(
-        backgroundColor: Colors.orange,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: const Text(
-          '訂單管理',
-          style: TextStyle(
-            color: Colors.black,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        centerTitle: true,
-      ),
-      body: Column(
-        children: [
-          // 訂單列表
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(8.0),
-              itemCount: filteredOrders.length,
-              itemBuilder: (context, index) {
-                final order = filteredOrders[index];
-                return OrderCard(
-                  order: order,
-                  onTap: () => _showOrderDetails(order),
-                );
-              },
+    // 8. 使用 Consumer 來監聽 SellerProvider
+    return Consumer<SellerProvider>(
+      builder: (context, provider, child) {
+        return Scaffold(
+          backgroundColor: Colors.grey[100],
+          appBar: AppBar(
+            backgroundColor: Colors.orange,
+            elevation: 0,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.black),
+              onPressed: () => Navigator.of(context).pop(),
             ),
+            title: const Text('訂單管理', style: TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.bold)),
+            centerTitle: true,
           ),
+          body: Column(
+            children: [
+              Expanded(
+                child: _buildBodyContent(provider),
+              ),
+              _buildBottomFilterBar(),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
-          // 底部篩選按鈕
-          Container(
-            padding: const EdgeInsets.all(16.0),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withValues(alpha: 0.2),
-                  spreadRadius: 1,
-                  blurRadius: 5,
-                  offset: const Offset(0, -2),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: List.generate(filterOptions.length, (index) {
-                final isSelected = selectedFilterIndex == index;
-                return Expanded(
-                  child: GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        selectedFilterIndex = index;
-                      });
-                    },
-                    child: Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 4.0),
-                      padding: const EdgeInsets.symmetric(vertical: 12.0),
-                      decoration: BoxDecoration(
-                        color: isSelected ? Colors.orange : Colors.blue[100],
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        filterOptions[index],
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: isSelected ? Colors.white : Colors.black,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              }),
-            ),
-          ),
-        ],
+  // 9. 根據 Provider 的狀態顯示不同的 UI
+  Widget _buildBodyContent(SellerProvider provider) {
+    if (provider.isLoading && provider.sellerOrders.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (provider.error != null && provider.sellerOrders.isEmpty) {
+      return Center(child: Text('錯誤: ${provider.error}'));
+    }
+    if (provider.sellerOrders.isEmpty) {
+      return Center(child: Text('"${_filterOptions[_selectedFilterIndex]}" 分類下沒有訂單。'));
+    }
+
+    return RefreshIndicator(
+      onRefresh: _fetchFilteredOrders,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(8.0),
+        itemCount: provider.sellerOrders.length,
+        itemBuilder: (context, index) {
+          final order = provider.sellerOrders[index];
+          return OrderCard(
+            order: order,
+            onTap: () => _showOrderDetails(order),
+          );
+        },
       ),
     );
   }
 
+  // 10. 底部篩選器現在會觸發 API 重新獲取
+  Widget _buildBottomFilterBar() {
+    return Container(
+      padding: const EdgeInsets.all(16.0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(color: Colors.grey.withOpacity(0.2), spreadRadius: 1, blurRadius: 5, offset: const Offset(0, -2)),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: List.generate(_filterOptions.length, (index) {
+          final isSelected = _selectedFilterIndex == index;
+          return Expanded(
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  _selectedFilterIndex = index;
+                });
+                _fetchFilteredOrders(); // 點擊後重新獲取資料
+              },
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 4.0),
+                padding: const EdgeInsets.symmetric(vertical: 12.0),
+                decoration: BoxDecoration(
+                  color: isSelected ? Colors.orange : Colors.blue[100],
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  _filterOptions[index],
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: isSelected ? Colors.white : Colors.black,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  // 11. 彈出視窗的邏輯現在呼叫 Provider
   void _showOrderDetails(Order order) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       builder: (context) => OrderDetailsSheet(
         order: order,
-        onOrderUpdated: (updatedOrder) {
-          setState(() {
-            final index = orders.indexWhere((o) => o.id == updatedOrder.id);
-            if (index != -1) {
-              orders[index] = updatedOrder;
-            }
-          });
-        },
+        // onOrderUpdated 回呼不再需要，因為 Provider 會自動更新 UI
       ),
     );
   }
 }
 
 class OrderCard extends StatelessWidget {
-  final Order order;
+  final Order order; // 12. 現在使用官方的 Order 模型
   final VoidCallback? onTap;
 
-  const OrderCard({
-    super.key,
-    required this.order,
-    this.onTap,
-  });
+  const OrderCard({super.key, required this.order, this.onTap});
 
   @override
   Widget build(BuildContext context) {
+    // 13. 適配新的 Order 模型
+    final firstItem = order.items.isNotEmpty ? order.items.first : null;
+    final displayTitle = firstItem?.product.name ?? '商品資訊錯誤';
+    final totalQuantity = order.items.fold(0, (sum, item) => sum + item.quantity);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8.0),
       padding: const EdgeInsets.all(16.0),
@@ -222,7 +190,7 @@ class OrderCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(8.0),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.1),
+            color: Colors.grey.withOpacity(0.1),
             spreadRadius: 1,
             blurRadius: 3,
             offset: const Offset(0, 1),
@@ -233,24 +201,24 @@ class OrderCard extends StatelessWidget {
         onTap: onTap,
         child: Row(
           children: [
-            // 商品圖片
             Container(
               width: 50,
               height: 50,
               decoration: BoxDecoration(
-                color: Colors.grey[800],
+                color: Colors.grey[200],
                 borderRadius: BorderRadius.circular(4),
+                image: firstItem != null && firstItem.product.imageUrls.isNotEmpty
+                    ? DecorationImage(
+                  image: NetworkImage(firstItem.product.imageUrls.first),
+                  fit: BoxFit.cover,
+                )
+                    : null,
               ),
-              child: const Icon(
-                Icons.book,
-                color: Colors.white,
-                size: 24,
-              ),
+              child: (firstItem == null || firstItem.product.imageUrls.isEmpty)
+                  ? const Icon(Icons.inventory_2_outlined, color: Colors.grey)
+                  : null,
             ),
-
             const SizedBox(width: 16),
-
-            // 商品資訊
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -259,62 +227,35 @@ class OrderCard extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          order.title,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                          ),
+                          '$displayTitle${order.items.length > 1 ? '...等 ${order.items.length} 件商品' : ''}',
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      Text(
-                        'X${order.quantity}',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey,
-                        ),
-                      ),
+                      Text('X$totalQuantity', style: const TextStyle(fontSize: 14, color: Colors.grey)),
                       const SizedBox(width: 8),
                       GestureDetector(
                         onTap: onTap,
                         child: const Row(
                           children: [
-                            Text(
-                              '訂單詳細',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey,
-                              ),
-                            ),
-                            Icon(
-                              Icons.keyboard_arrow_down,
-                              size: 16,
-                              color: Colors.grey,
-                            ),
+                            Text('訂單詳細', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                            Icon(Icons.keyboard_arrow_down, size: 16, color: Colors.grey),
                           ],
                         ),
                       ),
                     ],
                   ),
-
                   const SizedBox(height: 8),
-
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        '\$${order.price}',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        'NT\$${order.totalAmount.toStringAsFixed(0)}',
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                       ),
                       Text(
-                        order.dueTime,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey,
-                        ),
+                        DateFormat('yyyy-MM-dd').format(order.createdAt.toLocal()),
+                        style: const TextStyle(fontSize: 12, color: Colors.grey),
                       ),
                     ],
                   ),
@@ -330,19 +271,82 @@ class OrderCard extends StatelessWidget {
 
 class OrderDetailsSheet extends StatefulWidget {
   final Order order;
-  final Function(Order) onOrderUpdated;
-
-  const OrderDetailsSheet({
-    super.key,
-    required this.order,
-    required this.onOrderUpdated,
-  });
+  const OrderDetailsSheet({super.key, required this.order});
 
   @override
   State<OrderDetailsSheet> createState() => _OrderDetailsSheetState();
 }
 
 class _OrderDetailsSheetState extends State<OrderDetailsSheet> {
+
+  // 14. 統一的狀態更新方法
+  Future<void> _updateOrderStatus(OrderStatus newStatus, {String? description}) async {
+    final provider = context.read<SellerProvider>();
+    try {
+      await provider.updateOrderStatus(widget.order.orderId, newStatus, description: description);
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('訂單狀態已更新為 "${orderStatusToDisplayString(newStatus)}"'), backgroundColor: Colors.green),
+        );
+      }
+    } catch(e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('更新失敗: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  // 15. UI 事件處理函式現在都呼叫 _updateOrderStatus
+  void _handleShipOrder(Order order) {
+    _showConfirmationDialog(
+      '確認出貨',
+      '確定要將訂單 #${order.orderId} 標記為已出貨嗎？',
+          () => _updateOrderStatus(OrderStatus.delivering),
+    );
+  }
+
+  void _handleCancelOrder(Order order) {
+    _showConfirmationDialog(
+      '取消訂單',
+      '確定要取消訂單 #${order.orderId} 嗎？此為不成立訂單。',
+          () => _updateOrderStatus(OrderStatus.failed),
+    );
+  }
+
+  void _handleReactivateOrder(Order order) {
+    _showConfirmationDialog(
+      '重新啟用訂單',
+      '確定要將訂單 #${order.orderId} 重新啟用為「待出貨」嗎？',
+          () => _updateOrderStatus(OrderStatus.preparing),
+    );
+  }
+
+  void _handleAcceptOrder(Order order) {
+    _showConfirmationDialog(
+      '接受訂單',
+      '確定要接受訂單 #${order.orderId} 嗎？狀態將更新為「待出貨」。',
+          () => _updateOrderStatus(OrderStatus.preparing),
+    );
+  }
+
+  void _handleRejectOrder(Order order) {
+    _showConfirmationDialog(
+      '拒絕訂單',
+      '確定要拒絕訂單 #${order.orderId} 嗎？此操作將使訂單不成立。',
+          () => _updateOrderStatus(OrderStatus.failed), // 拒絕訂單 -> failed
+    );
+  }
+
+  void _handleViewReceipt(Order order) {
+    Navigator.of(context).pop();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('查看訂單 #${order.orderId} 的收據 (功能待實現)')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -358,33 +362,21 @@ class _OrderDetailsSheetState extends State<OrderDetailsSheet> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                '訂單詳細資料',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              const Text('訂單詳細資料', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               IconButton(
                 onPressed: () => Navigator.of(context).pop(),
                 icon: const Icon(Icons.close),
               ),
             ],
           ),
-
           const SizedBox(height: 20),
-
-          _buildDetailRow('訂單編號', widget.order.id),
-          _buildDetailRow('商品名稱', widget.order.title),
-          _buildDetailRow('賣家累付金額', '\$${widget.order.price}'),
-          _buildDetailRow('狀態', _getStatusText(widget.order.status)),
-          _buildDetailRow('物流方式', widget.order.paymentMethod),
-          _buildDetailRow('數量', '${widget.order.quantity}'),
-          _buildDetailRow('到期時間', widget.order.dueTime),
-
+          _buildDetailRow('訂單編號', '#${widget.order.orderId}'),
+          _buildDetailRow('商品名稱', widget.order.items.map((e) => e.product.name).join(', ')),
+          _buildDetailRow('總金額', 'NT\$${widget.order.totalAmount.toStringAsFixed(0)}'),
+          _buildDetailRow('狀態', orderStatusToDisplayString(widget.order.status)),
+          _buildDetailRow('物流方式', widget.order.shippingMethod['name'] ?? '未知'),
+          _buildDetailRow('下單時間', DateFormat('yyyy-MM-dd HH:mm').format(widget.order.createdAt.toLocal())),
           const SizedBox(height: 20),
-
-          // 根據訂單狀態顯示不同的操作按鈕
           _buildStatusActionButtons(widget.order),
         ],
       ),
@@ -399,24 +391,11 @@ class _OrderDetailsSheetState extends State<OrderDetailsSheet> {
         children: [
           SizedBox(
             width: 80,
-            child: Text(
-              label,
-              style: const TextStyle(
-                fontSize: 14,
-                color: Colors.grey,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
+            child: Text(label, style: const TextStyle(fontSize: 14, color: Colors.grey, fontWeight: FontWeight.w500)),
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
+            child: Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
           ),
         ],
       ),
@@ -424,17 +403,35 @@ class _OrderDetailsSheetState extends State<OrderDetailsSheet> {
   }
 
   Widget _buildStatusActionButtons(Order order) {
+    // 16. 根據我們優化後的流程，更新按鈕的顯示邏輯
     switch (order.status) {
-      case OrderStatus.pending:
+      case OrderStatus.pending: // 新增：處理 "待確認" 狀態
+        return Row(
+          children: [
+            Expanded(
+              child: ElevatedButton(
+                onPressed: () => _handleAcceptOrder(order),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.green, padding: const EdgeInsets.symmetric(vertical: 12)),
+                child: const Text('接受訂單', style: TextStyle(color: Colors.white)),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: ElevatedButton(
+                onPressed: () => _handleRejectOrder(order),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red, padding: const EdgeInsets.symmetric(vertical: 12)),
+                child: const Text('拒絕訂單', style: TextStyle(color: Colors.white)),
+              ),
+            ),
+          ],
+        );
+      case OrderStatus.preparing: // '待出貨' 對應 'preparing'
         return Row(
           children: [
             Expanded(
               child: ElevatedButton(
                 onPressed: () => _handleShipOrder(order),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, padding: const EdgeInsets.symmetric(vertical: 12)),
                 child: const Text('確認出貨', style: TextStyle(color: Colors.white)),
               ),
             ),
@@ -442,17 +439,15 @@ class _OrderDetailsSheetState extends State<OrderDetailsSheet> {
             Expanded(
               child: ElevatedButton(
                 onPressed: () => _handleCancelOrder(order),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red, padding: const EdgeInsets.symmetric(vertical: 12)),
                 child: const Text('取消訂單', style: TextStyle(color: Colors.white)),
               ),
             ),
           ],
         );
-
-      case OrderStatus.failed:
+    // ... (其他狀態的 UI 保持不變)
+      case OrderStatus.cancelled:
+      // ... (UI 程式碼保持不變)
         return Column(
           children: [
             Container(
@@ -503,6 +498,7 @@ class _OrderDetailsSheetState extends State<OrderDetailsSheet> {
         );
 
       case OrderStatus.completed:
+      // ... (UI 程式碼保持不變)
         return Column(
           children: [
             Container(
@@ -552,7 +548,8 @@ class _OrderDetailsSheetState extends State<OrderDetailsSheet> {
           ],
         );
 
-      case OrderStatus.rejected:
+      case OrderStatus.failed:
+      // ... (UI 程式碼保持不變)
         return Column(
           children: [
             Container(
@@ -601,50 +598,29 @@ class _OrderDetailsSheetState extends State<OrderDetailsSheet> {
             ),
           ],
         );
+
+      default:
+      // 處理 established, delivering 等其他狀態
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.blue[50],
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.blue[200]!),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.info_outline, color: Colors.blue[600], size: 20),
+              const SizedBox(width: 8),
+              Text(
+                '目前狀態: ${orderStatusToDisplayString(order.status)}',
+                style: TextStyle(color: Colors.blue[800], fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+        );
     }
-  }
-
-  void _handleShipOrder(Order order) {
-    Navigator.of(context).pop();
-    _showConfirmationDialog(
-      '確認出貨',
-      '確定要將訂單 ${order.id} 標記為已出貨嗎？',
-          () => _updateOrderStatus(order, OrderStatus.completed),
-    );
-  }
-
-  void _handleCancelOrder(Order order) {
-    Navigator.of(context).pop();
-    _showConfirmationDialog(
-      '取消訂單',
-      '確定要取消訂單 ${order.id} 嗎？此操作無法復原。',
-          () => _updateOrderStatus(order, OrderStatus.failed),
-    );
-  }
-
-  void _handleReactivateOrder(Order order) {
-    Navigator.of(context).pop();
-    _showConfirmationDialog(
-      '重新啟用訂單',
-      '確定要重新啟用訂單 ${order.id} 嗎？',
-          () => _updateOrderStatus(order, OrderStatus.pending),
-    );
-  }
-
-  void _handleAcceptOrder(Order order) {
-    Navigator.of(context).pop();
-    _showConfirmationDialog(
-      '接受訂單',
-      '確定要接受訂單 ${order.id} 嗎？',
-          () => _updateOrderStatus(order, OrderStatus.pending),
-    );
-  }
-
-  void _handleViewReceipt(Order order) {
-    Navigator.of(context).pop();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('查看訂單 ${order.id} 的收據')),
-    );
   }
 
   void _showConfirmationDialog(String title, String message, VoidCallback onConfirm) {
@@ -669,52 +645,5 @@ class _OrderDetailsSheetState extends State<OrderDetailsSheet> {
         ],
       ),
     );
-  }
-
-  void _updateOrderStatus(Order order, OrderStatus newStatus) {
-    final updatedOrder = Order(
-      id: order.id,
-      title: order.title,
-      price: order.price,
-      quantity: order.quantity,
-      status: newStatus,
-      dueTime: order.dueTime,
-      paymentMethod: order.paymentMethod,
-    );
-
-    widget.onOrderUpdated(updatedOrder);
-
-    String message = '';
-    switch (newStatus) {
-      case OrderStatus.completed:
-        message = '訂單已標記為完成';
-        break;
-      case OrderStatus.failed:
-        message = '訂單已取消';
-        break;
-      case OrderStatus.pending:
-        message = '訂單已更新為待處理';
-        break;
-      case OrderStatus.rejected:
-        message = '訂單已拒絕';
-        break;
-    }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
-  }
-
-  String _getStatusText(OrderStatus status) {
-    switch (status) {
-      case OrderStatus.pending:
-        return '待出貨';
-      case OrderStatus.failed:
-        return '不成立';
-      case OrderStatus.completed:
-        return '已完成';
-      case OrderStatus.rejected:
-        return '未接受';
-    }
   }
 }

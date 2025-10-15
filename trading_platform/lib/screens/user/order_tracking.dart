@@ -22,7 +22,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
 
   // 保留組員的設計：定義步驟條的顯示順序
   final List<OrderStatus> _allPossibleStatuses = [
-    OrderStatus.established,
+    OrderStatus.pending,
     OrderStatus.preparing,
     OrderStatus.delivering,
     OrderStatus.completed,

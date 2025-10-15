@@ -11,7 +11,10 @@ class OrderService {
   final ApiClient _apiClient;
   OrderService(this._apiClient);
 
-  // --- 關鍵新增：獲取當前使用者的訂單列表 ---
+
+  // --- 買家相關 API ---
+
+  // --- 獲取當前使用者的訂單列表 ---
   Future<List<Order>> getMyOrders() async {
     debugPrint('[OrderService] API: Getting user orders...');
     try {
@@ -26,7 +29,7 @@ class OrderService {
     }
   }
 
-  // --- 關鍵新增：獲取單一訂單的詳細資訊 ---
+  // --- 獲取單一訂單的詳細資訊 ---
   Future<Order> getOrderById(int orderId) async {
     debugPrint('[OrderService] API: Getting details for order #$orderId...');
     try {
@@ -39,6 +42,80 @@ class OrderService {
       rethrow;
     }
   }
+
+  /// 建立一筆新訂單
+  Future<Order> createOrder({
+    required int addressId,
+    required int shippingOptionId,
+    required List<int> cartItemIds,
+    String? couponCode,
+  }) async {
+    debugPrint('[OrderService] Real: Creating order with addressId: $addressId, shippingOptionId: $shippingOptionId');
+    try {
+      final responseBody = await _apiClient.post(
+        '/orders',
+        body: {
+          'address_id': addressId,
+          'shipping_option_id': shippingOptionId,
+          'cart_item_ids': cartItemIds,
+          if (couponCode != null && couponCode.isNotEmpty) 'coupon_code': couponCode,
+        },
+      );
+      final createdOrder = Order.fromJson(responseBody);
+      debugPrint('[OrderService] Real: Successfully created order: ${createdOrder.orderId}');
+      return createdOrder;
+    } catch (e) {
+      debugPrint('[OrderService] Real: Order creation failed: $e');
+      rethrow;
+    }
+  }
+
+
+  // --- 賣家相關 API ---
+
+  /// 獲取賣家自己收到的所有訂單
+  Future<List<Order>> getMySellerOrders({OrderStatus? status}) async {
+    debugPrint('[OrderService] API: Getting SELLER orders with status: ${status?.name}');
+    try {
+      final queryParams = <String, String>{};
+      if (status != null) {
+        queryParams['status'] = status.name; // 將 enum 轉換為後端期望的字串
+      }
+      final responseBody = await _apiClient.get('/seller/orders', queryParams: queryParams);
+      final List<dynamic> orderListJson = responseBody;
+      final orders = orderListJson.map((json) => Order.fromJson(json)).toList();
+      debugPrint('[OrderService] API: Successfully fetched ${orders.length} seller orders.');
+      return orders;
+    } catch(e) {
+      debugPrint('[OrderService] API: Failed to get seller orders: $e');
+      rethrow;
+    }
+  }
+
+  /// 賣家更新訂單狀態
+  Future<Order> updateOrderStatusAsSeller({
+    required int orderId,
+    required OrderStatus newStatus,
+    String? description,
+  }) async {
+    debugPrint('[OrderService] API: Seller updating order #$orderId to status: ${newStatus.name}');
+    try {
+      final responseBody = await _apiClient.patch(
+        '/seller/orders/$orderId/status',
+        body: {
+          'status': newStatus.name,
+          if (description != null) 'description': description,
+        },
+      );
+      return Order.fromJson(responseBody);
+    } catch(e) {
+      debugPrint('[OrderService] API: Failed to update order status for #$orderId: $e');
+      rethrow;
+    }
+  }
+
+
+  // --- 運送方式管理 API ---
 
   /// --- 獲取指定賣家的可用運送方式 (給結帳頁使用) ---
   Future<List<ShippingOption>> getAvailableShippingMethods(int sellerId) async {
@@ -119,30 +196,5 @@ class OrderService {
     }
   }
 
-  /// 建立一筆新訂單
-  Future<Order> createOrder({
-    required int addressId,
-    required int shippingOptionId,
-    required List<int> cartItemIds,
-    String? couponCode,
-  }) async {
-    debugPrint('[OrderService] Real: Creating order with addressId: $addressId, shippingOptionId: $shippingOptionId');
-    try {
-      final responseBody = await _apiClient.post(
-        '/orders',
-        body: {
-          'address_id': addressId,
-          'shipping_option_id': shippingOptionId,
-          'cart_item_ids': cartItemIds,
-          if (couponCode != null && couponCode.isNotEmpty) 'coupon_code': couponCode,
-        },
-      );
-      final createdOrder = Order.fromJson(responseBody);
-      debugPrint('[OrderService] Real: Successfully created order: ${createdOrder.orderId}');
-      return createdOrder;
-    } catch (e) {
-      debugPrint('[OrderService] Real: Order creation failed: $e');
-      rethrow;
-    }
-  }
+
 }
