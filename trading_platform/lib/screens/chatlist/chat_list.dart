@@ -38,6 +38,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
   }
 
   Future<void> _refreshChats() async {
+    // 使用 context.read 來呼叫
     try {
       await context.read<ChatProvider>().fetchChatLists();
     } catch (e) {
@@ -178,6 +179,12 @@ class _ChatListScreenState extends State<ChatListScreen> {
         ],
       ),
       onTap: () {
+        // --- [BUG 修正] ---
+        // 1. 在導航前，先通知 Provider 進入此聊天室
+        //    這將觸發獲取歷史訊息和 WebSocket 連線
+        context.read<ChatProvider>().enterChatRoom(chat.id);
+
+        // 2. 然後才導航到聊天室頁面
         Navigator.push(
           context,
           MaterialPageRoute(

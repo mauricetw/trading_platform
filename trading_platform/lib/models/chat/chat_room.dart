@@ -4,12 +4,16 @@ import 'message.dart'; // 確保 message.dart 存在
 
 part 'chat_room.g.dart';
 
-// --- 新建：用於表示對話另一方的使用者資訊模型 ---
+// --- 用於表示對話另一方的使用者資訊模型 ---
 @JsonSerializable(fieldRename: FieldRename.snake)
 class OtherPartyInfo {
   final int id;
-  @JsonKey(name: 'nickname') // 對應後端的 nickname 欄位
-  final String name;
+
+  // --- [BUG 修正] ---
+  // 後端 API (根據你的日誌) 回傳的 key 是 'username'，而不是 'nickname'
+  // 我們將 @JsonKey 修正為 'username'
+  @JsonKey(name: 'username')
+  final String name; // Dart UI 層繼續使用 'name' 欄位，保持不變
   final String? avatarUrl;
 
   OtherPartyInfo({

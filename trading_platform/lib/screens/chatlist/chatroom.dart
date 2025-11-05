@@ -29,20 +29,17 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      // 2. 進入頁面時，呼叫 Provider 載入歷史訊息並連接 WebSocket
-      context.read<ChatProvider>().enterChatRoom(widget.chatRoomId);
-    });
-  }
+  // [BUG 修正]
+  // 移除了 initState，因為 enterChatRoom 已經在 chat_list.dart (上一頁) 的
+  // onTap 事件中被呼叫了，這裡不需要重複呼叫。
 
   @override
   void dispose() {
     // 3. 離開頁面時，呼叫 Provider 斷開連線
+    // 使用 WidgetsBinding 確保 dispose 在 widget tree 中安全執行
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
+        // 使用 context.read 來安全地獲取 Provider
         context.read<ChatProvider>().leaveChatRoom();
       }
     });
@@ -83,11 +80,13 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       builder: (context, provider, child) {
         final messages = provider.activeRoomMessages;
         // 6. 從 AuthProvider 獲取當前使用者 ID
+        //    注意：這裡使用 read 而不是 watch，因為我們只在 build 時獲取一次 ID
+        //    如果 AuthProvider 狀態改變 (例如登出)，整個頁面應該會被導航回上頁。
         final currentUserId = context.read<AuthProvider>().currentUser?.id;
 
         // 7. 監聽訊息列表的變化，並在有新訊息時自動滾動到底部
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (_scrollController.hasClients) {
+          if (_scrollController.hasClients && provider.activeRoomMessages.isNotEmpty) {
             _scrollToBottom();
           }
         });
@@ -133,7 +132,10 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
   // 9. UI Builder 現在接收 currentUserId 來判斷訊息方向
   Widget _buildMessageItem(Message message, int? currentUserId) {
-    final bool isMe = message.senderId == currentUserId;
+    // 如果 currentUserId 為 null (例如 AuthProvider 尚未準備好)
+    // 則預設為 false (顯示在左側)
+    final bool isMe = (currentUserId != null) && (message.senderId == currentUserId);
+
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(

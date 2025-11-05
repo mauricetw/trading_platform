@@ -9,14 +9,14 @@ part of 'chat_room.dart';
 OtherPartyInfo _$OtherPartyInfoFromJson(Map<String, dynamic> json) =>
     OtherPartyInfo(
       id: (json['id'] as num).toInt(),
-      name: json['nickname'] as String,
+      name: json['username'] as String,
       avatarUrl: json['avatar_url'] as String?,
     );
 
 Map<String, dynamic> _$OtherPartyInfoToJson(OtherPartyInfo instance) =>
     <String, dynamic>{
       'id': instance.id,
-      'nickname': instance.name,
+      'username': instance.name,
       'avatar_url': instance.avatarUrl,
     };
 

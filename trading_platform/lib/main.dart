@@ -153,7 +153,7 @@ class MyApp extends StatelessWidget {
       theme: appLightTheme,
       darkTheme: appDarkTheme,
       themeMode: ThemeMode.system,
-      home: const MainMarket(),
+      home: const SplashScreen(),
       routes: {
         '/login': (context) => const LoginMainPage(),
         '/home': (context) {

@@ -1,9 +1,12 @@
 // --- FILE: lib/providers/announcement_provider.dart ---
 import 'package:flutter/foundation.dart';
-import '../models/announcement/announcement.dart'; // 使用你現有的模型
+import '../models/announcement/announcement.dart';
+// 解決方案 1: 導入你的 AnnouncementService
+import '../services/announcement_service.dart';
 
 class AnnouncementProvider with ChangeNotifier {
-  final dynamic _announcementService;
+  // 解決方案 2: 明確指定 _announcementService 的類型，而不是 'dynamic'
+  final AnnouncementService _announcementService;
 
   List<Announcement> _announcements = [];
   bool _isLoading = false;
@@ -14,6 +17,7 @@ class AnnouncementProvider with ChangeNotifier {
   String? get error => _error;
 
   AnnouncementProvider(this._announcementService) {
+    // Provider 被建立時，自動去抓取資料
     fetchAnnouncements();
   }
 
@@ -23,15 +27,18 @@ class AnnouncementProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      // 模擬 API 調用，暫時返回空列表
-      await Future.delayed(const Duration(milliseconds: 500));
-      _announcements = [];
+      // 解決方案 3: 移除模擬程式碼，並取消註解下面這行
+      //
+      // await Future.delayed(const Duration(milliseconds: 500)); // (移除)
+      // _announcements = []; // (移除)
 
-      // TODO: 實際 API 調用應該是：
-      // _announcements = await _announcementService.getAnnouncements();
+      // 實際 API 調用：
+      _announcements = await _announcementService.getAnnouncements();
 
     } catch (e) {
       _error = e.toString();
+      // 養成好習慣：在除錯時印出錯誤
+      debugPrint("Error fetching announcements: $e");
     } finally {
       _isLoading = false;
       notifyListeners();

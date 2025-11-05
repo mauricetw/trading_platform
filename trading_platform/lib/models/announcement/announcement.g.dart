@@ -7,15 +7,15 @@ part of 'announcement.dart';
 // **************************************************************************
 
 Announcement _$AnnouncementFromJson(Map<String, dynamic> json) => Announcement(
-  id: json['id'] as String,
+  id: (json['id'] as num).toInt(),
   title: json['title'] as String,
   content: json['content'] as String,
-  publishedDate: DateTime.parse(json['publishedDate'] as String),
-  author: json['author'] as String?,
+  publishedDate: DateTime.parse(json['published_at'] as String),
+  shortDescription: json['short_description'] as String?,
   category: json['category'] as String?,
-  imageUrl: json['imageUrl'] as String?,
+  imageUrl: json['image_url'] as String?,
+  author: json['author'] as String?,
   isRead: json['isRead'] as bool? ?? false,
-  shortDescription: json['shortDescription'] as String?,
 );
 
 Map<String, dynamic> _$AnnouncementToJson(Announcement instance) =>
@@ -23,10 +23,10 @@ Map<String, dynamic> _$AnnouncementToJson(Announcement instance) =>
       'id': instance.id,
       'title': instance.title,
       'content': instance.content,
-      'publishedDate': instance.publishedDate.toIso8601String(),
-      'author': instance.author,
+      'published_at': instance.publishedDate.toIso8601String(),
+      'short_description': instance.shortDescription,
       'category': instance.category,
-      'imageUrl': instance.imageUrl,
+      'image_url': instance.imageUrl,
+      'author': instance.author,
       'isRead': instance.isRead,
-      'shortDescription': instance.shortDescription,
     };
