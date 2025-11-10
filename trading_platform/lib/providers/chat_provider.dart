@@ -97,7 +97,20 @@ class ChatProvider with ChangeNotifier {
       _messageSubscription?.cancel(); // 取消舊的監聽
       _messageSubscription = _webSocketService.messages?.listen((newMessage) {
         if (_messagesByRoom.containsKey(roomId)) {
-          _messagesByRoom[roomId]!.add(newMessage);
+          // 檢查是否已存在相同 ID 的訊息（避免重複）
+          final existingIndex = _messagesByRoom[roomId]!.indexWhere(
+                  (msg) => msg.id == newMessage.id
+          );
+
+          if (existingIndex == -1) {
+            // 新訊息，直接添加
+            _messagesByRoom[roomId]!.add(newMessage);
+            debugPrint('ChatProvider: WebSocket 收到新訊息 (ID: ${newMessage.id})');
+          } else {
+            // 已存在，更新該訊息（從臨時 ID 更新為真實 ID）
+            _messagesByRoom[roomId]![existingIndex] = newMessage;
+            debugPrint('ChatProvider: 更新訊息 (臨時ID -> 真實ID: ${newMessage.id})');
+          }
           notifyListeners();
         }
       }, onError: (error) {
@@ -126,8 +139,69 @@ class ChatProvider with ChangeNotifier {
     fetchChatLists();
   }
 
+  // ✨ 修正後的 sendMessage 方法 - 使用樂觀更新
   void sendMessage(String text) {
     if (text.trim().isEmpty) return;
-    _webSocketService.sendMessage(text.trim());
+
+    final trimmedText = text.trim();
+    final currentUserId = _authProvider?.currentUser?.id;
+    final roomId = _activeRoomId;
+
+    if (currentUserId == null || roomId == null) {
+      debugPrint('ChatProvider: 無法發送訊息 - 使用者未登入或未進入聊天室');
+      return;
+    }
+
+    // 獲取對方的 ID
+    final receiverId = _getReceiverIdForRoom(roomId);
+
+    // 樂觀更新：立即添加訊息到本地列表
+    final optimisticMessage = Message(
+      id: -DateTime.now().millisecondsSinceEpoch, // 使用負數作為臨時 ID
+      chatRoomId: roomId,
+      senderId: currentUserId,
+      receiverId: receiverId,
+      text: trimmedText,
+      timestamp: DateTime.now(),
+      type: MessageType.text,
+      isRead: false,
+      isEdited: false,
+    );
+
+    // 添加到本地列表
+    if (_messagesByRoom.containsKey(roomId)) {
+      _messagesByRoom[roomId]!.add(optimisticMessage);
+      notifyListeners(); // 🔥 立即通知 UI 更新
+      debugPrint('ChatProvider: 已添加樂觀訊息到本地列表 (臨時ID: ${optimisticMessage.id})');
+    }
+
+    // 發送到後端
+    _webSocketService.sendMessage(trimmedText);
+    debugPrint('ChatProvider: 已透過 WebSocket 發送訊息');
+  }
+
+  // 輔助方法：從聊天室列表中獲取對方的 ID
+  int _getReceiverIdForRoom(int roomId) {
+    try {
+      // 先在買家列表中尋找
+      final buyerChat = _buyerChats.firstWhere(
+            (chat) => chat.id == roomId,
+        orElse: () => throw Exception('not found in buyer chats'),
+      );
+      return buyerChat.otherParty.id;
+    } catch (e) {
+      // 如果買家列表找不到，再找賣家列表
+      try {
+        final sellerChat = _sellerChats.firstWhere(
+              (chat) => chat.id == roomId,
+          orElse: () => throw Exception('not found in seller chats'),
+        );
+        return sellerChat.otherParty.id;
+      } catch (e) {
+        // 如果都找不到，返回 0（臨時值，WebSocket 會更新）
+        debugPrint('ChatProvider: 無法找到 roomId=$roomId 的接收者，使用預設值 0');
+        return 0;
+      }
+    }
   }
 }
