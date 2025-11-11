@@ -7,7 +7,7 @@ part of 'message.dart';
 // **************************************************************************
 
 Message _$MessageFromJson(Map<String, dynamic> json) => Message(
-  id: (json['id'] as num).toInt(),
+  id: (json['id'] as num?)?.toInt(),
   chatRoomId: (json['chat_room_id'] as num).toInt(),
   senderId: (json['sender_id'] as num).toInt(),
   receiverId: (json['receiver_id'] as num).toInt(),
@@ -26,10 +26,13 @@ Message _$MessageFromJson(Map<String, dynamic> json) => Message(
   isRead: json['is_read'] as bool? ?? false,
   isEdited: json['is_edited'] as bool? ?? false,
   metadata: json['metadata'] as Map<String, dynamic>?,
+  localId: json['local_id'] as String?,
+  isPending: json['is_pending'] as bool? ?? false,
 );
 
 Map<String, dynamic> _$MessageToJson(Message instance) => <String, dynamic>{
   'id': instance.id,
+  if (instance.localId case final value?) 'local_id': value,
   'chat_room_id': instance.chatRoomId,
   'sender_id': instance.senderId,
   'receiver_id': instance.receiverId,
@@ -44,5 +47,6 @@ Map<String, dynamic> _$MessageToJson(Message instance) => <String, dynamic>{
   'type': _messageTypeToString(instance.type),
   'is_read': instance.isRead,
   'is_edited': instance.isEdited,
+  'is_pending': instance.isPending,
   'metadata': instance.metadata,
 };

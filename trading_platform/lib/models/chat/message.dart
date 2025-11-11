@@ -29,8 +29,16 @@ String _dateTimeToJson(DateTime dateTime) => dateTime.toIso8601String();
 
 @JsonSerializable(fieldRename: FieldRename.snake, explicitToJson: true)
 class Message {
-  // --- 關鍵修正：ID 類型改為 int ---
-  final int id;
+  // --- Optimistic UI 修正 1 ---
+  // ID 在本地建立時可能不存在，設為 nullable (int?)
+  // 我們使用一個 'localId' (例如 UUID) 來作為 key，直到從伺服器獲取真實 ID
+  final int? id;
+
+  // 新增一個本地端 ID，用於在 Map 中作為 key
+  // 這是 Optimistic UI 的關鍵
+  @JsonKey(includeIfNull: false) // 這個欄位不需要序列化
+  final String? localId;
+
   final int chatRoomId;
   final int senderId;
   final int receiverId;
@@ -55,10 +63,15 @@ class Message {
   @JsonKey(defaultValue: false)
   final bool isEdited;
 
+  // --- Optimistic UI 修正 2 ---
+  // 新增 'isPending' 狀態
+  @JsonKey(defaultValue: false)
+  final bool isPending;
+
   final Map<String, dynamic>? metadata;
 
   Message({
-    required this.id,
+    this.id, // 改為可選
     required this.chatRoomId,
     required this.senderId,
     required this.receiverId,
@@ -74,6 +87,8 @@ class Message {
     this.isRead = false,
     this.isEdited = false,
     this.metadata,
+    this.localId, // 新增
+    this.isPending = false, // 新增
   });
 
   factory Message.fromJson(Map<String, dynamic> json) => _$MessageFromJson(json);
@@ -82,24 +97,32 @@ class Message {
   // copyWith 方法對於狀態管理很有用，予以保留並更新
   Message copyWith({
     int? id,
+    String? localId,
     int? chatRoomId,
     int? senderId,
     int? receiverId,
     String? text,
     String? imageUrl,
+    DateTime? timestamp,
+    MessageType? type,
+    bool? isRead,
+    bool? isEdited,
+    bool? isPending,
     // ... 其他欄位 ...
   }) {
     return Message(
       id: id ?? this.id,
+      localId: localId ?? this.localId,
       chatRoomId: chatRoomId ?? this.chatRoomId,
       senderId: senderId ?? this.senderId,
       receiverId: receiverId ?? this.receiverId,
       text: text ?? this.text,
       imageUrl: imageUrl ?? this.imageUrl,
-      timestamp: timestamp, // copyWith 通常會複製所有欄位
-      type: type,
-      isRead: isRead,
-      isEdited: isEdited,
+      timestamp: timestamp ?? this.timestamp,
+      type: type ?? this.type,
+      isRead: isRead ?? this.isRead,
+      isEdited: isEdited ?? this.isEdited,
+      isPending: isPending ?? this.isPending,
       metadata: metadata,
       videoUrl: videoUrl ?? this.videoUrl,
       audioUrl: audioUrl ?? this.audioUrl,

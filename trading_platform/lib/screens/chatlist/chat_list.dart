@@ -182,7 +182,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
         // --- [BUG 修正] ---
         // 1. 在導航前，先通知 Provider 進入此聊天室
         //    這將觸發獲取歷史訊息和 WebSocket 連線
-        context.read<ChatProvider>().enterChatRoom(chat.id);
+        context.read<ChatProvider>().enterChatRoom(chat.id, chat.otherParty.id);
 
         // 2. 然後才導航到聊天室頁面
         Navigator.push(
