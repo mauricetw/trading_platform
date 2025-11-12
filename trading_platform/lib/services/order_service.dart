@@ -14,36 +14,37 @@ class OrderService {
 
   // --- 買家相關 API ---
 
-  // --- 獲取當前使用者的訂單列表 ---
-  Future<List<Order>> getMyOrders() async {
-    debugPrint('[OrderService] API: Getting user orders...');
+  /// [買家] 獲取當前使用者的訂單列表
+  Future<List<Order>> getMyBuyerOrders() async {
+    debugPrint('[OrderService] API: Getting BUYER orders...');
     try {
       final responseBody = await _apiClient.get('/orders');
       final List<dynamic> orderListJson = responseBody;
       final orders = orderListJson.map((json) => Order.fromJson(json)).toList();
-      debugPrint('[OrderService] API: Successfully fetched ${orders.length} orders.');
+      debugPrint('[OrderService] API: Successfully fetched ${orders.length} buyer orders.');
       return orders;
     } catch (e) {
-      debugPrint('[OrderService] API: Failed to get orders: $e');
+      debugPrint('[OrderService] API: Failed to get buyer orders: $e');
       rethrow;
     }
   }
 
-  // --- 獲取單一訂單的詳細資訊 ---
-  Future<Order> getOrderById(int orderId) async {
-    debugPrint('[OrderService] API: Getting details for order #$orderId...');
+  /// [買家] 獲取單一訂單的詳細資訊
+  Future<Order> getBuyerOrderById(int orderId) async {
+    debugPrint('[OrderService] API: Getting BUYER details for order #$orderId...');
     try {
       final responseBody = await _apiClient.get('/orders/$orderId');
       final order = Order.fromJson(responseBody);
-      debugPrint('[OrderService] API: Successfully fetched details for order #${order.orderId}.');
+      // [BUG 修正]：將 order.id 改回你原本的 order.orderId
+      debugPrint('[OrderService] API: Successfully fetched BUYER details for order #${order.orderId}.');
       return order;
     } catch (e) {
-      debugPrint('[OrderService] API: Failed to get order details for #$orderId: $e');
+      debugPrint('[OrderService] API: Failed to get BUYER order details for #$orderId: $e');
       rethrow;
     }
   }
 
-  /// 建立一筆新訂單
+  /// [買家] 建立一筆新訂單
   Future<Order> createOrder({
     required int addressId,
     required int shippingOptionId,
@@ -62,6 +63,7 @@ class OrderService {
         },
       );
       final createdOrder = Order.fromJson(responseBody);
+      // [BUG 修正]：將 createdOrder.id 改回你原本的 createdOrder.orderId
       debugPrint('[OrderService] Real: Successfully created order: ${createdOrder.orderId}');
       return createdOrder;
     } catch (e) {
@@ -73,7 +75,7 @@ class OrderService {
 
   // --- 賣家相關 API ---
 
-  /// 獲取賣家自己收到的所有訂單
+  /// [賣家] 獲取賣家自己收到的所有訂單
   Future<List<Order>> getMySellerOrders({OrderStatus? status}) async {
     debugPrint('[OrderService] API: Getting SELLER orders with status: ${status?.name}');
     try {
@@ -92,7 +94,24 @@ class OrderService {
     }
   }
 
-  /// 賣家更新訂單狀態
+  // --- [新功能] ---
+  /// [賣家] 獲取單一訂單的詳細資訊
+  Future<Order> getSellerOrderById(int orderId) async {
+    debugPrint('[OrderService] API: Getting SELLER details for order #$orderId...');
+    try {
+      final responseBody = await _apiClient.get('/seller/orders/$orderId');
+      final order = Order.fromJson(responseBody);
+      // [BUG 修正]：將 order.id 改回你原本的 order.orderId
+      debugPrint('[OrderService] API: Successfully fetched SELLER details for order #${order.orderId}.');
+      return order;
+    } catch (e) {
+      debugPrint('[OrderService] API: Failed to get SELLER order details for #$orderId: $e');
+      rethrow;
+    }
+  }
+
+
+  /// [賣家] 更新訂單狀態
   Future<Order> updateOrderStatusAsSeller({
     required int orderId,
     required OrderStatus newStatus,
@@ -116,6 +135,7 @@ class OrderService {
 
 
   // --- 運送方式管理 API ---
+  // (這部分保持不變，因為它們看起來與 OrderService 的其他部分相關)
 
   /// --- 獲取指定賣家的可用運送方式 (給結帳頁使用) ---
   Future<List<ShippingOption>> getAvailableShippingMethods(int sellerId) async {
@@ -195,6 +215,4 @@ class OrderService {
       return DiscountInfo(discountAmount: 0, message: "無效的優惠券代碼", appliedCouponCode: couponCode);
     }
   }
-
-
 }

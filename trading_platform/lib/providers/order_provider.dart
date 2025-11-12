@@ -52,7 +52,9 @@ class OrderProvider with ChangeNotifier {
     _listError = null;
     notifyListeners();
     try {
-      _orders = await _orderService.getMyOrders();
+      // --- [BUG 修正] ---
+      // 呼叫我們在 service 中重新命名的函式
+      _orders = await _orderService.getMyBuyerOrders();
     } catch (e) {
       _listError = "無法載入訂單: $e";
     } finally {
@@ -70,7 +72,9 @@ class OrderProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      _selectedOrder = await _orderService.getOrderById(orderId);
+      // --- [BUG 修正] ---
+      // 呼叫我們在 service 中重新命名的函式
+      _selectedOrder = await _orderService.getBuyerOrderById(orderId);
     } catch (e) {
       _detailError = "無法載入訂單詳情: $e";
     } finally {
