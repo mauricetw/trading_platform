@@ -1,9 +1,7 @@
 // --- FILE: lib/providers/chat_provider.dart ---
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-// 1. 引入 crypto 來生成本地 ID (或使用 'uuid' 套件)
 import 'dart:math';
-import 'dart:convert';
 
 import '../models/chat/chat_room.dart';
 import '../models/chat/message.dart';
@@ -23,16 +21,13 @@ class ChatProvider with ChangeNotifier {
   String? _listError;
 
   // --- 聊天室狀態 ---
-  // 3. 使用 Map<String, Message>，key 是 'localId' 或 'id'
   Map<int, Map<String, Message>> _messagesByRoom = {};
   bool _isLoadingMessages = false;
   String? _messageError;
   int? _activeRoomId;
-  // 4. 新增：儲存當前聊天室的對方 ID
   int? _activeRoomReceiverId;
   StreamSubscription? _messageSubscription;
 
-  // 儲存 'localId' 到 'serverId' 的映射
   Map<String, String> _localIdToServerIdMap = {};
 
   // --- Getters ---
@@ -41,13 +36,11 @@ class ChatProvider with ChangeNotifier {
   bool get isLoadingLists => _isLoadingLists;
   String? get listError => _listError;
 
-  // 5. Getter：將 Map 轉換為排序後的 List
   List<Message> get activeRoomMessages {
     if (_activeRoomId == null || !_messagesByRoom.containsKey(_activeRoomId)) {
       return [];
     }
     final messagesList = _messagesByRoom[_activeRoomId]!.values.toList();
-    // 根據時間戳排序
     messagesList.sort((a, b) => a.timestamp.compareTo(b.timestamp));
     return messagesList;
   }
@@ -65,7 +58,6 @@ class ChatProvider with ChangeNotifier {
     }
   }
 
-  // 2. 輔助函式：生成隨機的 localId
   String _generateLocalId() {
     return 'local_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(99999)}';
   }
@@ -106,57 +98,47 @@ class ChatProvider with ChangeNotifier {
     }
   }
 
-  // 6. 修改：enterChatRoom 需接收 receiverId
   Future<void> enterChatRoom(int roomId, int receiverId) async {
     final token = _authProvider?.token;
     if (token == null) return;
 
-    // 如果已經在這個聊天室，不要重做所有事情
     if (_activeRoomId == roomId && _messagesByRoom.containsKey(roomId)) {
       debugPrint('[ChatProvider] 已經在聊天室 $roomId');
-      // 確保 WebSocket 仍在連線
       _webSocketService.connect(roomId, token);
+      // --- [修正] 重新進入時也標記為已讀 ---
+      await _chatService.markAsRead(roomId);
       return;
     }
 
-    // 離開上一個房間
-    // (如果 _activeRoomId 不是 null，呼叫 leaveChatRoom)
-    // 這裡簡化：假設UI導航會自動呼叫 leaveChatRoom
     _messageSubscription?.cancel();
-    _localIdToServerIdMap.clear(); // 清除上個房間的ID映射
+    _localIdToServerIdMap.clear();
 
     _activeRoomId = roomId;
-    _activeRoomReceiverId = receiverId; // 儲存對方 ID
+    _activeRoomReceiverId = receiverId;
     _isLoadingMessages = true;
     _messageError = null;
     notifyListeners();
 
     try {
       final messages = await _chatService.getMessages(roomId);
-      // 7. 將 List<Message> 轉換為 Map<String, Message>
       _messagesByRoom[roomId] = {
         for (var msg in messages) (msg.id!.toString()): msg
       };
 
-      // 連接 WebSocket 並開始監聽
+      // --- [關鍵修正] 進入聊天室後立即標記為已讀 ---
+      await _chatService.markAsRead(roomId);
+
       _webSocketService.connect(roomId, token);
 
       _messageSubscription = _webSocketService.messages?.listen(
               (newMessage) {
-            // --- [Optimistic UI 修正] ---
-            // 這是 WebSocket 收到廣播訊息的地方
             if (!_messagesByRoom.containsKey(roomId)) return;
 
             final serverId = newMessage.id!.toString();
             final senderId = newMessage.senderId;
             final currentUserId = _authProvider?.currentUser?.id;
 
-            // 檢查這是不是「自己」傳送訊息的「廣播確認」
             if (senderId == currentUserId) {
-              // 找出是哪一則 'localId' 對應到這則 'serverId'
-              // 簡單起見：我們假設最後一則 pending 的訊息就是它
-              // (更穩健的作法是後端回傳 localId)
-
               String? pendingLocalId;
               for (var entry in _messagesByRoom[roomId]!.entries) {
                 if (entry.value.isPending && entry.value.text == newMessage.text) {
@@ -166,20 +148,18 @@ class ChatProvider with ChangeNotifier {
               }
 
               if (pendingLocalId != null) {
-                // 找到了！這是一則「傳送中」訊息的確認
-                // 1. 從 Map 中移除「傳送中」的訊息
                 _messagesByRoom[roomId]!.remove(pendingLocalId);
-                // 2. 將「已確認的」伺服器訊息加入 Map
-                _messagesByRoom[roomId]![serverId] = newMessage; // (newMessage 已經是 isPending: false)
+                _messagesByRoom[roomId]![serverId] = newMessage;
               } else {
-                // 雖然是自己傳的，但找不到對應的 pending 訊息
-                // (可能已被處理)，直接加入
                 _messagesByRoom[roomId]![serverId] = newMessage;
               }
-
             } else {
-              // 這是一則「對方」傳來的全新訊息
+              // --- [修正] 當收到對方訊息時，也立即標記為已讀 ---
               _messagesByRoom[roomId]![serverId] = newMessage;
+              // 如果當前正在此聊天室，立即標記為已讀
+              if (_activeRoomId == roomId) {
+                _chatService.markAsRead(roomId);
+              }
             }
 
             notifyListeners();
@@ -202,66 +182,67 @@ class ChatProvider with ChangeNotifier {
 
   Future<int> findOrCreateChatRoomByProduct(int productId) async {
     final room = await _chatService.findOrCreateChatRoom(productId);
-    // 順便更新列表
     fetchChatLists();
     return room.id;
   }
 
   void leaveChatRoom() {
     debugPrint('[ChatProvider] 離開聊天室...');
+
+    // --- [關鍵修正] 離開前再次標記為已讀，確保萬無一失 ---
+    if (_activeRoomId != null) {
+      _chatService.markAsRead(_activeRoomId!);
+    }
+
     _webSocketService.disconnect();
     _messageSubscription?.cancel();
     _activeRoomId = null;
-    _activeRoomReceiverId = null; // 清除對方 ID
-    _localIdToServerIdMap.clear(); // 清除 ID 映射
-    // 離開時刷新列表，以更新未讀計數
-    fetchChatLists();
+    _activeRoomReceiverId = null;
+    _localIdToServerIdMap.clear();
+
+    // --- [修正] 延遲刷新列表，確保後端已更新未讀計數 ---
+    Future.delayed(const Duration(milliseconds: 500), () {
+      fetchChatLists();
+    });
   }
 
-  // 10. --- [Optimistic UI 關鍵] ---
   void sendMessage(String text) {
     if (text.trim().isEmpty) return;
 
-    // 11. 檢查是否在聊天室中
     final roomId = _activeRoomId;
     final receiverId = _activeRoomReceiverId;
     final senderId = _authProvider?.currentUser?.id;
 
     if (roomId == null || receiverId == null || senderId == null) {
-      debugPrint('[ChatProvider] Error: 不在聊天室內或無法發送 (roomId, receiverId, senderId 之一為 null)');
+      debugPrint('[ChatProvider] Error: 不在聊天室內或無法發送');
       return;
     }
 
-    // 12. 建立一個「本地的」、「傳送中」的訊息
     final localId = _generateLocalId();
     final pendingMessage = Message(
         localId: localId,
-        id: null, // 伺服器 ID 尚未存在
+        id: null,
         chatRoomId: roomId,
         senderId: senderId,
         receiverId: receiverId,
         text: text.trim(),
-        timestamp: DateTime.now(), // 使用本地的當前時間
-        isPending: true // 標記為傳送中
+        timestamp: DateTime.now(),
+        isPending: true
     );
 
-    // 13. [Optimistic UI] 立刻將這則訊息加入狀態並更新 UI
     if (!_messagesByRoom.containsKey(roomId)) {
       _messagesByRoom[roomId] = {};
     }
     _messagesByRoom[roomId]![localId] = pendingMessage;
-    notifyListeners(); // UI 立刻顯示 "傳送中" 的訊息
+    notifyListeners();
 
-    // 14. [背景執行] 真正透過 WebSocket 傳送文字
-    //     後端會儲存它，然後透過 WebSocket 廣播「真實的」Message JSON 回來
     try {
       _webSocketService.sendMessage(text.trim());
     } catch (e) {
       debugPrint('[ChatProvider] sendMessage Error: $e');
-      // 如果 WebSocket 傳送失敗，我們需要更新 UI
       _messagesByRoom[roomId]![localId] = pendingMessage.copyWith(
           isPending: false,
-          text: "${pendingMessage.text} (傳送失敗)" // 範例：顯示失敗
+          text: "${pendingMessage.text} (傳送失敗)"
       );
       notifyListeners();
     }

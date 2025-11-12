@@ -9,7 +9,6 @@ class ChatService {
   ChatService(this._apiClient);
 
   /// 獲取聊天室列表
-  /// [role] 'buyer' 或 'seller'
   Future<List<ChatRoom>> getChatRooms({required String role}) async {
     debugPrint('[ChatService] API: Getting chat rooms for role: $role');
     final responseBody = await _apiClient.get('/chats', queryParams: {'role': role});
@@ -33,5 +32,17 @@ class ChatService {
       body: {'product_id': productId},
     );
     return ChatRoom.fromJson(responseBody);
+  }
+
+  /// 標記聊天室為已讀
+  Future<void> markAsRead(int chatRoomId) async {
+    debugPrint('[ChatService] API: Marking chat room #$chatRoomId as read');
+    try {
+      // --- [修正] 現在可以不傳 body ---
+      await _apiClient.post('/chats/$chatRoomId/read');
+    } catch (e) {
+      debugPrint('[ChatService] Error marking as read: $e');
+      // 不拋出錯誤，讓應用繼續運行
+    }
   }
 }

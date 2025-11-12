@@ -139,7 +139,8 @@ class ApiClient {
     }
   }
 
-  Future<dynamic> post(String path, {required Map<String, dynamic> body}) async {
+  // --- [修正] 將 body 改為可選參數 ---
+  Future<dynamic> post(String path, {Map<String, dynamic>? body}) async {
     final url = Uri.parse('${APIConfig.baseUrl}$path');
     final requestInfo = 'POST $url';
 
@@ -154,7 +155,7 @@ class ApiClient {
       final response = await http.post(
           url,
           headers: _getHeaders(),
-          body: jsonEncode(body)
+          body: body != null ? jsonEncode(body) : null  // 只有在 body 不為 null 時才編碼
       ).timeout(
         const Duration(seconds: 30),
         onTimeout: () {
@@ -181,7 +182,8 @@ class ApiClient {
     }
   }
 
-  Future<dynamic> put(String path, {required Map<String, dynamic> body}) async {
+  // --- [修正] 將 body 改為可選參數 ---
+  Future<dynamic> put(String path, {Map<String, dynamic>? body}) async {
     final url = Uri.parse('${APIConfig.baseUrl}$path');
     final requestInfo = 'PUT $url';
 
@@ -196,7 +198,7 @@ class ApiClient {
       final response = await http.put(
           url,
           headers: _getHeaders(),
-          body: jsonEncode(body)
+          body: body != null ? jsonEncode(body) : null  // 只有在 body 不為 null 時才編碼
       ).timeout(
         const Duration(seconds: 30),
         onTimeout: () {
@@ -265,9 +267,8 @@ class ApiClient {
     }
   }
 
-  // --- PATCH 方法 ---
-  /// 發送 PATCH 請求，通常用於部分更新資源。
-  Future<dynamic> patch(String path, {required Map<String, dynamic> body}) async {
+  // --- [修正] 將 body 改為可選參數 ---
+  Future<dynamic> patch(String path, {Map<String, dynamic>? body}) async {
     final url = Uri.parse('${APIConfig.baseUrl}$path');
     final requestInfo = 'PATCH $url';
 
@@ -282,7 +283,7 @@ class ApiClient {
       final response = await http.patch(
           url,
           headers: _getHeaders(),
-          body: jsonEncode(body)
+          body: body != null ? jsonEncode(body) : null  // 只有在 body 不為 null 時才編碼
       ).timeout(
         const Duration(seconds: 30),
         onTimeout: () {
@@ -303,5 +304,4 @@ class ApiClient {
       }
     }
   }
-
 }
