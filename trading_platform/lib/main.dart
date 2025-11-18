@@ -14,6 +14,7 @@ import 'providers/seller_provider.dart';
 import 'providers/chat_provider.dart';
 import 'providers/wishpool_provider.dart';
 import 'providers/wishpool_invite_provider.dart';
+import 'providers/address_provider.dart';
 
 import 'services/api_client.dart';
 import 'services/auth_service.dart';
@@ -38,7 +39,7 @@ import 'screens/wishpool/wishpool_main.dart';
 import 'theme/app_theme.dart';
 
 void main() {
-  // (依賴注入部分保持不變)
+
   final ApiClient apiClient = ApiClient();
   final AuthService authService = AuthService(apiClient);
   final UserService userService = UserService(apiClient);
@@ -55,7 +56,7 @@ void main() {
   runApp(
     MultiProvider(
       providers: [
-        // --- 🔥 關鍵新增：提供 UserService 給整個 App ---
+        // --- 新增：提供 UserService 給整個 App ---
         Provider<UserService>(
           create: (_) => userService,
         ),
@@ -63,6 +64,11 @@ void main() {
         // --- 將 OrderService 實例提供給整個 App ---
         Provider<OrderService>(
           create: (_) => orderService,
+        ),
+
+        // 將 AddressService 實例提供給整個 App
+        Provider<AddressService>(
+          create: (_) => addressService,
         ),
 
         ChangeNotifierProvider(
@@ -129,6 +135,22 @@ void main() {
             return previous ?? SellerProvider(orderService, auth);
           },
         ),
+
+        // 新增 AddressProvider，並讓它依賴 AuthProvider
+        ChangeNotifierProxyProvider<AuthProvider, AddressProvider>(
+          create: (ctx) => AddressProvider(
+              Provider.of<AddressService>(ctx, listen: false), // 注入 Service
+              null // 初始 AuthProvider 為 null
+          ),
+          update: (ctx, auth, previous) {
+            previous?.update(auth); // 呼叫 .update() 來同步登入狀態
+            return previous ?? AddressProvider(
+                Provider.of<AddressService>(ctx, listen: false),
+                auth
+            );
+          },
+        ),
+
         ChangeNotifierProvider(
           create: (_) => WishPoolProvider(WishPoolService()),
         ),

@@ -3,9 +3,14 @@ import 'package:flutter/foundation.dart';
 import '../models/user/address.dart';
 import '../models/user/cart_item.dart';
 import '../models/user/shipping_option.dart';
+// 1. OrderService 會從這個檔案導入 Order 和 OrderStatus
 import '../models/order/order.dart';
 import '../models/order/discount_info.dart';
 import 'api_client.dart';
+
+// 2. --- [BUG 修正] ---
+//    我已將這裡重複定義的 'enum OrderStatus' 區塊刪除。
+//    OrderService 現在會使用從 'models/order/order.dart' 匯入的 OrderStatus。
 
 class OrderService {
   final ApiClient _apiClient;
@@ -35,7 +40,6 @@ class OrderService {
     try {
       final responseBody = await _apiClient.get('/orders/$orderId');
       final order = Order.fromJson(responseBody);
-      // [BUG 修正]：將 order.id 改回你原本的 order.orderId
       debugPrint('[OrderService] API: Successfully fetched BUYER details for order #${order.orderId}.');
       return order;
     } catch (e) {
@@ -63,11 +67,25 @@ class OrderService {
         },
       );
       final createdOrder = Order.fromJson(responseBody);
-      // [BUG 修正]：將 createdOrder.id 改回你原本的 createdOrder.orderId
       debugPrint('[OrderService] Real: Successfully created order: ${createdOrder.orderId}');
       return createdOrder;
     } catch (e) {
       debugPrint('[OrderService] Real: Order creation failed: $e');
+      rethrow;
+    }
+  }
+
+  // --- [新功能] 買家確認完成訂單 ---
+  Future<Order> completeOrderAsBuyer(int orderId) async {
+    debugPrint('[OrderService] API: Buyer completing order #$orderId...');
+    try {
+      // 呼叫我們在後端新增的 PATCH /orders/{id}/complete 路由
+      final responseBody = await _apiClient.patch('/orders/$orderId/complete');
+      final order = Order.fromJson(responseBody);
+      debugPrint('[OrderService] API: Successfully completed order #${order.orderId}.');
+      return order;
+    } catch (e) {
+      debugPrint('[OrderService] API: Failed to complete order #$orderId: $e');
       rethrow;
     }
   }
@@ -81,7 +99,8 @@ class OrderService {
     try {
       final queryParams = <String, String>{};
       if (status != null) {
-        queryParams['status'] = status.name; // 將 enum 轉換為後端期望的字串
+        // 3. 這裡的 'status.name' 會正確地使用 'order.dart' 中的 OrderStatus
+        queryParams['status'] = status.name;
       }
       final responseBody = await _apiClient.get('/seller/orders', queryParams: queryParams);
       final List<dynamic> orderListJson = responseBody;
@@ -101,7 +120,6 @@ class OrderService {
     try {
       final responseBody = await _apiClient.get('/seller/orders/$orderId');
       final order = Order.fromJson(responseBody);
-      // [BUG 修正]：將 order.id 改回你原本的 order.orderId
       debugPrint('[OrderService] API: Successfully fetched SELLER details for order #${order.orderId}.');
       return order;
     } catch (e) {
@@ -122,6 +140,7 @@ class OrderService {
       final responseBody = await _apiClient.patch(
         '/seller/orders/$orderId/status',
         body: {
+          // 4. 這裡的 'newStatus.name' 同樣會正確運作
           'status': newStatus.name,
           if (description != null) 'description': description,
         },
@@ -133,9 +152,23 @@ class OrderService {
     }
   }
 
+  // --- [新功能] 賣家標記為未取貨退回 ---
+  Future<Order> markOrderAsReturned(int orderId) async {
+    debugPrint('[OrderService] API: Seller marking order #$orderId as RETURNED...');
+    try {
+      // 呼叫我們在後端新增的 PATCH /seller/orders/{id}/return 路由
+      final responseBody = await _apiClient.patch('/seller/orders/$orderId/return');
+      final order = Order.fromJson(responseBody);
+      debugPrint('[OrderService] API: Successfully marked order #${order.orderId} as returned.');
+      return order;
+    } catch (e) {
+      debugPrint('[OrderService] API: Failed to mark order as returned #$orderId: $e');
+      rethrow;
+    }
+  }
+
 
   // --- 運送方式管理 API ---
-  // (這部分保持不變，因為它們看起來與 OrderService 的其他部分相關)
 
   /// --- 獲取指定賣家的可用運送方式 (給結帳頁使用) ---
   Future<List<ShippingOption>> getAvailableShippingMethods(int sellerId) async {
@@ -157,7 +190,6 @@ class OrderService {
   Future<List<ShippingOption>> getMyShippingOptions() async {
     debugPrint('[OrderService] API: Getting MY shipping options...');
     try {
-      // 呼叫新的 /me 端點，不再需要傳遞任何參數
       final responseBody = await _apiClient.get('/shipping-options/me');
       final List<dynamic> optionsJson = responseBody;
       return optionsJson.map((json) => ShippingOption.fromJson(json)).toList();
@@ -195,7 +227,6 @@ class OrderService {
   Future<void> deleteShippingOption(int optionId) async {
     debugPrint('[OrderService] API: Deleting shipping option #$optionId...');
     try {
-      // 呼叫後端的 DELETE API，成功時後端會回傳 204 No Content
       await _apiClient.delete('/shipping-options/$optionId');
       debugPrint('[OrderService] API: Successfully deleted shipping option #$optionId.');
     } catch (e) {

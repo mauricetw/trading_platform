@@ -7,8 +7,6 @@ part of 'address.dart';
 // **************************************************************************
 
 Map<String, dynamic> _$AddressToJson(Address instance) => <String, dynamic>{
-  'id': instance.id,
-  'user_id': instance.userId,
   'recipient_name': instance.recipientName,
   'phone_number': instance.phoneNumber,
   'city': instance.city,

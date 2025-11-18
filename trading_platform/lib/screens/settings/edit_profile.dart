@@ -6,6 +6,8 @@ import 'package:provider/provider.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../models/user/user.dart';
+// 1. 引入新的地址管理頁面
+import 'address_management_screen.dart';
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
@@ -21,7 +23,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
   late TextEditingController _bioController;
   late TextEditingController _schoolNameController;
   late TextEditingController _phoneController;
-  late TextEditingController _addressController; // ✅ 新增
+  // --- [BUG 修正] ---
+  // 2. 移除 _addressController
+  // late TextEditingController _addressController;
 
   XFile? _newAvatarFile;
   bool _isLoading = false;
@@ -33,7 +37,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _bioController = TextEditingController();
     _schoolNameController = TextEditingController();
     _phoneController = TextEditingController();
-    _addressController = TextEditingController(); // ✅ 初始化
+    // 3. 移除 _addressController 的初始化
 
     final currentUser = context.read<AuthProvider>().currentUser;
     if (currentUser != null) {
@@ -41,7 +45,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
       _bioController.text = currentUser.bio ?? '';
       _schoolNameController.text = currentUser.schoolName ?? '';
       _phoneController.text = currentUser.phoneNumber ?? '';
-      _addressController.text = currentUser.address ?? ''; // ✅ 載入地址
+      // 4. 移除 _addressController 的載入
     }
   }
 
@@ -51,7 +55,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _bioController.dispose();
     _schoolNameController.dispose();
     _phoneController.dispose();
-    _addressController.dispose(); // ✅ 釋放資源
+    // 5. 移除 _addressController 的 dispose
     super.dispose();
   }
 
@@ -78,7 +82,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
         bio: _bioController.text.trim(),
         schoolName: _schoolNameController.text.trim(),
         phoneNumber: _phoneController.text.trim(),
-        address: _addressController.text.trim(), // ✅ 傳送地址
+        // 6. 移除 'address' 參數 (你需要一併修改 AuthProvider 中的 updateUserProfile 函式)
+        // address: _addressController.text.trim(),
         newAvatarFile: _newAvatarFile,
       );
 
@@ -120,6 +125,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
+                    // ... (頭像選擇的程式碼保持不變) ...
                     GestureDetector(
                       onTap: _pickImage,
                       child: Stack(
@@ -171,18 +177,29 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       decoration: const InputDecoration(labelText: '手機號碼', border: OutlineInputBorder()),
                       keyboardType: TextInputType.phone,
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 24), // 加大間距
 
-                    // ✅ 地址輸入欄位
-                    TextFormField(
-                      controller: _addressController,
-                      decoration: const InputDecoration(
-                        labelText: '地址',
-                        border: OutlineInputBorder(),
-                        hintText: '請輸入您的地址',
+                    // --- [新功能] ---
+                    // 7. 移除地址輸入框，改為 "管理地址" 按鈕
+                    ListTile(
+                      leading: const Icon(Icons.location_on_outlined),
+                      title: const Text('管理我的地址'),
+                      subtitle: const Text('新增、編輯或刪除您的收貨地址'),
+                      trailing: const Icon(Icons.chevron_right),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          side: BorderSide(color: Colors.grey[300]!)
                       ),
-                      maxLines: 2,
+                      onTap: () {
+                        // 導航到新的地址管理頁面
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const AddressManagementScreen()),
+                        );
+                      },
                     ),
+                    // --- [新功能結束] ---
+
                     const SizedBox(height: 32),
 
                     if (_isLoading)

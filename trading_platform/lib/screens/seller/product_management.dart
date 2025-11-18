@@ -126,12 +126,21 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> with 
   Widget build(BuildContext context) {
     return Consumer<ProductProvider>(
       builder: (context, provider, child) {
-        // REFACTORED: 動態計算不同狀態的商品列表
-        final allProducts = provider.sellerProducts;
-        final activeProducts = allProducts.where((p) => p.status == "available").toList();
-        final soldProducts = allProducts.where((p) => p.status != "available").toList(); // 假設非 available 即為已售出/下架
 
-        // --- 關鍵修正：已移除 `_tabController.index = DefaultTabController.of(context).index;` ---
+        final allProducts = provider.sellerProducts;
+
+        // --- [BUG 修正 2] ---
+        // 重新定義過濾邏輯，確保與後端一致
+        // "上架中" 必須是 status == 'available' 且 stockQuantity > 0
+        final activeProducts = allProducts.where((p) {
+          return p.status == "available" && p.stockQuantity > 0;
+        }).toList();
+
+        // "已售完" 包含所有其他商品 (庫存 <= 0, 或 status 不是 'available')
+        final soldProducts = allProducts.where((p) {
+          return p.status != "available" || p.stockQuantity <= 0;
+        }).toList();
+        // --- [BUG 修正 2 結束] ---
 
         return Scaffold(
           backgroundColor: primaryCS.surfaceContainerHighest,
@@ -148,7 +157,10 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> with 
               tabs: [
                 Tab(text: '全部 (${allProducts.length})'),
                 Tab(text: '上架中 (${activeProducts.length})'),
-                Tab(text: '已售出/下架 (${soldProducts.length})'),
+                // --- [BUG 修正 1] ---
+                // 將 "已售出/下架" 改為 "已售完"
+                Tab(text: '已售完 (${soldProducts.length})'),
+                // --- [BUG 修正 1 結束] ---
               ],
             ),
             actions: [
@@ -210,7 +222,11 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> with 
 
   Widget _buildProductCard(Product product) {
     final TextTheme textTheme = Theme.of(context).textTheme;
-    final isActive = product.status == "available";
+
+    // --- [BUG 修正 2] ---
+    // 卡片上的狀態也根據新的過濾邏輯來判斷
+    final isActive = product.status == "available" && product.stockQuantity > 0;
+    // --- [BUG 修正 2 結束] ---
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -255,7 +271,10 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> with 
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(color: isActive ? Colors.green : Colors.grey, borderRadius: BorderRadius.circular(12)),
                           child: Text(
-                            isActive ? '上架中' : '已售完/下架',
+                            // --- [BUG 修正 1] ---
+                            // 將 "已售出/下架" 改為 "已售完"
+                            isActive ? '上架中' : '已售完',
+                            // --- [BUG 修正 1 結束] ---
                             style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
                           ),
                         ),
@@ -283,10 +302,15 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> with 
                             style: textTheme.bodySmall?.copyWith(color: Colors.grey, decoration: TextDecoration.lineThrough),
                           ),
                         const Spacer(),
+
+                        // --- [BUG 修正 2] ---
+                        // "上架中" 才顯示庫存
                         if (isActive)
                           Text('庫存: ${product.stockQuantity}', style: textTheme.bodySmall?.copyWith(color: Colors.grey[600]))
+                        // "已售完" 則顯示已售數量
                         else
                           Text('已售: ${product.salesCount}', style: textTheme.bodySmall?.copyWith(color: Colors.grey[600])),
+                        // --- [BUG 修正 2 結束] ---
                       ],
                     ),
                   ],
@@ -304,6 +328,12 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> with 
       context: context,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (BuildContext context) {
+
+        // --- [BUG 修正 2] ---
+        // 選單中的狀態也根據新的過濾邏輯來判斷
+        final isActive = product.status == "available" && product.stockQuantity > 0;
+        // --- [BUG 修正 2 結束] ---
+
         return Container(
           padding: const EdgeInsets.all(20),
           child: Column(
@@ -326,8 +356,8 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> with 
                 },
               ),
               _buildOptionTile(
-                icon: product.status == "available" ? Icons.pause_circle_outline : Icons.play_circle_outline,
-                title: product.status == "available" ? '下架商品' : '重新上架',
+                icon: isActive ? Icons.pause_circle_outline : Icons.play_circle_outline,
+                title: isActive ? '下架商品' : '重新上架',
                 onTap: () {
                   Navigator.pop(context);
                   _toggleProductStatus(product);
@@ -359,4 +389,3 @@ class _ProductManagementScreenState extends State<ProductManagementScreen> with 
     );
   }
 }
-

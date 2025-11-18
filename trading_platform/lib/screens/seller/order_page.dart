@@ -322,6 +322,26 @@ class _OrderDetailsSheetState extends State<OrderDetailsSheet> {
     }
   }
 
+  // --- [新功能] 呼叫 Provider 中 'markOrderAsReturned' 的方法 ---
+  Future<void> _performMarkAsReturned(int orderId) async {
+    final provider = context.read<SellerProvider>();
+    try {
+      await provider.markOrderAsReturned(orderId);
+      if (mounted) {
+        Navigator.of(context).pop(); // 關閉 BottomSheet
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('訂單已標記為退回，庫存已回補'), backgroundColor: Colors.green),
+        );
+      }
+    } catch(e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('更新失敗: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   // 15. UI 事件處理函式現在都呼叫 _updateOrderStatus
   void _handleShipOrder(Order order) {
     _showConfirmationDialog(
@@ -362,6 +382,15 @@ class _OrderDetailsSheetState extends State<OrderDetailsSheet> {
       '拒絕訂單',
       '確定要拒絕訂單 #${order.orderId} 嗎？此操作將使訂單不成立。',
           () => _updateOrderStatus(OrderStatus.failed), // 拒絕訂單 -> failed (這個邏輯是OK的)
+    );
+  }
+
+  // --- [新功能] "未取貨退回" 的 UI 事件 ---
+  void _handleMarkAsReturned(Order order) {
+    _showConfirmationDialog(
+      '標記為未取貨退回',
+      '您確定買家未取貨，商品已退回嗎？\n\n此操作會將訂單設為「不成立」並自動回補庫存。',
+          () => _performMarkAsReturned(order.orderId), // 呼叫我們的新函式
     );
   }
 
@@ -625,27 +654,43 @@ class _OrderDetailsSheetState extends State<OrderDetailsSheet> {
           ],
         );
 
-    // --- [BUG 修正 2] ---
-    // 納入 'delivering' 狀態
+    // --- [新功能] 修改 'delivering' 狀態的 UI ---
       case OrderStatus.delivering:
-        return Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.blue[50],
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.blue[200]!),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.local_shipping_outlined, color: Colors.blue[600], size: 20),
-              const SizedBox(width: 8),
-              Text(
-                '商品已出貨 (狀態: ${orderStatusToDisplayString(order.status)})',
-                style: TextStyle(color: Colors.blue[800], fontWeight: FontWeight.w500),
+        return Column( // 使用 Column 來堆疊狀態和按鈕
+          children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue[200]!),
               ),
-            ],
-          ),
+              child: Row(
+                children: [
+                  Icon(Icons.local_shipping_outlined, color: Colors.blue[600], size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    '商品已出貨 (狀態: ${orderStatusToDisplayString(order.status)})',
+                    style: TextStyle(color: Colors.blue[800], fontWeight: FontWeight.w500),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12), // 狀態和按鈕之間的間距
+            // --- [新功能] 未取貨退回按鈕 ---
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => _handleMarkAsReturned(order), // 呼叫新函式
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red[700], // 紅色，表示一個危險/破壞性操作
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                child: const Text('標記為未取貨退回', style: TextStyle(color: Colors.white)),
+              ),
+            ),
+          ],
         );
 
       default:

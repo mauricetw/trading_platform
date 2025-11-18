@@ -74,7 +74,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     }
 
     // 特殊處理已取消或已退款的訂單
-    if (order.status == OrderStatus.cancelled || order.status == OrderStatus.refunded) {
+    if (order.status == OrderStatus.cancelled || order.status == OrderStatus.refunded || order.status == OrderStatus.failed) {
       return _buildCancelledOrderView(order);
     }
 
@@ -86,6 +86,12 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildOrderSummary(order),
+
+          // --- [新功能] 完成訂單按鈕 ---
+          // 根據訂單狀態，有條件地顯示 "完成訂單" 按鈕
+          _buildCompleteOrderButton(context, order),
+          // --- [新功能結束] ---
+
           const SizedBox(height: 24),
           Text('訂單進度', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 16),
@@ -100,25 +106,106 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     );
   }
 
+  // --- [新功能] 建立 "完成訂單" 按鈕 ---
+  Widget _buildCompleteOrderButton(BuildContext context, Order order) {
+    // 檢查：只有在 "delivering" (運送中) 狀態才顯示按鈕
+    if (order.status == OrderStatus.delivering) {
+      // 取得 provider，但設 listen: false，因為我們只用於 'onPressed'
+      final provider = context.read<OrderProvider>();
+
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 24.0),
+        child: SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: () {
+              // 顯示確認對話框
+              _showCompleteConfirmationDialog(context, provider, order.orderId);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).primaryColor, // 使用主題顏色
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16.0),
+              textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            child: const Text('我已取貨並完成訂單'),
+          ),
+        ),
+      );
+    }
+    // 其他狀態下不顯示任何東西
+    return const SizedBox.shrink();
+  }
+
+  // --- [新功能] "完成訂單" 的確認對話框 ---
+  void _showCompleteConfirmationDialog(BuildContext context, OrderProvider provider, int orderId) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('確認完成訂單'),
+          content: const Text('您確定已經收到商品並要完成此訂單嗎？此操作無法復原。'),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('取消'),
+              onPressed: () {
+                Navigator.of(dialogContext).pop(); // 關閉對話框
+              },
+            ),
+            ElevatedButton(
+              child: const Text('確認完成'),
+              onPressed: () async {
+                Navigator.of(dialogContext).pop(); // 關閉對話框
+                try {
+                  // 呼叫 Provider 執行動作
+                  await provider.completeOrder(orderId);
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('訂單已完成！'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('操作失敗: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+
   // --- 以下 UI Builder Widgets 完整保留組員的設計，並適配新模型 ---
 
   Widget _buildCancelledOrderView(Order order) {
     bool isCancelled = order.status == OrderStatus.cancelled;
+    bool isFailed = order.status == OrderStatus.failed;
+
+    IconData icon = isCancelled ? Icons.cancel_outlined : (isFailed ? Icons.error_outline : Icons.settings_backup_restore_outlined);
+    Color color = isCancelled ? Colors.red : (isFailed ? Colors.red : Colors.orange);
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(20.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              isCancelled ? Icons.cancel_outlined : Icons.settings_backup_restore_outlined,
-              size: 60,
-              color: isCancelled ? Colors.red : Colors.orange,
-            ),
+            Icon(icon, size: 60, color: color),
             const SizedBox(height: 16),
             Text(
               orderStatusToDisplayString(order.status),
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: isCancelled ? Colors.red : Colors.orange),
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: color),
             ),
             const SizedBox(height: 8),
             Text("訂單 #${order.orderId} 的當前狀態。", textAlign: TextAlign.center),

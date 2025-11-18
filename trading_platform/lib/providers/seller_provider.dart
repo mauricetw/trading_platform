@@ -142,4 +142,23 @@ class SellerProvider with ChangeNotifier {
       rethrow; // 向上拋出，讓 UI 顯示提示
     }
   }
+
+  // --- [新功能] 賣家標記為未取貨退回 ---
+  Future<void> markOrderAsReturned(int orderId) async {
+    try {
+      // 1. 呼叫我們在 Service 中建立的新函式
+      final updatedOrder = await _orderService.markOrderAsReturned(orderId);
+
+      // 2. 更新本地列表中的訂單狀態
+      final index = _sellerOrders.indexWhere((o) => o.orderId == orderId);
+      if (index != -1) {
+        _sellerOrders[index] = updatedOrder;
+        notifyListeners();
+      }
+    } catch (e) {
+      _error = "標記訂單退回失敗: $e";
+      notifyListeners();
+      rethrow; // 向上拋出，讓 UI 顯示提示
+    }
+  }
 }
