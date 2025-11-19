@@ -1,99 +1,89 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
 import '../models/wishpool/wishpool.dart';
-import '../../config/api_config.dart';
+import 'api_client.dart';
 
 class WishPoolService {
-  final String baseUrl = '${APIConfig.baseUrl}/wishpools';
+  final ApiClient _apiClient;
 
-  /// 取得所有願望池資料
-  Future<List<WishPool>> fetchAll() async {
-    final res = await http.get(Uri.parse(baseUrl));
-    if (res.statusCode == 200) {
-      final List data = jsonDecode(res.body);
-      return data.map((e) => WishPool.fromJson(e)).toList();
-    } else {
-      throw Exception('取得願望池失敗 (${res.statusCode})');
+  // 如果你在 main.dart 是用 WishPoolService() 初始化的，
+  // 你可能需要一個方式注入 ApiClient，或者直接在這裡實例化 (視你的架構而定)。
+  // 這裡假設透過建構子傳入 (推薦)，或者在 main.dart 中調整 Provider。
+  // 為了配合你 main.dart 裡的 `create: (_) => WishPoolProvider(WishPoolService()),`
+  // 暫時假設 ApiClient 是單例或內部獲取的，但最好的做法是像 OrderService 那樣傳入。
+  WishPoolService([ApiClient? apiClient]) : _apiClient = apiClient ?? ApiClient();
+
+  /// 獲取所有許願單 (瀏覽頁面)
+  Future<List<WishPool>> getAllWishes() async {
+    try {
+      final response = await _apiClient.get('/wishpool');
+      final List<dynamic> data = response;
+      return data.map((json) => WishPool.fromJson(json)).toList();
+    } catch (e) {
+      debugPrint('[WishPoolService] 獲取許願單失敗: $e');
+      rethrow;
     }
   }
 
-  /// 根據 ID 取得單筆願望
-  Future<WishPool> fetchById(int id) async {
-    final res = await http.get(Uri.parse('$baseUrl/$id'));
-    if (res.statusCode == 200) {
-      return WishPool.fromJson(jsonDecode(res.body));
-    } else {
-      throw Exception('找不到願望 #$id');
+  /// 獲取單一許願單詳情
+  Future<WishPool> getWishById(int id) async {
+    try {
+      final response = await _apiClient.get('/wishpool/$id');
+      return WishPool.fromJson(response);
+    } catch (e) {
+      debugPrint('[WishPoolService] 獲取許願單詳情失敗: $e');
+      rethrow;
     }
   }
 
-  /// 新增願望
-  Future<WishPool> create(Map<String, dynamic> body) async {
-    final res = await http.post(
-      Uri.parse(baseUrl),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(body),
-    );
-    if (res.statusCode == 201 || res.statusCode == 200) {
-      return WishPool.fromJson(jsonDecode(res.body));
-    } else {
-      throw Exception('建立願望失敗');
+  /// 建立許願單 (買家)
+  Future<WishPool> createWish(Map<String, dynamic> wishData) async {
+    try {
+      final response = await _apiClient.post('/wishpool', body: wishData);
+      return WishPool.fromJson(response);
+    } catch (e) {
+      debugPrint('[WishPoolService] 建立許願單失敗: $e');
+      rethrow;
     }
   }
 
-  /// 刪除願望
-  Future<void> delete(int id) async {
-    final res = await http.delete(Uri.parse('$baseUrl/$id'));
-    if (res.statusCode != 204 && res.statusCode != 200) {
-      throw Exception('刪除願望失敗');
+  /// 更新許願單 (買家)
+  Future<WishPool> updateWish(int id, Map<String, dynamic> wishData) async {
+    try {
+      final response = await _apiClient.put('/wishpool/$id', body: wishData);
+      return WishPool.fromJson(response);
+    } catch (e) {
+      debugPrint('[WishPoolService] 更新許願單失敗: $e');
+      rethrow;
     }
   }
 
-  /// 收藏 / 取消收藏願望
-  Future<void> toggleFavorite(int wishPoolId, int userId) async {
-    final res = await http.post(
-      Uri.parse('$baseUrl/$wishPoolId/favorite'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'user_id': userId}),
-    );
-    if (res.statusCode != 200) {
-      throw Exception('操作收藏失敗');
+  /// 刪除許願單 (買家)
+  Future<void> deleteWish(int id) async {
+    try {
+      await _apiClient.delete('/wishpool/$id');
+    } catch (e) {
+      debugPrint('[WishPoolService] 刪除許願單失敗: $e');
+      rethrow;
     }
   }
 
-  /// 賣家對願望提出邀請
-  Future<void> sendInvite({
-    required int wishPoolId,
-    required int sellerId,
-    required int productId,
-    String? message,
-  }) async {
-    final res = await http.post(
-      Uri.parse('$baseUrl/$wishPoolId/invite'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'seller_id': sellerId,
-        'product_id': productId,
-        'message': message,
-      }),
-    );
-    if (res.statusCode != 200) {
-      throw Exception('邀請失敗 (${res.statusCode})');
+  /// 收藏許願單 (我也想要)
+  Future<void> favoriteWish(int id) async {
+    try {
+      await _apiClient.post('/wishpool/$id/favorite');
+    } catch (e) {
+      debugPrint('[WishPoolService] 收藏失敗: $e');
+      rethrow;
     }
   }
 
-  Future<WishPool> update(int id, Map<String, dynamic> body) async {
-    final res = await http.put(
-      Uri.parse('$baseUrl/$id'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(body),
-    );
-    if (res.statusCode == 200) {
-      return WishPool.fromJson(jsonDecode(res.body));
-    } else {
-      throw Exception('更新願望失敗 (${res.statusCode})');
+  /// 取消收藏
+  Future<void> unfavoriteWish(int id) async {
+    try {
+      await _apiClient.delete('/wishpool/$id/favorite');
+    } catch (e) {
+      debugPrint('[WishPoolService] 取消收藏失敗: $e');
+      rethrow;
     }
   }
-
 }
-

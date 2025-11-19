@@ -1,69 +1,72 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import '../../config/api_config.dart';
+import 'package:flutter/foundation.dart';
 import '../models/wishpool/wishpool_invite.dart';
+import 'api_client.dart';
 
 class WishPoolInviteService {
-  final String baseUrl = '${APIConfig.baseUrl}/wishpool_invites';
+  final ApiClient _apiClient;
 
-  /// 取得使用者收到的邀請
-  Future<List<WishPoolInvite>> fetchReceivedInvites(int userId) async {
-    final res = await http.get(Uri.parse('$baseUrl?receiver_id=$userId'));
-    if (res.statusCode == 200) {
-      final List data = jsonDecode(res.body);
-      return data.map((e) => WishPoolInvite.fromJson(e)).toList();
-    } else {
-      throw Exception('無法取得邀請清單 (${res.statusCode})');
-    }
-  }
+  WishPoolInviteService([ApiClient? apiClient]) : _apiClient = apiClient ?? ApiClient();
 
-  /// 取得賣家發出的邀請
-  Future<List<WishPoolInvite>> fetchSentInvites(int sellerId) async {
-    final res = await http.get(Uri.parse('$baseUrl?seller_id=$sellerId'));
-    if (res.statusCode == 200) {
-      final List data = jsonDecode(res.body);
-      return data.map((e) => WishPoolInvite.fromJson(e)).toList();
-    } else {
-      throw Exception('無法取得發出邀請 (${res.statusCode})');
-    }
-  }
-
-  /// 建立邀請（賣家發送）
-  Future<WishPoolInvite> createInvite({
-    required int wishPoolId,
-    required int sellerId,
-    required int productId,
-    String? message,
-  }) async {
-    final res = await http.post(
-      Uri.parse(baseUrl),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'wish_pool_id': wishPoolId,
-        'seller_id': sellerId,
-        'product_id': productId,
+  /// 發送邀請/報價 (賣家)
+  /// [productId] 現在是可選的
+  Future<WishPoolInvite> sendInvite(int wishPoolId, String message, {int? productId}) async {
+    try {
+      final body = {
         'message': message,
-      }),
-    );
-    if (res.statusCode == 201 || res.statusCode == 200) {
-      return WishPoolInvite.fromJson(jsonDecode(res.body));
-    } else {
-      throw Exception('建立邀請失敗 (${res.statusCode})');
+        // 只有當 productId 有值時才傳送，或者傳送 null (視後端需求，這裡直接放入 map 會是 null)
+        'product_id': productId,
+      };
+      final response = await _apiClient.post('/wishpool/$wishPoolId/invite', body: body);
+      return WishPoolInvite.fromJson(response);
+    } catch (e) {
+      debugPrint('[WishPoolInviteService] 發送邀請失敗: $e');
+      rethrow;
     }
   }
 
-  /// 回覆邀請（買家端接受 / 拒絕）
-  Future<void> respondInvite({
-    required int inviteId,
-    required String response, // 'accepted' or 'rejected'
-  }) async {
-    final res = await http.patch(
-      Uri.parse('$baseUrl/$inviteId'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'status': response}),
-    );
-    if (res.statusCode != 200) {
-      throw Exception('邀請回覆失敗 (${res.statusCode})');
+  /// 獲取我收到的所有邀請 (買家)
+  Future<List<WishPoolInvite>> getReceivedInvites() async {
+    try {
+      final response = await _apiClient.get('/wishpool/invites/received');
+      final List<dynamic> data = response;
+      return data.map((json) => WishPoolInvite.fromJson(json)).toList();
+    } catch (e) {
+      debugPrint('[WishPoolInviteService] 獲取收到邀請失敗: $e');
+      rethrow;
+    }
+  }
+
+  /// [新功能] 獲取我發出的所有邀請 (賣家)
+  Future<List<WishPoolInvite>> getSentInvites() async {
+    try {
+      final response = await _apiClient.get('/wishpool/invites/sent');
+      final List<dynamic> data = response;
+      return data.map((json) => WishPoolInvite.fromJson(json)).toList();
+    } catch (e) {
+      debugPrint('[WishPoolInviteService] 獲取已發送邀請失敗: $e');
+      rethrow;
+    }
+  }
+
+  /// 接受邀請 (買家)
+  Future<WishPoolInvite> acceptInvite(int inviteId) async {
+    try {
+      final response = await _apiClient.patch('/wishpool/invites/$inviteId/accept');
+      return WishPoolInvite.fromJson(response);
+    } catch (e) {
+      debugPrint('[WishPoolInviteService] 接受邀請失敗: $e');
+      rethrow;
+    }
+  }
+
+  /// 拒絕邀請 (買家)
+  Future<WishPoolInvite> rejectInvite(int inviteId) async {
+    try {
+      final response = await _apiClient.patch('/wishpool/invites/$inviteId/reject');
+      return WishPoolInvite.fromJson(response);
+    } catch (e) {
+      debugPrint('[WishPoolInviteService] 拒絕邀請失敗: $e');
+      rethrow;
     }
   }
 }

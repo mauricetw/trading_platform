@@ -23,7 +23,7 @@ class User {
   final DateTime? lastLoginAt;
   final String? bio;
   final String? schoolName;
-  final String? address; // ✅ 新增地址欄位
+  final String? address;
   final bool isVerified;
   final List<String> roles;
 
@@ -53,7 +53,7 @@ class User {
     this.lastLoginAt,
     this.bio,
     this.schoolName,
-    this.address, // ✅ 加入建構函式
+    this.address,
     required this.isVerified,
     required this.roles,
     required this.isSeller,
@@ -72,8 +72,23 @@ class User {
   String get effectivePublicDisplayName => publicDisplayName?.isNotEmpty == true ? publicDisplayName! : username;
 
   factory User.fromJson(Map<String, dynamic> json) {
+    // --- 安全解析輔助函式 ---
+    double? safeDouble(dynamic value) {
+      if (value == null) return null;
+      if (value is num) return value.toDouble();
+      if (value is String) return double.tryParse(value);
+      return null;
+    }
+
+    int safeInt(dynamic value, int defaultValue) {
+      if (value == null) return defaultValue;
+      if (value is num) return value.toInt();
+      if (value is String) return int.tryParse(value) ?? defaultValue;
+      return defaultValue;
+    }
+
     return User(
-      id: json['id'] as int? ?? 0,
+      id: safeInt(json['id'], 0),
       username: json['nickname'] as String?
           ?? json['username'] as String?
           ?? '未知使用者',
@@ -84,15 +99,18 @@ class User {
       lastLoginAt: json['last_login_at'] != null ? DateTime.parse(json['last_login_at'] as String) : null,
       bio: json['bio'] as String?,
       schoolName: json['school_name'] as String?,
-      address: json['address'] as String?, // ✅ 解析地址
+      address: json['address'] as String?,
       isVerified: json['is_verified'] as bool? ?? false,
       roles: (json['roles'] as List<dynamic>?)?.map((e) => e as String).toList() ?? ['user'],
       isSeller: json['is_seller'] as bool? ?? false,
       sellerName: json['seller_name'] as String?,
       sellerDescription: json['seller_description'] as String?,
-      sellerRating: (json['seller_rating'] as num?)?.toDouble(),
-      buyerRating: (json['buyer_rating'] as num?)?.toDouble(),
-      productCount: json['product_count'] as int? ?? 0,
+
+      // --- [修正重點] 使用 safeDouble ---
+      sellerRating: safeDouble(json['seller_rating']),
+      buyerRating: safeDouble(json['buyer_rating']),
+      productCount: safeInt(json['product_count'], 0),
+
       favoriteProductIds: (json['favorite_product_ids'] as List<dynamic>?)?.map((e) => e as String).toList() ?? [],
       publicDisplayName: json['public_display_name'] as String?,
       publicBio: json['public_bio'] as String?,
@@ -113,7 +131,7 @@ class User {
     DateTime? lastLoginAt,
     String? bio,
     String? schoolName,
-    String? address, // ✅ 加入 copyWith
+    String? address,
     bool? isVerified,
     List<String>? roles,
     bool? isSeller,
@@ -138,7 +156,7 @@ class User {
       lastLoginAt: lastLoginAt ?? this.lastLoginAt,
       bio: bio ?? this.bio,
       schoolName: schoolName ?? this.schoolName,
-      address: address ?? this.address, // ✅ copyWith 實作
+      address: address ?? this.address,
       isVerified: isVerified ?? this.isVerified,
       roles: roles ?? this.roles,
       isSeller: isSeller ?? this.isSeller,

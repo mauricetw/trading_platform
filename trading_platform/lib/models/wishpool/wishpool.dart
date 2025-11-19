@@ -1,6 +1,7 @@
 import 'package:json_annotation/json_annotation.dart';
 import '../user/user.dart';
 import '../product/product.dart';
+import 'package:flutter/foundation.dart';
 
 part 'wishpool.g.dart';
 
@@ -11,28 +12,27 @@ part 'wishpool.g.dart';
 )
 class WishPool {
   final int id;
-  final int userId;                // 願望發布者 ID
-  final String title;              // 願望標題
-  final String? description;       // 願望內容描述
-  final int? categoryId;           // 類別
-  final List<String>? tags;        // 標籤
-  final String? photoUrl;          // 願望圖片
+  final int userId;
+  final String title;
+  final String? description;
+  final int? categoryId;
+  final List<String>? tags;
+  final String? photoUrl;
 
   final int? priceMin;
   final int? priceMax;
   final String? location;
   final String? courseCode;
 
-  final String status;             // open / matched / closed
-  final int? matchedItemId;        // 若已被商品匹配，紀錄商品ID
-  final int likeCount;             // 「我也想要」數量
+  final String status;
+  final int? matchedItemId;
+  final int likeCount;
 
   final DateTime createdAt;
   final DateTime updatedAt;
 
-  // ✅ 關聯對象（方便前端展示）
-  final User? user;                // 發布者資訊
-  final Product? matchedItem;      // 被匹配的商品資訊（可為 null）
+  final User? user;
+  final Product? matchedItem;
 
   WishPool({
     required this.id,
@@ -55,24 +55,31 @@ class WishPool {
     this.matchedItem,
   });
 
-  /// ========== Custom fromJson ==========
   factory WishPool.fromJson(Map<String, dynamic> json) {
     try {
+      // 安全解析 Int
+      int? safeInt(dynamic val) {
+        if (val == null) return null;
+        if (val is num) return val.toInt();
+        if (val is String) return int.tryParse(val);
+        return null;
+      }
+
       return WishPool(
-        id: json['id'] as int? ?? 0,
-        userId: json['user_id'] as int? ?? 0,
+        id: safeInt(json['id']) ?? 0,
+        userId: safeInt(json['user_id']) ?? 0,
         title: json['title'] as String? ?? '未命名願望',
         description: json['description'] as String?,
-        categoryId: json['category_id'] as int?,
+        categoryId: safeInt(json['category_id']),
         tags: (json['tags'] as List?)?.map((e) => e.toString()).toList(),
         photoUrl: json['photo_url'] as String?,
-        priceMin: json['price_min'] as int?,
-        priceMax: json['price_max'] as int?,
+        priceMin: safeInt(json['price_min']),
+        priceMax: safeInt(json['price_max']),
         location: json['location'] as String?,
         courseCode: json['course_code'] as String?,
         status: json['status'] as String? ?? 'open',
-        matchedItemId: json['matched_item_id'] as int?,
-        likeCount: json['like_count'] as int? ?? 0,
+        matchedItemId: safeInt(json['matched_item_id']),
+        likeCount: safeInt(json['like_count']) ?? 0,
         createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
         updatedAt: DateTime.tryParse(json['updated_at'] ?? '') ?? DateTime.now(),
         user: json['user'] != null ? User.fromJson(json['user']) : null,
@@ -81,7 +88,7 @@ class WishPool {
             : null,
       );
     } catch (e) {
-      // fallback：若格式不完整仍建立空物件，避免 crash
+      debugPrint('WishPool 解析失敗: $e');
       return WishPool(
         id: 0,
         userId: 0,
@@ -92,24 +99,6 @@ class WishPool {
     }
   }
 
-  Map<String, dynamic> toJson() => {
-    'id': id,
-    'user_id': userId,
-    'title': title,
-    'description': description,
-    'category_id': categoryId,
-    'tags': tags,
-    'photo_url': photoUrl,
-    'price_min': priceMin,
-    'price_max': priceMax,
-    'location': location,
-    'course_code': courseCode,
-    'status': status,
-    'matched_item_id': matchedItemId,
-    'like_count': likeCount,
-    'created_at': createdAt.toIso8601String(),
-    'updated_at': updatedAt.toIso8601String(),
-    if (user != null) 'user': user!.toJson(),
-    if (matchedItem != null) 'matched_item': matchedItem!.toJson(),
-  };
+  // --- [BUG 修正] 補上 toJson 方法 ---
+  Map<String, dynamic> toJson() => _$WishPoolToJson(this);
 }

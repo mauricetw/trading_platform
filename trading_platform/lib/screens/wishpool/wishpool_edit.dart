@@ -49,10 +49,12 @@ class _WishPoolEditState extends State<WishPoolEdit> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('編輯願望', style: TextStyle(color: Colors.white)),
+        centerTitle: true,
         backgroundColor: const Color(0xFF004E98),
         shape: const FullBottomConcaveAppBarShape(curveHeight: 25.0),
         elevation: 6.0,
         shadowColor: Colors.black.withOpacity(0.3),
+        iconTheme: const IconThemeData(color: Colors.white), // 確保返回按鈕是白色的
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -112,6 +114,11 @@ class _WishPoolEditState extends State<WishPoolEdit> {
                 child: ElevatedButton.icon(
                   icon: const Icon(Icons.save),
                   label: Text(_isSubmitting ? '儲存中...' : '儲存修改'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF004E98), // 按鈕顏色與主題一致
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
                   onPressed: _isSubmitting
                       ? null
                       : () async {
@@ -165,12 +172,20 @@ class _WishPoolEditState extends State<WishPoolEdit> {
                             ),
                           ),
                         );
+                        // 關閉對話框後返回上一頁
                         Navigator.pop(context);
                       }
                     } catch (e) {
                       debugPrint('更新願望失敗: $e');
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('更新失敗: $e'), backgroundColor: Colors.red),
+                        );
+                      }
                     } finally {
-                      setState(() => _isSubmitting = false);
+                      if (mounted) {
+                        setState(() => _isSubmitting = false);
+                      }
                     }
                   },
                 ),

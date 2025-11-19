@@ -1,6 +1,7 @@
 import 'package:json_annotation/json_annotation.dart';
 import '../product/product.dart';
 import '../user/user.dart';
+import 'wishpool.dart';
 
 part 'wishpool_invite.g.dart';
 
@@ -9,14 +10,15 @@ class WishPoolInvite {
   final int id;
   final int wishPoolId;
   final int sellerId;
-  final int? productId;
+  final int? productId; // 允許為空
   final String? message;
-  final String status; // pending / accepted / rejected
+  final String status;
   final DateTime createdAt;
   final DateTime? updatedAt;
 
   final User? seller;
   final Product? product;
+  final WishPool? wishpool;
 
   WishPoolInvite({
     required this.id,
@@ -29,6 +31,7 @@ class WishPoolInvite {
     this.updatedAt,
     this.seller,
     this.product,
+    this.wishpool,
   });
 
   factory WishPoolInvite.fromJson(Map<String, dynamic> json) =>
@@ -36,7 +39,6 @@ class WishPoolInvite {
 
   Map<String, dynamic> toJson() => _$WishPoolInviteToJson(this);
 
-  // ✅ 補上 copyWith
   WishPoolInvite copyWith({
     int? id,
     int? wishPoolId,
@@ -48,6 +50,7 @@ class WishPoolInvite {
     DateTime? updatedAt,
     User? seller,
     Product? product,
+    WishPool? wishpool,
   }) {
     return WishPoolInvite(
       id: id ?? this.id,
@@ -60,6 +63,7 @@ class WishPoolInvite {
       updatedAt: updatedAt ?? this.updatedAt,
       seller: seller ?? this.seller,
       product: product ?? this.product,
+      wishpool: wishpool ?? this.wishpool,
     );
   }
 }

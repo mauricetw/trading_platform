@@ -76,8 +76,6 @@ class Product {
   final SellerInfo? seller;
   final ShippingInformation? shippingInfo;
 
-  // --- 關鍵修正：isFavorite 欄位已完全移除 ---
-
   bool get isSold => stockQuantity == 0 || status == 'sold';
 
   Product({
@@ -139,16 +137,19 @@ class Product {
 
       // 4) 數值安全轉換
       double safeDouble(dynamic value, double defaultValue) {
+        if (value == null) return defaultValue; // ✅ 確保 null 回傳預設值
         if (value is num) return value.toDouble();
         if (value is String) return double.tryParse(value) ?? defaultValue;
         return defaultValue;
       }
       double? safeNullableDouble(dynamic value) {
+        if (value == null) return null; // ✅ 確保 null 回傳 null
         if (value is num) return value.toDouble();
         if (value is String) return double.tryParse(value);
         return null;
       }
       int safeInt(dynamic value, int defaultValue) {
+        if (value == null) return defaultValue; // ✅ 確保 null 回傳預設值
         if (value is num) return value.toInt();
         if (value is String) return int.tryParse(value) ?? defaultValue;
         return defaultValue;
@@ -182,7 +183,6 @@ class Product {
       );
     } catch (e, stackTrace) {
       debugPrint('Product.fromJson 解析失敗: $e\n$stackTrace');
-      // 返回一個最小可用的 Product 實例，避免完全失敗
       return Product(
         id: (json['id'] as int?) ?? 0,
         name: '解析失敗的商品',
@@ -202,7 +202,6 @@ class Product {
     }
   }
 
-  /// 安全的 SellerInfo 解析 (保留組員的設計)
   static SellerInfo? _safeSellerInfoFromJson(Map<String, dynamic> json) {
     try {
       return SellerInfo.fromJson(json);
@@ -216,7 +215,6 @@ class Product {
     }
   }
 
-  /// 安全的 ShippingInformation 解析 (保留組員的設計)
   static ShippingInformation? _safeShippingInfoFromJson(Map<String, dynamic> json) {
     try {
       return ShippingInformation.fromJson(json);
@@ -226,7 +224,6 @@ class Product {
     }
   }
 
-  /// toJson 仍交給 json_serializable 產生
   Map<String, dynamic> toJson() => _$ProductToJson(this);
 
   Product copyWith({
@@ -274,7 +271,7 @@ class Product {
   }
 }
 
-// 輔助函式 (放在檔案底部)
+// 輔助函式
 String? _prefixUrl(String? relativeUrl) {
   if (relativeUrl == null || relativeUrl.isEmpty) {
     return null;

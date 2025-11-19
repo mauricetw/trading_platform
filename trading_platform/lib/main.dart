@@ -39,8 +39,10 @@ import 'screens/wishpool/wishpool_main.dart';
 import 'theme/app_theme.dart';
 
 void main() {
-
+  // 1. 建立共用的 ApiClient 實例 (它會持有 Token)
   final ApiClient apiClient = ApiClient();
+
+  // 2. 將 apiClient 注入到各個 Service
   final AuthService authService = AuthService(apiClient);
   final UserService userService = UserService(apiClient);
   final ProductService productService = ProductService(apiClient);
@@ -53,20 +55,21 @@ void main() {
   final ChatService chatService = ChatService(apiClient);
   final WebSocketService webSocketService = WebSocketService();
 
+  final WishPoolService wishPoolService = WishPoolService(apiClient);
+  final WishPoolInviteService wishPoolInviteService = WishPoolInviteService(apiClient);
+
+
   runApp(
     MultiProvider(
       providers: [
-        // --- 新增：提供 UserService 給整個 App ---
         Provider<UserService>(
           create: (_) => userService,
         ),
 
-        // --- 將 OrderService 實例提供給整個 App ---
         Provider<OrderService>(
           create: (_) => orderService,
         ),
 
-        // 將 AddressService 實例提供給整個 App
         Provider<AddressService>(
           create: (_) => addressService,
         ),
@@ -79,8 +82,9 @@ void main() {
           create: (_) => ProductProvider(productService, uploadService),
         ),
 
+        // --- [修改] 注入 ProductService 到 CategoryProvider ---
         ChangeNotifierProvider(
-          create: (_) => CategoryProvider(),
+          create: (_) => CategoryProvider(productService),
         ),
 
         ChangeNotifierProvider(
@@ -103,7 +107,6 @@ void main() {
           },
         ),
 
-        // 使用 ChangeNotifierProxyProvider監聽登入狀態的變化
         ChangeNotifierProxyProvider<AuthProvider, ChatProvider>(
           create: (_) => ChatProvider(chatService, webSocketService, null),
           update: (_, auth, previousChat) {
@@ -136,14 +139,13 @@ void main() {
           },
         ),
 
-        // 新增 AddressProvider，並讓它依賴 AuthProvider
         ChangeNotifierProxyProvider<AuthProvider, AddressProvider>(
           create: (ctx) => AddressProvider(
-              Provider.of<AddressService>(ctx, listen: false), // 注入 Service
-              null // 初始 AuthProvider 為 null
+              Provider.of<AddressService>(ctx, listen: false),
+              null
           ),
           update: (ctx, auth, previous) {
-            previous?.update(auth); // 呼叫 .update() 來同步登入狀態
+            previous?.update(auth);
             return previous ?? AddressProvider(
                 Provider.of<AddressService>(ctx, listen: false),
                 auth
@@ -152,10 +154,10 @@ void main() {
         ),
 
         ChangeNotifierProvider(
-          create: (_) => WishPoolProvider(WishPoolService()),
+          create: (_) => WishPoolProvider(wishPoolService),
         ),
         ChangeNotifierProvider(
-          create: (_) => WishPoolInviteProvider(WishPoolInviteService()),
+          create: (_) => WishPoolInviteProvider(wishPoolInviteService),
         ),
 
       ],

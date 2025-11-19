@@ -1,47 +1,38 @@
 // --- FILE: lib/providers/category_provider.dart ---
-import 'package:flutter/foundation.dart' as flutter_foundation;
+// --- [BUG 修正] ---
+// 使用 'hide Category' 來避免與我們自己的 Category 模型發生衝突
+import 'package:flutter/foundation.dart' hide Category;
+import '../models/product/category.dart';
+import '../services/product_service.dart';
 
-// 簡化的 Category 類，避免模型依賴
-class Category {
-  final String id;
-  final String name;
-  final String? parentId;
+class CategoryProvider with ChangeNotifier {
+  final ProductService _productService;
 
-  Category({
-    required this.id,
-    required this.name,
-    this.parentId,
-  });
-
-  factory Category.fromJson(Map<String, dynamic> json) {
-    return Category(
-      id: json['id'] as String,
-      name: json['name'] as String,
-      parentId: json['parentId'] as String?,
-    );
-  }
-}
-
-class CategoryProvider with flutter_foundation.ChangeNotifier {
   List<Category> _categories = [];
+  bool _isLoading = false;
+  String? _error;
 
   List<Category> get categories => _categories;
+  bool get isLoading => _isLoading;
+  String? get error => _error;
 
-  // 修正構造函數 - 不需要參數
-  CategoryProvider() {
-    fetchCategories();
-  }
+  // 建構子：注入 ProductService
+  CategoryProvider(this._productService);
 
   Future<void> fetchCategories() async {
-    // 模擬數據獲取
-    await Future.delayed(const Duration(seconds: 1));
-    final List<Map<String, dynamic>> jsonData = [
-      {'id': 'cat1', 'name': '電子產品', 'parentId': null},
-      {'id': 'cat2', 'name': '手機', 'parentId': 'cat1'},
-      {'id': 'cat3', 'name': '服飾', 'parentId': null},
-    ];
-
-    _categories = jsonData.map((json) => Category.fromJson(json)).toList();
+    _isLoading = true;
+    _error = null;
     notifyListeners();
+
+    try {
+      // 使用 ProductService 從後端獲取真實分類
+      _categories = await _productService.getCategories();
+    } catch (e) {
+      _error = "獲取分類失敗: $e";
+      debugPrint(_error);
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 }

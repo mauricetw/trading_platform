@@ -27,6 +27,10 @@ WishPoolInvite _$WishPoolInviteFromJson(Map<String, dynamic> json) =>
           json['product'] == null
               ? null
               : Product.fromJson(json['product'] as Map<String, dynamic>),
+      wishpool:
+          json['wishpool'] == null
+              ? null
+              : WishPool.fromJson(json['wishpool'] as Map<String, dynamic>),
     );
 
 Map<String, dynamic> _$WishPoolInviteToJson(WishPoolInvite instance) =>
@@ -41,4 +45,5 @@ Map<String, dynamic> _$WishPoolInviteToJson(WishPoolInvite instance) =>
       'updated_at': instance.updatedAt?.toIso8601String(),
       'seller': instance.seller?.toJson(),
       'product': instance.product?.toJson(),
+      'wishpool': instance.wishpool?.toJson(),
     };
