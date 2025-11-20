@@ -30,7 +30,7 @@ class _WishPoolManageState extends State<WishPoolManage>
       final contextRead = context.read;
       contextRead<WishPoolProvider>().loadWishPools();
       contextRead<WishPoolInviteProvider>().loadReceivedInvites();
-      contextRead<WishPoolInviteProvider>().loadSentInvites(); // [新功能] 載入已發送邀請
+      contextRead<WishPoolInviteProvider>().loadSentInvites();
     });
   }
 
@@ -82,7 +82,7 @@ class _WishPoolManageState extends State<WishPoolManage>
         children: const [
           _WishListTab(),
           _InviteTab(),
-          _SentInviteTab(), // [新功能] 實作此 Tab
+          _SentInviteTab(),
           _CompletedTab(),
         ],
       ),
@@ -247,7 +247,7 @@ class _InviteTab extends StatelessWidget {
   }
 }
 
-// ==================== 分頁 3: 發出邀請 (賣家視角) [新功能] ====================
+// ==================== 分頁 3: 發出邀請 (賣家視角) ====================
 
 class _SentInviteTab extends StatelessWidget {
   const _SentInviteTab();
@@ -277,15 +277,16 @@ class _SentInviteTab extends StatelessWidget {
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             child: ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              // [UI 修改] 移除商品顯示，改為顯示願望標題或賣家訊息
               title: Text(
-                '提供商品：${invite.product?.name ?? '未知商品'}',
+                '對願望：${invite.wishpool?.title ?? "#${invite.wishPoolId}"}',
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
-              // 使用 wishpool 資訊顯示標題
               subtitle: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('對願望：${invite.wishpool?.title ?? "#${invite.wishPoolId}"}'),
+                  if (invite.message != null && invite.message!.isNotEmpty)
+                    Text('我的留言：${invite.message}', maxLines: 2, overflow: TextOverflow.ellipsis),
                   const SizedBox(height: 4),
                   Text('狀態：${_statusText(invite.status)}',
                       style: TextStyle(color: _statusColor(invite.status), fontWeight: FontWeight.w500)
@@ -325,7 +326,7 @@ class _SentInviteTab extends StatelessWidget {
   }
 }
 
-// ==================== 分頁 4: 已完成 ====================
+// ==================== 分頁 4: 已完成 (保持不變) ====================
 class _CompletedTab extends StatelessWidget {
   const _CompletedTab();
 
@@ -368,10 +369,10 @@ class _CompletedTab extends StatelessWidget {
                 Text('狀態：${wish.status == 'matched' ? '已媒合' : '已關閉'}',
                     style: const TextStyle(color: Colors.black54)
                 ),
-                if (wish.matchedItem != null)
-                  Text('匹配商品：${wish.matchedItem!.name}',
-                      style: const TextStyle(color: Colors.green, fontWeight: FontWeight.w500)
-                  ),
+                // 這裡也不再顯示 "匹配商品"，因為現在是純邀請
+                const Text('邀請已接受，請透過聊天聯繫賣家',
+                    style: TextStyle(color: Colors.green, fontWeight: FontWeight.w500)
+                ),
               ],
             ),
             trailing: const Icon(Icons.check_circle, color: Colors.green),
@@ -421,12 +422,27 @@ class _InviteCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                // --- [UI 修正] 顯示賣家名稱而非商品 ---
                 Expanded(
-                  child: Text(
-                    invite.product?.name ?? '未知商品',
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 16),
-                    overflow: TextOverflow.ellipsis,
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 16,
+                        backgroundImage: invite.seller?.avatarUrl != null
+                            ? NetworkImage(invite.seller!.avatarUrl!)
+                            : null,
+                        child: invite.seller?.avatarUrl == null
+                            ? const Icon(Icons.person, size: 20)
+                            : null,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        invite.seller?.username ?? '未知賣家',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 16),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ),
                 ),
                 Container(
@@ -447,38 +463,24 @@ class _InviteCard extends StatelessWidget {
                 ),
               ],
             ),
+            const SizedBox(height: 12),
+            // --- [UI 修正] 移除商品名稱和價格，只顯示留言 ---
+            const Text(
+              '賣家留言：',
+              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
+            ),
             const SizedBox(height: 4),
             Text(
-              '商品價格: \$${invite.product?.price.toInt() ?? 0}',
-              style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.w500),
+              (invite.message != null && invite.message!.isNotEmpty)
+                  ? invite.message!
+                  : '（賣家未留訊息）',
+              style: TextStyle(color: Colors.grey.shade700, fontSize: 15),
             ),
-            const Divider(height: 20),
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 12,
-                  backgroundImage: invite.seller?.avatarUrl != null
-                      ? NetworkImage(invite.seller!.avatarUrl!)
-                      : null,
-                  child: invite.seller?.avatarUrl == null
-                      ? const Icon(Icons.person, size: 16)
-                      : null,
-                ),
-                const SizedBox(width: 8),
-                Text(invite.seller?.username ?? '未知賣家'),
-              ],
-            ),
-            if (invite.message?.isNotEmpty ?? false)
-              Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Text('留言：${invite.message}',
-                    style: TextStyle(color: Colors.grey.shade700)),
-              ),
 
             // 操作按鈕 (僅在待處理狀態顯示)
             if (status == 'pending')
               Padding(
-                padding: const EdgeInsets.only(top: 12.0),
+                padding: const EdgeInsets.only(top: 16.0),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
@@ -509,7 +511,7 @@ class _InviteCard extends StatelessWidget {
                           await provider.acceptInvite(invite.id);
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('已接受邀請，訂單成立！'), backgroundColor: Colors.green),
+                              const SnackBar(content: Text('已接受邀請！請聯絡賣家進行交易。'), backgroundColor: Colors.green),
                             );
                           }
                         } catch (e) {
@@ -524,7 +526,7 @@ class _InviteCard extends StatelessWidget {
                         backgroundColor: const Color(0xFF004E98),
                         foregroundColor: Colors.white,
                       ),
-                      child: const Text('接受'),
+                      child: const Text('接受並聯繫'),
                     ),
                   ],
                 ),

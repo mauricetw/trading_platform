@@ -179,38 +179,32 @@ class _WishPoolDetailState extends State<WishPoolDetail> {
               children: [
                 Row(
                   children: [
+                    CircleAvatar(
+                      radius: 12,
+                      backgroundImage: invite.seller?.avatarUrl != null
+                          ? NetworkImage(invite.seller!.avatarUrl!)
+                          : null,
+                      child: invite.seller?.avatarUrl == null ? const Icon(Icons.person, size: 16) : null,
+                    ),
+                    const SizedBox(width: 8),
                     Text('賣家: ${invite.seller?.username ?? "未知"}', style: const TextStyle(fontWeight: FontWeight.bold)),
                     const Spacer(),
                     _buildInviteStatusBadge(invite.status),
                   ],
                 ),
                 const Divider(),
-                // --- [修正] 商品資訊區塊：如果 product 為 null，則隱藏或顯示特定文字 ---
-                if (invite.product != null)
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Container(
-                      width: 50, height: 50,
-                      color: Colors.grey[200],
-                      child: invite.product!.imageUrls.isNotEmpty
-                          ? Image.network(invite.product!.imageUrls.first, fit: BoxFit.cover)
-                          : const Icon(Icons.image),
-                    ),
-                    title: Text(invite.product!.name),
-                    subtitle: Text('\$${invite.product!.price.toInt()}'),
-                  )
-                else
-                  const ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text('賣家僅傳送訊息', style: TextStyle(color: Colors.grey)),
-                  ),
-                // -----------------------------------------------------------
 
-                if (invite.message != null && invite.message!.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8.0),
-                    child: Text('留言: ${invite.message}', style: TextStyle(color: Colors.grey[700])),
+                // --- [UI 修正] 移除商品顯示，只顯示留言 ---
+                Padding(
+                  padding: const EdgeInsets.only(top: 8.0),
+                  child: Text(
+                    (invite.message != null && invite.message!.isNotEmpty)
+                        ? invite.message!
+                        : '（賣家無留言）',
+                    style: TextStyle(color: Colors.grey[800], fontSize: 16),
                   ),
+                ),
+
                 const SizedBox(height: 12),
                 if (invite.status == 'pending')
                   Row(
@@ -225,7 +219,7 @@ class _WishPoolDetailState extends State<WishPoolDetail> {
                       ElevatedButton(
                         onPressed: () => _handleAcceptInvite(provider, invite.id),
                         style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
-                        child: const Text('接受報價'),
+                        child: const Text('接受'),
                       ),
                     ],
                   ),
@@ -256,7 +250,7 @@ class _WishPoolDetailState extends State<WishPoolDetail> {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton.icon(
-        icon: const Icon(Icons.message), // Icon 改為訊息
+        icon: const Icon(Icons.message),
         label: const Text('發送訊息 / 邀請'),
         style: ElevatedButton.styleFrom(
           padding: const EdgeInsets.symmetric(vertical: 16),
@@ -268,7 +262,6 @@ class _WishPoolDetailState extends State<WishPoolDetail> {
     );
   }
 
-  // --- [修正] 直接顯示對話框，無需讀取商品 ---
   void _showSellerInviteDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -283,7 +276,7 @@ class _WishPoolDetailState extends State<WishPoolDetail> {
     try {
       await provider.acceptInvite(inviteId);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已接受報價！訂單已成立。'), backgroundColor: Colors.green));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已接受報價！請聯絡賣家。'), backgroundColor: Colors.green));
       }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('操作失敗: $e'), backgroundColor: Colors.red));
