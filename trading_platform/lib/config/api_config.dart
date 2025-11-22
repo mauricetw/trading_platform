@@ -1,12 +1,12 @@
 class APIConfig {
   // --- 1. 開發環境的後端網址 ---
   // 已修正為我們 FastAPI 伺服器使用的正確網址和端口。
-  static const String _devBaseUrl = "http://10.0.2.2:8000";
+  static const String _devBaseUrl = "https://genetically-unsabled-kenisha.ngrok-free.dev";
 
   // --- 2. 生產環境的後端網址 ---
   // 這是 App 正式上線後要連接的真實伺服器網址。
   // 在部署前，你需要將 'your.api.production.com' 替換為你的真實網域。
-  static const String _prodBaseUrl = "https://your.api.production.com";
+  static const String _prodBaseUrl = "https://genetically-unsabled-kenisha.ngrok-free.dev";
 
   // --- 3. 自動環境偵測 ---
   // 這行程式碼會自動判斷 App 是在開發模式下運行還是在正式發布模式下運行。
