@@ -17,6 +17,7 @@ class ChatService {
   }
 
   /// 獲取指定聊天室的歷史訊息
+  /// (後端會在獲取訊息的同時，自動將訊息標記為已讀)
   Future<List<Message>> getMessages(int chatRoomId) async {
     debugPrint('[ChatService] API: Getting messages for room #$chatRoomId');
     final responseBody = await _apiClient.get('/chats/$chatRoomId/messages');
@@ -24,9 +25,10 @@ class ChatService {
     return messagesJson.map((json) => Message.fromJson(json)).toList();
   }
 
-  /// 根據商品 ID 尋找或建立聊天室
+  /// 根據商品 ID 尋找或建立聊天室 (從商品頁發起)
   Future<ChatRoom> findOrCreateChatRoom(int productId) async {
     debugPrint('[ChatService] API: Finding or creating chat for product #$productId');
+    // 對應後端: POST /chats (body: product_id)
     final responseBody = await _apiClient.post(
       '/chats',
       body: {'product_id': productId},
@@ -34,15 +36,26 @@ class ChatService {
     return ChatRoom.fromJson(responseBody);
   }
 
+  /// [新功能] 與賣家開啟通用聊天 (不綁定商品，從個人頁發起)
+  Future<ChatRoom> startGeneralChat(int sellerId) async {
+    debugPrint('[ChatService] API: Starting general chat with seller #$sellerId');
+    // 對應後端: POST /chats (body: seller_id)
+    final responseBody = await _apiClient.post(
+      '/chats',
+      body: {'seller_id': sellerId},
+    );
+    return ChatRoom.fromJson(responseBody);
+  }
+
   /// 標記聊天室為已讀
+  /// 注意：目前的後端在 getMessages 時會自動標記已讀。
+  /// 如果你的後端沒有獨立的 /read 路由，這個函式可能會回傳 404，可以視情況移除或保留。
   Future<void> markAsRead(int chatRoomId) async {
-    debugPrint('[ChatService] API: Marking chat room #$chatRoomId as read');
-    try {
-      // --- [修正] 現在可以不傳 body ---
-      await _apiClient.post('/chats/$chatRoomId/read');
-    } catch (e) {
-      debugPrint('[ChatService] Error marking as read: $e');
-      // 不拋出錯誤，讓應用繼續運行
-    }
+    // debugPrint('[ChatService] API: Marking chat room #$chatRoomId as read');
+    // try {
+    //   await _apiClient.post('/chats/$chatRoomId/read');
+    // } catch (e) {
+    //   debugPrint('[ChatService] Error marking as read: $e');
+    // }
   }
 }

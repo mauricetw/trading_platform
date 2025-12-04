@@ -8,6 +8,10 @@ import '../../models/user/user.dart';
 import '../../models/product/product.dart';
 import '../product.dart';
 
+// --- [新功能] 引入 ChatProvider 和 ChatRoomScreen ---
+import '../../providers/chat_provider.dart';
+import '../chatlist/chatroom.dart';
+
 // 輔助類別，用於打包 Future.wait 的結果
 class UserProfileData {
   final User user;
@@ -26,6 +30,9 @@ class PublicUserProfilePage extends StatefulWidget {
 
 class _PublicUserProfilePageState extends State<PublicUserProfilePage> {
   Future<UserProfileData>? _profileDataFuture;
+
+  // 防止重複點擊導致開啟多個聊天室
+  bool _isChatLoading = false;
 
   @override
   void initState() {
@@ -54,6 +61,59 @@ class _PublicUserProfilePageState extends State<PublicUserProfilePage> {
         );
       });
     });
+  }
+
+  // --- [新功能] 處理開始聊天邏輯 ---
+  Future<void> _handleStartChat(User seller) async {
+    final authProvider = context.read<AuthProvider>();
+
+    // 1. 檢查登入
+    if (!authProvider.isLoggedIn) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('請先登入才能傳送訊息'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    // 2. 避免重複點擊
+    if (_isChatLoading) return;
+    setState(() => _isChatLoading = true);
+
+    try {
+      final chatProvider = context.read<ChatProvider>();
+
+      // 3. 呼叫 Provider 建立或獲取通用聊天室 (後端 API)
+      final int roomId = await chatProvider.startGeneralChat(seller.id);
+
+      if (mounted) {
+        // 4. 導航到聊天室
+        // 注意：在進入 ChatRoomScreen 前，最好先呼叫 enterChatRoom
+        // (雖然 ChatRoomScreen 內部也會呼叫，但這樣能確保狀態連貫)
+        // 這裡我們直接傳遞 ID 讓 ChatRoomScreen 處理初始化
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ChatRoomScreen(
+              chatRoomId: roomId,
+              otherUserId: seller.id,
+              otherUserName: seller.username,
+              otherUserAvatarUrl: seller.avatarUrl,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('開啟聊天失敗: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isChatLoading = false);
+      }
+    }
   }
 
   @override
@@ -121,12 +181,12 @@ class _PublicUserProfilePageState extends State<PublicUserProfilePage> {
           floatingActionButton: isViewingOwnProfile
               ? null
               : FloatingActionButton.extended(
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text('與 ${userData.username} 開始聊天（功能待實現）')));
-            },
-            icon: const Icon(Icons.chat_bubble_outline),
-            label: const Text('傳送訊息'),
+            // --- [修改] 綁定聊天按鈕事件 ---
+            onPressed: _isChatLoading ? null : () => _handleStartChat(userData),
+            icon: _isChatLoading
+                ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                : const Icon(Icons.chat_bubble_outline),
+            label: Text(_isChatLoading ? '連線中...' : '傳送訊息'),
             backgroundColor: colorScheme.primary,
             foregroundColor: colorScheme.onPrimary,
           ),
