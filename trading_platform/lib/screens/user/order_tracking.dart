@@ -2,13 +2,12 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:timeline_tile/timeline_tile.dart'; // 確保已在 pubspec.yaml 加入 timeline_tile
+import 'package:timeline_tile/timeline_tile.dart';
 
 import '../../providers/order_provider.dart';
 import '../../models/order/order.dart';
 
 class OrderTrackingScreen extends StatefulWidget {
-  // 修正：ID 類型應為 int
   final int orderId;
 
   const OrderTrackingScreen({super.key, required this.orderId});
@@ -18,9 +17,6 @@ class OrderTrackingScreen extends StatefulWidget {
 }
 
 class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
-  // REFACTORED: 移除所有本地狀態 (_order, _isLoading, _error)
-
-  // 保留組員的設計：定義步驟條的顯示順序
   final List<OrderStatus> _allPossibleStatuses = [
     OrderStatus.pending,
     OrderStatus.preparing,
@@ -31,20 +27,17 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   @override
   void initState() {
     super.initState();
-    // REFACTORED: 透過 Provider 獲取訂單詳情
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<OrderProvider>().fetchOrderById(widget.orderId);
     });
   }
 
-  // REFACTORED: 刷新邏輯
   Future<void> _refreshOrder() async {
     await context.read<OrderProvider>().fetchOrderById(widget.orderId);
   }
 
   @override
   Widget build(BuildContext context) {
-    // REFACTORED: 使用 Consumer 來監聽 Provider 的狀態
     return Consumer<OrderProvider>(
       builder: (context, provider, child) {
         final order = provider.selectedOrder;
@@ -73,7 +66,6 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
       return const Center(child: Text('未找到訂單信息。'));
     }
 
-    // 特殊處理已取消或已退款的訂單
     if (order.status == OrderStatus.cancelled || order.status == OrderStatus.refunded || order.status == OrderStatus.failed) {
       return _buildCancelledOrderView(order);
     }
@@ -87,10 +79,15 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         children: [
           _buildOrderSummary(order),
 
-          // --- [新功能] 完成訂單按鈕 ---
-          // 根據訂單狀態，有條件地顯示 "完成訂單" 按鈕
-          _buildCompleteOrderButton(context, order),
-          // --- [新功能結束] ---
+          // --- 按鈕區域 ---
+          // 只有在 "delivering" 狀態才顯示 "完成訂單"
+          if (order.status == OrderStatus.delivering)
+            _buildCompleteOrderButton(context, order),
+
+          // --- [新功能] 取消訂單按鈕 ---
+          // 只有在 "pending" 或 "preparing" (待出貨) 狀態下才顯示 "取消訂單"
+          if (order.status == OrderStatus.pending || order.status == OrderStatus.preparing)
+            _buildCancelOrderButton(context, order),
 
           const SizedBox(height: 24),
           Text('訂單進度', style: Theme.of(context).textTheme.titleLarge),
@@ -106,38 +103,51 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     );
   }
 
-  // --- [新功能] 建立 "完成訂單" 按鈕 ---
   Widget _buildCompleteOrderButton(BuildContext context, Order order) {
-    // 檢查：只有在 "delivering" (運送中) 狀態才顯示按鈕
-    if (order.status == OrderStatus.delivering) {
-      // 取得 provider，但設 listen: false，因為我們只用於 'onPressed'
-      final provider = context.read<OrderProvider>();
-
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 24.0),
-        child: SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: () {
-              // 顯示確認對話框
-              _showCompleteConfirmationDialog(context, provider, order.orderId);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).primaryColor, // 使用主題顏色
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16.0),
-              textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            child: const Text('我已取貨並完成訂單'),
+    final provider = context.read<OrderProvider>();
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 24.0),
+      child: SizedBox(
+        width: double.infinity,
+        child: ElevatedButton(
+          onPressed: () {
+            _showCompleteConfirmationDialog(context, provider, order.orderId);
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Theme.of(context).primaryColor,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 16.0),
+            textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
+          child: const Text('我已取貨並完成訂單'),
         ),
-      );
-    }
-    // 其他狀態下不顯示任何東西
-    return const SizedBox.shrink();
+      ),
+    );
   }
 
-  // --- [新功能] "完成訂單" 的確認對話框 ---
+  // --- [新功能] 建立 "取消訂單" 按鈕 ---
+  Widget _buildCancelOrderButton(BuildContext context, Order order) {
+    final provider = context.read<OrderProvider>();
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 24.0),
+      child: SizedBox(
+        width: double.infinity,
+        child: OutlinedButton(
+          onPressed: () {
+            _showCancelConfirmationDialog(context, provider, order.orderId);
+          },
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Colors.red,
+            side: const BorderSide(color: Colors.red),
+            padding: const EdgeInsets.symmetric(vertical: 16.0),
+            textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          child: const Text('取消訂單'),
+        ),
+      ),
+    );
+  }
+
   void _showCompleteConfirmationDialog(BuildContext context, OrderProvider provider, int orderId) {
     showDialog(
       context: context,
@@ -148,33 +158,20 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
           actions: <Widget>[
             TextButton(
               child: const Text('取消'),
-              onPressed: () {
-                Navigator.of(dialogContext).pop(); // 關閉對話框
-              },
+              onPressed: () => Navigator.of(dialogContext).pop(),
             ),
             ElevatedButton(
               child: const Text('確認完成'),
               onPressed: () async {
-                Navigator.of(dialogContext).pop(); // 關閉對話框
+                Navigator.of(dialogContext).pop();
                 try {
-                  // 呼叫 Provider 執行動作
                   await provider.completeOrder(orderId);
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('訂單已完成！'),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('訂單已完成！'), backgroundColor: Colors.green));
                   }
                 } catch (e) {
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('操作失敗: $e'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('操作失敗: $e'), backgroundColor: Colors.red));
                   }
                 }
               },
@@ -185,8 +182,41 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     );
   }
 
-
-  // --- 以下 UI Builder Widgets 完整保留組員的設計，並適配新模型 ---
+  // --- [新功能] "取消訂單" 確認對話框 ---
+  void _showCancelConfirmationDialog(BuildContext context, OrderProvider provider, int orderId) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('確認取消訂單'),
+          content: const Text('您確定要取消此訂單嗎？\n\n如果是許願池訂單，庫存將會自動釋放。'),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('返回'),
+              onPressed: () => Navigator.of(dialogContext).pop(),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: const Text('確認取消', style: TextStyle(color: Colors.white)),
+              onPressed: () async {
+                Navigator.of(dialogContext).pop();
+                try {
+                  await provider.cancelOrder(orderId);
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('訂單已取消'), backgroundColor: Colors.orange));
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('操作失敗: $e'), backgroundColor: Colors.red));
+                  }
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   Widget _buildCancelledOrderView(Order order) {
     bool isCancelled = order.status == OrderStatus.cancelled;
@@ -225,7 +255,6 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
           children: [
             Text('訂單號: #${order.orderId}', style: const TextStyle(fontWeight: FontWeight.bold)),
             const Divider(height: 16),
-            // REFACTORED: 顯示商品列表
             ...order.items.map((item) => Padding(
               padding: const EdgeInsets.symmetric(vertical: 4.0),
               child: Row(

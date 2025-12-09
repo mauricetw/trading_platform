@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../providers/product_provider.dart';
 import '../../providers/wishpool_provider.dart';
-import '../../providers/wishpool_invite_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/chat_provider.dart'; // [新增] 引入 ChatProvider
 import '../../models/wishpool/wishpool.dart';
 import '../../models/product/product.dart';
+
 import 'wishpool_create.dart';
 import 'wishpool_manage.dart';
 import 'wishpool_detail.dart';
-import 'invite_dialog.dart';
+import 'fulfill_dialog.dart';
+import '../chatlist/chatroom.dart'; // [新增] 引入聊天室頁面
+
 import '../../widgets/FullBottomConcaveAppBarShape.dart';
 
 class WishPoolMain extends StatefulWidget {
@@ -20,8 +24,6 @@ class WishPoolMain extends StatefulWidget {
 }
 
 class _WishPoolMainState extends State<WishPoolMain> {
-  bool showMyManage = false;
-
   @override
   void initState() {
     super.initState();
@@ -32,10 +34,6 @@ class _WishPoolMainState extends State<WishPoolMain> {
   Widget build(BuildContext context) {
     final provider = context.watch<WishPoolProvider>();
     final wishPools = provider.wishPools;
-
-    if (showMyManage) {
-      return const WishPoolManage();
-    }
 
     return Scaffold(
       appBar: AppBar(
@@ -99,38 +97,71 @@ class _WishCard extends StatelessWidget {
   final WishPool wish;
   const _WishCard({required this.wish});
 
-  Future<void> _showInviteDialog(BuildContext context) async {
+  // --- [修改] 直接進入聊天室 ---
+  Future<void> _startChat(BuildContext context) async {
     final authProvider = context.read<AuthProvider>();
     if (!authProvider.isLoggedIn) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('請先登入才能發送邀請'), backgroundColor: Colors.red),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('請先登入')));
       return;
     }
-
     if (wish.userId == authProvider.currentUser?.id) {
-      await showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: const Text('這是你的願望'),
-          content: const Text('你不能向自己的願望發送邀請。'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('知道了'),
-            ),
-          ],
-        ),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('不能跟自己聊天')));
       return;
     }
 
-    // --- [修正] 移除所有商品檢查邏輯，直接顯示對話框 ---
+    try {
+      // 顯示 loading
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(child: CircularProgressIndicator()),
+      );
+
+      final chatProvider = context.read<ChatProvider>();
+      // 建立通用聊天室
+      final roomId = await chatProvider.startGeneralChat(wish.userId);
+
+      if (context.mounted) {
+        Navigator.pop(context); // 關閉 loading
+        // 跳轉到聊天室
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ChatRoomScreen(
+              chatRoomId: roomId,
+              otherUserId: wish.userId,
+              otherUserName: wish.user?.username ?? '未知使用者',
+              otherUserAvatarUrl: wish.user?.avatarUrl,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.pop(context); // 關閉 loading
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('開啟聊天失敗: $e')));
+      }
+    }
+  }
+
+  // --- [功能] 顯示 "接單" 對話框 ---
+  void _showFulfillDialog(BuildContext context) {
+    final authProvider = context.read<AuthProvider>();
+    if (!authProvider.isLoggedIn) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('請先登入')));
+      return;
+    }
+    if (wish.userId == authProvider.currentUser?.id) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('不能接自己的單')));
+      return;
+    }
+
     showDialog(
       context: context,
-      builder: (_) => InviteDialog(
+      builder: (_) => FulfillDialog(
         wishPoolId: wish.id,
         wishTitle: wish.title,
+        wishPrice: wish.price,
       ),
     );
   }
@@ -170,15 +201,15 @@ class _WishCard extends StatelessWidget {
                 const SizedBox(width: 4),
                 Text('${wish.likeCount} 人想要', style: const TextStyle(fontSize: 12, color: Colors.grey)),
                 const SizedBox(width: 16),
-                if (wish.priceMin != null || wish.priceMax != null)
-                  Text(
-                    '\$${wish.priceMin ?? 0} ~ \$${wish.priceMax ?? '不限'}',
-                    style: const TextStyle(fontSize: 12, color: Colors.blue),
-                  ),
+                Text(
+                  '\$${wish.price}',
+                  style: const TextStyle(fontSize: 12, color: Colors.blue, fontWeight: FontWeight.bold),
+                ),
               ],
             ),
           ],
         ),
+        // [修改] 選單邏輯
         trailing: PopupMenuButton<String>(
           onSelected: (value) {
             if (value == 'like') {
@@ -188,17 +219,19 @@ class _WishCard extends StatelessWidget {
                 return;
               }
               context.read<WishPoolProvider>().favoriteWish(wish.id);
-
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('已加入收藏！'), duration: Duration(seconds: 1)),
               );
-            } else if (value == 'invite') {
-              _showInviteDialog(context);
+            } else if (value == 'fulfill') {
+              _showFulfillDialog(context);
+            } else if (value == 'chat') {
+              _startChat(context);
             }
           },
           itemBuilder: (context) => const [
             PopupMenuItem(value: 'like', child: Text('我也想要')),
-            PopupMenuItem(value: 'invite', child: Text('發送邀請')),
+            PopupMenuItem(value: 'fulfill', child: Text('立即接單', style: TextStyle(color: Colors.green))),
+            PopupMenuItem(value: 'chat', child: Text('聊聊 / 議價')),
           ],
         ),
       ),

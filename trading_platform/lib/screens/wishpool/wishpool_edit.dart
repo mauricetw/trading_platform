@@ -16,8 +16,8 @@ class _WishPoolEditState extends State<WishPoolEdit> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _titleCtrl;
   late TextEditingController _descCtrl;
-  late TextEditingController _minCtrl;
-  late TextEditingController _maxCtrl;
+  late TextEditingController _priceCtrl;
+  late TextEditingController _qtyCtrl; // [新功能]
   late TextEditingController _tagCtrl;
   bool _isSubmitting = false;
 
@@ -27,8 +27,8 @@ class _WishPoolEditState extends State<WishPoolEdit> {
     final wish = widget.wish;
     _titleCtrl = TextEditingController(text: wish.title);
     _descCtrl = TextEditingController(text: wish.description ?? '');
-    _minCtrl = TextEditingController(text: wish.priceMin?.toString() ?? '');
-    _maxCtrl = TextEditingController(text: wish.priceMax?.toString() ?? '');
+    _priceCtrl = TextEditingController(text: wish.price.toString());
+    _qtyCtrl = TextEditingController(text: wish.quantity.toString()); // [新功能]
     _tagCtrl = TextEditingController(text: wish.tags?.join(', ') ?? '');
   }
 
@@ -36,8 +36,8 @@ class _WishPoolEditState extends State<WishPoolEdit> {
   void dispose() {
     _titleCtrl.dispose();
     _descCtrl.dispose();
-    _minCtrl.dispose();
-    _maxCtrl.dispose();
+    _priceCtrl.dispose();
+    _qtyCtrl.dispose();
     _tagCtrl.dispose();
     super.dispose();
   }
@@ -54,7 +54,7 @@ class _WishPoolEditState extends State<WishPoolEdit> {
         shape: const FullBottomConcaveAppBarShape(curveHeight: 25.0),
         elevation: 6.0,
         shadowColor: Colors.black.withOpacity(0.3),
-        iconTheme: const IconThemeData(color: Colors.white), // 確保返回按鈕是白色的
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -85,17 +85,27 @@ class _WishPoolEditState extends State<WishPoolEdit> {
                 children: [
                   Expanded(
                     child: TextFormField(
-                      controller: _minCtrl,
+                      controller: _priceCtrl,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: '最低價格'),
+                      decoration: const InputDecoration(labelText: '期望價格'),
+                      validator: (v) {
+                        if (v == null || v.isEmpty) return '請輸入價格';
+                        return null;
+                      },
                     ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: TextFormField(
-                      controller: _maxCtrl,
+                      controller: _qtyCtrl,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: '最高價格'),
+                      decoration: const InputDecoration(labelText: '數量'),
+                      validator: (v) {
+                        if (v == null || v.isEmpty) return '請輸入數量';
+                        final n = int.tryParse(v);
+                        if (n == null || n < 1) return '至少為 1';
+                        return null;
+                      },
                     ),
                   ),
                 ],
@@ -104,8 +114,9 @@ class _WishPoolEditState extends State<WishPoolEdit> {
               TextFormField(
                 controller: _tagCtrl,
                 decoration: const InputDecoration(
-                  labelText: '標籤（以逗號分隔）',
+                  labelText: '標籤 (以逗號分隔)',
                   border: OutlineInputBorder(),
+                  hintText: '例如：課本, 電子產品',
                 ),
               ),
               const SizedBox(height: 20),
@@ -115,7 +126,7 @@ class _WishPoolEditState extends State<WishPoolEdit> {
                   icon: const Icon(Icons.save),
                   label: Text(_isSubmitting ? '儲存中...' : '儲存修改'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF004E98), // 按鈕顏色與主題一致
+                    backgroundColor: const Color(0xFF004E98),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
@@ -128,8 +139,9 @@ class _WishPoolEditState extends State<WishPoolEdit> {
                     final body = {
                       'title': _titleCtrl.text.trim(),
                       'description': _descCtrl.text.trim(),
-                      'price_min': int.tryParse(_minCtrl.text),
-                      'price_max': int.tryParse(_maxCtrl.text),
+                      'price': int.parse(_priceCtrl.text),
+                      // --- [新功能] 傳送數量 ---
+                      'quantity': int.parse(_qtyCtrl.text),
                       'tags': _tagCtrl.text
                           .split(',')
                           .map((e) => e.trim())
@@ -172,7 +184,6 @@ class _WishPoolEditState extends State<WishPoolEdit> {
                             ),
                           ),
                         );
-                        // 關閉對話框後返回上一頁
                         Navigator.pop(context);
                       }
                     } catch (e) {

@@ -31,7 +31,7 @@ class AuthService {
     final responseBody = await _apiClient.post(
       '/auth/register',
       body: {
-        "nickname": username, // 確保 key 與後端 UserCreate schema 的 nickname 匹配
+        "username": username, // 確保 key 與後端 UserCreate schema 的 nickname 匹配
         "email": email,
         "password": password,
         "code": code,

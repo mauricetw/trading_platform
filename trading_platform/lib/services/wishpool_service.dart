@@ -5,14 +5,10 @@ import 'api_client.dart';
 class WishPoolService {
   final ApiClient _apiClient;
 
-  // 如果你在 main.dart 是用 WishPoolService() 初始化的，
-  // 你可能需要一個方式注入 ApiClient，或者直接在這裡實例化 (視你的架構而定)。
-  // 這裡假設透過建構子傳入 (推薦)，或者在 main.dart 中調整 Provider。
-  // 為了配合你 main.dart 裡的 `create: (_) => WishPoolProvider(WishPoolService()),`
-  // 暫時假設 ApiClient 是單例或內部獲取的，但最好的做法是像 OrderService 那樣傳入。
   WishPoolService([ApiClient? apiClient]) : _apiClient = apiClient ?? ApiClient();
 
-  /// 獲取所有許願單 (瀏覽頁面)
+  // ... (其他方法保持不變，get, create, update, delete...)
+
   Future<List<WishPool>> getAllWishes() async {
     try {
       final response = await _apiClient.get('/wishpool');
@@ -23,8 +19,6 @@ class WishPoolService {
       rethrow;
     }
   }
-
-  /// 獲取單一許願單詳情
   Future<WishPool> getWishById(int id) async {
     try {
       final response = await _apiClient.get('/wishpool/$id');
@@ -34,8 +28,6 @@ class WishPoolService {
       rethrow;
     }
   }
-
-  /// 建立許願單 (買家)
   Future<WishPool> createWish(Map<String, dynamic> wishData) async {
     try {
       final response = await _apiClient.post('/wishpool', body: wishData);
@@ -45,8 +37,6 @@ class WishPoolService {
       rethrow;
     }
   }
-
-  /// 更新許願單 (買家)
   Future<WishPool> updateWish(int id, Map<String, dynamic> wishData) async {
     try {
       final response = await _apiClient.put('/wishpool/$id', body: wishData);
@@ -56,8 +46,6 @@ class WishPoolService {
       rethrow;
     }
   }
-
-  /// 刪除許願單 (買家)
   Future<void> deleteWish(int id) async {
     try {
       await _apiClient.delete('/wishpool/$id');
@@ -66,8 +54,6 @@ class WishPoolService {
       rethrow;
     }
   }
-
-  /// 收藏許願單 (我也想要)
   Future<void> favoriteWish(int id) async {
     try {
       await _apiClient.post('/wishpool/$id/favorite');
@@ -76,13 +62,37 @@ class WishPoolService {
       rethrow;
     }
   }
-
-  /// 取消收藏
   Future<void> unfavoriteWish(int id) async {
     try {
       await _apiClient.delete('/wishpool/$id/favorite');
     } catch (e) {
       debugPrint('[WishPoolService] 取消收藏失敗: $e');
+      rethrow;
+    }
+  }
+
+  /// [修改] 賣家接單
+  /// 支援兩種模式：
+  /// 1. [productId] 不為空 -> 使用現有商品
+  /// 2. [productId] 為空 -> 快速接單 (需後端支援)
+  Future<WishPool> fulfillWish(int wishId, {int? productId, String? newProductName}) async {
+    try {
+      final Map<String, dynamic> body = {};
+
+      if (productId != null) {
+        body['product_id'] = productId;
+      } else {
+        // 快速接單模式
+        body['product_id'] = null;
+        if (newProductName != null) {
+          body['new_product_name'] = newProductName;
+        }
+      }
+
+      final response = await _apiClient.post('/wishpool/$wishId/fulfill', body: body);
+      return WishPool.fromJson(response);
+    } catch (e) {
+      debugPrint('[WishPoolService] 接單失敗: $e');
       rethrow;
     }
   }

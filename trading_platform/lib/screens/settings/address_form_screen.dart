@@ -5,9 +5,6 @@ import '../../models/user/address.dart';
 import '../../providers/address_provider.dart';
 
 class AddressFormScreen extends StatefulWidget {
-  // 1. 接收一個可選的地址物件
-  // - 如果是 null，代表是「新增」模式
-  // - 如果不是 null，代表是「編輯」模式
   final Address? addressToEdit;
 
   const AddressFormScreen({super.key, this.addressToEdit});
@@ -20,11 +17,12 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
 
-  // 2. 為所有欄位建立 Controllers
   late TextEditingController _nameController;
   late TextEditingController _phoneController;
   late TextEditingController _postalCodeController;
   late TextEditingController _cityController;
+  // --- [新功能] 新增區域控制器 ---
+  late TextEditingController _districtController;
   late TextEditingController _street1Controller;
   late TextEditingController _street2Controller;
   bool _isDefault = false;
@@ -35,12 +33,13 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
   void initState() {
     super.initState();
 
-    // 3. 初始化 Controllers
     final address = widget.addressToEdit;
     _nameController = TextEditingController(text: address?.recipientName ?? '');
     _phoneController = TextEditingController(text: address?.phoneNumber ?? '');
     _postalCodeController = TextEditingController(text: address?.postalCode ?? '');
     _cityController = TextEditingController(text: address?.city ?? '');
+    // --- [新功能] 初始化區域 ---
+    _districtController = TextEditingController(text: address?.district ?? '');
     _street1Controller = TextEditingController(text: address?.streetAddress1 ?? '');
     _street2Controller = TextEditingController(text: address?.streetAddress2 ?? '');
     _isDefault = address?.isDefault ?? false;
@@ -52,44 +51,41 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
     _phoneController.dispose();
     _postalCodeController.dispose();
     _cityController.dispose();
+    _districtController.dispose(); // 別忘了釋放
     _street1Controller.dispose();
     _street2Controller.dispose();
     super.dispose();
   }
 
-  // 4. 儲存表單
   Future<void> _saveForm() async {
     if (!_formKey.currentState!.validate()) {
-      return; // 表單驗證失敗
+      return;
     }
 
     setState(() { _isLoading = true; });
 
-    // 5. 將所有資料打包成 Map<String, dynamic>
-    //    這與後端的 AddressCreate 和 AddressUpdate schema 相符
     final addressData = {
       "recipient_name": _nameController.text.trim(),
       "phone_number": _phoneController.text.trim(),
       "postal_code": _postalCodeController.text.trim(),
       "city": _cityController.text.trim(),
+      // --- [新功能] 傳送區域 ---
+      "district": _districtController.text.trim(),
       "street_address_1": _street1Controller.text.trim(),
       "street_address_2": _street2Controller.text.trim().isEmpty ? null : _street2Controller.text.trim(),
       "is_default": _isDefault,
-      // (country, province, district 等欄位可以稍後再加入)
     };
 
     try {
       final provider = context.read<AddressProvider>();
       if (_isEditing) {
-        // 更新
         await provider.updateAddress(widget.addressToEdit!.id, addressData);
       } else {
-        // 新增
         await provider.addAddress(addressData);
       }
 
       if (mounted) {
-        Navigator.pop(context); // 成功後返回上一頁
+        Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(_isEditing ? '地址已更新' : '地址已新增'), backgroundColor: Colors.green),
         );
@@ -128,11 +124,14 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
                   children: [
                     Expanded(child: _buildTextField(_postalCodeController, '郵遞區號', '請輸入郵遞區號', keyboardType: TextInputType.number)),
                     const SizedBox(width: 16),
-                    Expanded(child: _buildTextField(_cityController, '城市/地區', '例如：台北市')),
+                    Expanded(child: _buildTextField(_cityController, '縣市', '例如：台北市')),
                   ],
                 ),
-                _buildTextField(_street1Controller, '詳細地址', '請輸入街道名稱和門牌號碼'),
-                _buildTextField(_street2Controller, '詳細地址 2 (可選)', '', isRequired: false),
+                // --- [新功能] 區域欄位 ---
+                _buildTextField(_districtController, '鄉鎮市區', '例如：大安區'),
+
+                _buildTextField(_street1Controller, '詳細地址 (街道/門牌)', '請輸入街道名稱和門牌號碼'),
+                _buildTextField(_street2Controller, '詳細地址 2 (樓層/室號 - 可選)', '', isRequired: false),
 
                 SwitchListTile(
                   title: const Text('設為預設地址'),
@@ -163,7 +162,6 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
     );
   }
 
-  // 輔助函式：建立 TextFormField
   Widget _buildTextField(
       TextEditingController controller,
       String labelText,

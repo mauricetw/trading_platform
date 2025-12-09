@@ -19,8 +19,16 @@ class WishPool {
   final List<String>? tags;
   final String? photoUrl;
 
-  final int? priceMin;
-  final int? priceMax;
+  final int price;
+  final int quantity;
+
+  // --- [修改] addressId 已移除，改為 shippingAddress 快照 ---
+  // 雖然這在後端有，但為了簡單起見，我們前端模型暫時不需要顯示這個詳細地址，
+  // 除非你想在詳情頁顯示。這裡先不加入，以免解析錯誤。
+
+  final String shippingName;
+  final double shippingCost;
+
   final String? location;
   final String? courseCode;
 
@@ -42,8 +50,10 @@ class WishPool {
     this.categoryId,
     this.tags,
     this.photoUrl,
-    this.priceMin,
-    this.priceMax,
+    required this.price,
+    required this.quantity,
+    required this.shippingName,
+    required this.shippingCost,
     this.location,
     this.courseCode,
     this.status = 'open',
@@ -57,12 +67,17 @@ class WishPool {
 
   factory WishPool.fromJson(Map<String, dynamic> json) {
     try {
-      // 安全解析 Int
       int? safeInt(dynamic val) {
         if (val == null) return null;
         if (val is num) return val.toInt();
         if (val is String) return int.tryParse(val);
         return null;
+      }
+      double safeDouble(dynamic val, double defaultVal) {
+        if (val == null) return defaultVal;
+        if (val is num) return val.toDouble();
+        if (val is String) return double.tryParse(val) ?? defaultVal;
+        return defaultVal;
       }
 
       return WishPool(
@@ -73,8 +88,12 @@ class WishPool {
         categoryId: safeInt(json['category_id']),
         tags: (json['tags'] as List?)?.map((e) => e.toString()).toList(),
         photoUrl: json['photo_url'] as String?,
-        priceMin: safeInt(json['price_min']),
-        priceMax: safeInt(json['price_max']),
+        price: safeInt(json['price']) ?? 0,
+        quantity: safeInt(json['quantity']) ?? 1,
+
+        shippingName: json['shipping_name'] as String? ?? '標準配送',
+        shippingCost: safeDouble(json['shipping_cost'], 60.0),
+
         location: json['location'] as String?,
         courseCode: json['course_code'] as String?,
         status: json['status'] as String? ?? 'open',
@@ -93,12 +112,15 @@ class WishPool {
         id: 0,
         userId: 0,
         title: '解析失敗',
+        price: 0,
+        quantity: 1,
+        shippingName: '',
+        shippingCost: 0,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
     }
   }
 
-  // --- [BUG 修正] 補上 toJson 方法 ---
   Map<String, dynamic> toJson() => _$WishPoolToJson(this);
 }

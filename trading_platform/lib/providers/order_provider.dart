@@ -13,7 +13,7 @@ class OrderProvider with ChangeNotifier {
   bool _isListLoading = false;
   String? _listError;
 
-  // --- 關鍵新增：詳情頁狀態 ---
+  // --- 詳情頁狀態 ---
   Order? _selectedOrder;
   bool _isDetailLoading = false;
   String? _detailError;
@@ -40,7 +40,7 @@ class OrderProvider with ChangeNotifier {
         fetchMyOrders();
       } else {
         _orders = [];
-        _selectedOrder = null; // 登出時也清除詳情
+        _selectedOrder = null;
         notifyListeners();
       }
     }
@@ -61,7 +61,6 @@ class OrderProvider with ChangeNotifier {
     }
   }
 
-  // --- 關鍵新增：獲取單一訂單的詳細資訊 ---
   Future<void> fetchOrderById(int orderId) async {
     if (!(_authProvider?.isLoggedIn ?? false)) return;
     _isDetailLoading = true;
@@ -78,33 +77,46 @@ class OrderProvider with ChangeNotifier {
     }
   }
 
-  // --- [新功能] 買家確認完成訂單 ---
+  // --- 買家確認完成訂單 ---
   Future<void> completeOrder(int orderId) async {
     if (!(_authProvider?.isLoggedIn ?? false)) return;
 
     try {
-      // 1. 呼叫 API，獲取更新後的訂單
       final updatedOrder = await _orderService.completeOrderAsBuyer(orderId);
-
-      // 2. 更新本地列表中的訂單
-      final index = _orders.indexWhere((o) => o.orderId == orderId);
-      if (index != -1) {
-        _orders[index] = updatedOrder;
-      }
-
-      // 3. 如果這筆訂單剛好是 "selectedOrder"，也更新它
-      if (_selectedOrder?.orderId == orderId) {
-        _selectedOrder = updatedOrder;
-      }
-
-      // 4. 通知 UI 更新
+      _updateLocalOrder(updatedOrder);
       notifyListeners();
-
     } catch (e) {
-      // 顯示錯誤，但不修改本地狀態
-      _detailError = "完成訂單失敗: $e"; // 顯示在詳情錯誤中
+      _detailError = "完成訂單失敗: $e";
       notifyListeners();
-      rethrow; // 讓 UI 知道失敗了
+      rethrow;
+    }
+  }
+
+  // --- [新功能] 買家取消訂單 ---
+  Future<void> cancelOrder(int orderId) async {
+    if (!(_authProvider?.isLoggedIn ?? false)) return;
+
+    try {
+      final updatedOrder = await _orderService.cancelOrderAsBuyer(orderId);
+      _updateLocalOrder(updatedOrder);
+      notifyListeners();
+    } catch (e) {
+      _detailError = "取消訂單失敗: $e";
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  // 輔助函式：更新本地列表和詳情
+  void _updateLocalOrder(Order updatedOrder) {
+    // 1. 更新列表
+    final index = _orders.indexWhere((o) => o.orderId == updatedOrder.orderId);
+    if (index != -1) {
+      _orders[index] = updatedOrder;
+    }
+    // 2. 更新詳情
+    if (_selectedOrder?.orderId == updatedOrder.orderId) {
+      _selectedOrder = updatedOrder;
     }
   }
 }

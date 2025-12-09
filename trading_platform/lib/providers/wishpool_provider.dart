@@ -14,12 +14,12 @@ class WishPoolProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
-  /// 載入願望池列表
+  // ... (load, add, update, remove, favorite, unfavorite 保持不變) ...
+
   Future<void> loadWishPools() async {
     _isLoading = true;
     _error = null;
     notifyListeners();
-
     try {
       _wishPools = await _service.getAllWishes();
     } catch (e) {
@@ -30,8 +30,6 @@ class WishPoolProvider with ChangeNotifier {
       notifyListeners();
     }
   }
-
-  /// 新增願望
   Future<void> addWishPool(Map<String, dynamic> body) async {
     try {
       final newWish = await _service.createWish(body);
@@ -42,8 +40,6 @@ class WishPoolProvider with ChangeNotifier {
       rethrow;
     }
   }
-
-  /// 更新願望
   Future<void> updateWishPool(int id, Map<String, dynamic> body) async {
     try {
       final updatedWish = await _service.updateWish(id, body);
@@ -57,8 +53,6 @@ class WishPoolProvider with ChangeNotifier {
       rethrow;
     }
   }
-
-  /// 刪除願望
   Future<void> removeWishPool(int id) async {
     try {
       await _service.deleteWish(id);
@@ -69,25 +63,35 @@ class WishPoolProvider with ChangeNotifier {
       rethrow;
     }
   }
-
-  /// 收藏願望 (目前僅實作 API 呼叫)
   Future<void> favoriteWish(int id) async {
     try {
       await _service.favoriteWish(id);
-      // 這裡可以優化：本地更新 likeCount + 1
     } catch (e) {
       debugPrint('收藏 WishPool 失敗: $e');
       rethrow;
     }
   }
-
-  /// 取消收藏
   Future<void> unfavoriteWish(int id) async {
     try {
       await _service.unfavoriteWish(id);
-      // 這裡可以優化：本地更新 likeCount - 1
     } catch (e) {
       debugPrint('取消收藏 WishPool 失敗: $e');
+      rethrow;
+    }
+  }
+
+  /// [修改] 賣家接單
+  Future<void> fulfillWish(int wishId, {int? productId, String? newProductName}) async {
+    try {
+      final updatedWish = await _service.fulfillWish(wishId, productId: productId, newProductName: newProductName);
+      // 更新列表中的狀態
+      final index = _wishPools.indexWhere((w) => w.id == wishId);
+      if (index != -1) {
+        _wishPools[index] = updatedWish;
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('接單失敗: $e');
       rethrow;
     }
   }

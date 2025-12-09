@@ -3,14 +3,9 @@ import 'package:flutter/foundation.dart';
 import '../models/user/address.dart';
 import '../models/user/cart_item.dart';
 import '../models/user/shipping_option.dart';
-// 1. OrderService 會從這個檔案導入 Order 和 OrderStatus
 import '../models/order/order.dart';
 import '../models/order/discount_info.dart';
 import 'api_client.dart';
-
-// 2. --- [BUG 修正] ---
-//    我已將這裡重複定義的 'enum OrderStatus' 區塊刪除。
-//    OrderService 現在會使用從 'models/order/order.dart' 匯入的 OrderStatus。
 
 class OrderService {
   final ApiClient _apiClient;
@@ -75,17 +70,30 @@ class OrderService {
     }
   }
 
-  // --- [新功能] 買家確認完成訂單 ---
+  /// [買家] 確認完成訂單
   Future<Order> completeOrderAsBuyer(int orderId) async {
     debugPrint('[OrderService] API: Buyer completing order #$orderId...');
     try {
-      // 呼叫我們在後端新增的 PATCH /orders/{id}/complete 路由
       final responseBody = await _apiClient.patch('/orders/$orderId/complete');
       final order = Order.fromJson(responseBody);
       debugPrint('[OrderService] API: Successfully completed order #${order.orderId}.');
       return order;
     } catch (e) {
       debugPrint('[OrderService] API: Failed to complete order #$orderId: $e');
+      rethrow;
+    }
+  }
+
+  // --- [新功能] [買家] 取消訂單 ---
+  Future<Order> cancelOrderAsBuyer(int orderId) async {
+    debugPrint('[OrderService] API: Buyer cancelling order #$orderId...');
+    try {
+      final responseBody = await _apiClient.patch('/orders/$orderId/cancel');
+      final order = Order.fromJson(responseBody);
+      debugPrint('[OrderService] API: Successfully cancelled order #${order.orderId}.');
+      return order;
+    } catch (e) {
+      debugPrint('[OrderService] API: Failed to cancel order #$orderId: $e');
       rethrow;
     }
   }
@@ -99,7 +107,6 @@ class OrderService {
     try {
       final queryParams = <String, String>{};
       if (status != null) {
-        // 3. 這裡的 'status.name' 會正確地使用 'order.dart' 中的 OrderStatus
         queryParams['status'] = status.name;
       }
       final responseBody = await _apiClient.get('/seller/orders', queryParams: queryParams);
@@ -113,7 +120,6 @@ class OrderService {
     }
   }
 
-  // --- [新功能] ---
   /// [賣家] 獲取單一訂單的詳細資訊
   Future<Order> getSellerOrderById(int orderId) async {
     debugPrint('[OrderService] API: Getting SELLER details for order #$orderId...');
@@ -140,7 +146,6 @@ class OrderService {
       final responseBody = await _apiClient.patch(
         '/seller/orders/$orderId/status',
         body: {
-          // 4. 這裡的 'newStatus.name' 同樣會正確運作
           'status': newStatus.name,
           if (description != null) 'description': description,
         },
@@ -152,11 +157,10 @@ class OrderService {
     }
   }
 
-  // --- [新功能] 賣家標記為未取貨退回 ---
+  /// [賣家] 標記為未取貨退回
   Future<Order> markOrderAsReturned(int orderId) async {
     debugPrint('[OrderService] API: Seller marking order #$orderId as RETURNED...');
     try {
-      // 呼叫我們在後端新增的 PATCH /seller/orders/{id}/return 路由
       final responseBody = await _apiClient.patch('/seller/orders/$orderId/return');
       final order = Order.fromJson(responseBody);
       debugPrint('[OrderService] API: Successfully marked order #${order.orderId} as returned.');
@@ -168,9 +172,8 @@ class OrderService {
   }
 
 
-  // --- 運送方式管理 API ---
+  // --- 運送方式管理 API (保持不變) ---
 
-  /// --- 獲取指定賣家的可用運送方式 (給結帳頁使用) ---
   Future<List<ShippingOption>> getAvailableShippingMethods(int sellerId) async {
     debugPrint('[OrderService] API: Getting shipping methods for sellerId: $sellerId');
     try {
@@ -186,7 +189,6 @@ class OrderService {
     }
   }
 
-  /// --- 獲取賣家自己的所有運送方式 (給設定頁使用) ---
   Future<List<ShippingOption>> getMyShippingOptions() async {
     debugPrint('[OrderService] API: Getting MY shipping options...');
     try {
@@ -199,7 +201,6 @@ class OrderService {
     }
   }
 
-  /// --- 為當前賣家新增一個運送方式 ---
   Future<ShippingOption> addShippingOption(Map<String, dynamic> data) async {
     debugPrint('[OrderService] API: Adding new shipping option...');
     try {
@@ -211,7 +212,6 @@ class OrderService {
     }
   }
 
-  /// --- 更新一個已存在的運送方式 ---
   Future<ShippingOption> updateShippingOption(int optionId, Map<String, dynamic> data) async {
     debugPrint('[OrderService] API: Updating shipping option #$optionId...');
     try {
@@ -223,7 +223,6 @@ class OrderService {
     }
   }
 
-  /// --- 刪除一個運送方式 ---
   Future<void> deleteShippingOption(int optionId) async {
     debugPrint('[OrderService] API: Deleting shipping option #$optionId...');
     try {
@@ -235,10 +234,8 @@ class OrderService {
     }
   }
 
-  /// 驗證並套用優惠券代碼 (保留模擬邏輯)
   Future<DiscountInfo> applyCoupon(String couponCode, List<CartItem> items) async {
     debugPrint('[OrderService] Mock: Applying coupon: $couponCode');
-    // TODO: 未來在此處呼叫真實的後端 API - POST /coupons/apply
     await Future.delayed(const Duration(seconds: 1));
     if (couponCode.toUpperCase() == "SALE50") {
       return DiscountInfo(discountAmount: 50, message: "已成功折抵 NT\$50", appliedCouponCode: couponCode);
