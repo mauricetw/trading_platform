@@ -38,7 +38,13 @@ import 'screens/wishpool/wishpool_main.dart';
 
 import 'theme/app_theme.dart';
 
+import 'dart:io'; // 記得匯入這個
+import 'http_overrides.dart'; // 記得匯入剛剛建立的檔案 (路徑要對)
+
 void main() {
+  // 👇【關鍵】加入這一行，強制忽略 SSL 憑證錯誤
+  HttpOverrides.global = MyHttpOverrides();
+
   // 1. 建立共用的 ApiClient 實例 (它會持有 Token)
   final ApiClient apiClient = ApiClient();
 
