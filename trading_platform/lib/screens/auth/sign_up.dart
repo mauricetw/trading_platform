@@ -26,6 +26,75 @@ class _SignUpPageState extends State<SignUpPage> {
   int _countdown = 60;
   bool _isCountingDown = false;
 
+  bool _isLoading = false;  // 用於顯示加載指示器
+  String _errorMessage = ''; // 用於顯示錯誤訊息
+  final ApiService apiService = ApiService();
+
+  void handleRegister() async {
+    setState(() {
+      _isLoading = true;  // 顯示加載動畫
+      _errorMessage = ''; // 清空錯誤訊息
+    });
+
+    String username = _usernameController.text.trim();
+    String email = _emailController.text.trim();
+    String password = _passwordController.text.trim();
+    String confirmPassword = _confirmPasswordController.text.trim();
+
+    if (password != confirmPassword) {
+      _showErrorDialog("Passwords do not match");
+      return;
+    }
+
+    try {
+      final response = await apiService.registerUser(username, email, password);
+      _showSuccessDialog(response['message']);
+      // 點擊按鈕時跳轉至登入頁面
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => SignInPage()),
+      );
+    } catch (e) {
+      _showErrorDialog(e.toString());
+    }
+  }
+
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text("Error"),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text("OK"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSuccessDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (context) =>
+          AlertDialog(
+            title: Text("Success"),
+            content: Text(message),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.pop(context); // 返回登入頁面
+                },
+                child: Text("OK"),
+              ),
+            ],
+          ),
+    );
+  }
+
   @override
   void dispose() {
     _timer?.cancel();
