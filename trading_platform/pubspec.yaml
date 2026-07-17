@@ -37,18 +37,33 @@ dependencies:
   provider: ^6.0.5
   http: ^1.4.0
   shared_preferences: ^2.0.17
+  intl: ^0.20.2
+  freezed_annotation: ^3.0.0
+  json_annotation: ^4.9.0
+  flutter_secure_storage: ^9.2.2
+  image_picker: ^1.0.7
+  timeline_tile:
+
+  flutter_launcher_icons: ^0.13.1
+
+  flutter_native_splash: ^2.3.10
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
 
+  build_runner: ^2.5.2
+  freezed: ^3.0.6
+  json_serializable: ^6.9.5
+  http: ^1.1.0
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
-
+  flutter_rating_bar: ^4.0.1 # 使用套件的最新版本
+  rename_app: ^1.6.5
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
@@ -93,3 +108,33 @@ flutter:
   assets:
     - assets/
     - assets/image/
+
+flutter_launcher_icons:
+  android: "trading_icon" # Android 圖示檔名
+  ios: true                # 是否產生 iOS 圖示
+  image_path: "assets/image/trading_logo.png" # 你的圖片路徑
+  min_sdk_android: 21      # 建議設定，避免舊版警告
+
+  remove_alpha_ios: true
+
+  # 如果您有設定自適應圖示 (Adaptive Icon)，下面這兩行保留
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/image/trading_logo.png"
+
+flutter_native_splash:
+  # 1. 背景顏色 (可以用白色 #FFFFFF 或您品牌的顏色)
+  color: "#FFFFFF"
+
+  # 2. 您要顯示的完整 Logo 圖片路徑
+  image: "assets/splash/splash.png"
+
+  # 3. 這是關鍵！針對 Android 12+ 的特別設定
+  android_12:
+    image: "assets/splash/splash.png"
+    color: "#FFFFFF"
+    # 如果您的 Logo 很大，可以設為 true 讓它填滿 icon 區域，但通常設 false 比較安全
+    icon_background_color: "#FFFFFF"
+
+  # (選用) 如果您想在深色模式下顯示不同的背景或 Logo
+  # color_dark: "#000000"
+  # image_dark: "assets/splash/splash_dark.png"

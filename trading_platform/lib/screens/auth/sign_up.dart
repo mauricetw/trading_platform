@@ -1,27 +1,9 @@
+// --- FILE: lib/screens/auth/sign_up.dart ---
+// (已整合 AuthProvider)
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:first_flutter_project/api_service.dart';
-import '../auth/sign_in.dart';
-
-/*void main() {
-  runApp(const MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false, // 移除右上角的调试标签
-      title: '注册界面', // 应用标题，通常显示在任务管理器中
-      theme: ThemeData(
-        primarySwatch: Colors.blue, // 主题色为蓝色
-        fontFamily: 'Microsoft YaHei', // 使用微软雅黑作为默认字体，支持中文显示
-      ),
-      home: const SignUpPage(), // 设置应用的首页为注册页面
-    );
-  }
-}*/
+import 'package:provider/provider.dart';
+import '../../providers/auth_provider.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -30,19 +12,19 @@ class SignUpPage extends StatefulWidget {
   State<SignUpPage> createState() => _SignUpPageState();
 }
 
-/// 注册页面的状态管理类
 class _SignUpPageState extends State<SignUpPage> {
-  // GlobalKey用于获取Form的状态，可以用来验证表单
   final _formKey = GlobalKey<FormState>();
-  // 默认显示错误信息，在真实应用中应该根据表单验证结果设置
-  bool _hasErrors = false;
+  final _usernameController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _codeController = TextEditingController();
 
-  // 创建文本控制器，用于获取和设置各个输入框的值
-  final TextEditingController _usernameController = TextEditingController(); // 用户名控制器
-  final TextEditingController _passwordController = TextEditingController(); // 密码控制器
-  final TextEditingController _confirmPasswordController = TextEditingController(); // 确认密码控制器
-  final TextEditingController _emailController = TextEditingController(); // 电子邮箱控制器
-  final TextEditingController _verificationCodeController = TextEditingController(); // 验证码控制器
+  bool _isRegistering = false;
+  bool _isSendingCode = false;
+  Timer? _timer;
+  int _countdown = 60;
+  bool _isCountingDown = false;
 
   bool _isLoading = false;  // 用於顯示加載指示器
   String _errorMessage = ''; // 用於顯示錯誤訊息
@@ -115,246 +97,240 @@ class _SignUpPageState extends State<SignUpPage> {
 
   @override
   void dispose() {
-    // 释放所有控制器资源，防止内存泄漏
+    _timer?.cancel();
     _usernameController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     _emailController.dispose();
-    _verificationCodeController.dispose();
-    super.dispose(); // 调用父类的dispose方法
+    _codeController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _sendVerificationCode() async {
+    FocusScope.of(context).unfocus();
+    if (!_emailController.text.endsWith('@mail.ntust.edu.tw')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('請輸入有效的台科大信箱 (@mail.ntust.edu.tw)'), backgroundColor: Colors.orange),
+      );
+      return;
+    }
+    
+    setState(() { _isSendingCode = true; });
+    
+    try {
+      await Provider.of<AuthProvider>(context, listen: false).sendVerificationCode(_emailController.text.trim());
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('驗證碼已寄出'), backgroundColor: Colors.green),
+        );
+      }
+      _startTimer();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('發送失敗: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() { _isSendingCode = false; });
+      }
+    }
+  }
+
+  void _startTimer() {
+    _countdown = 60;
+    _isCountingDown = true;
+    if (mounted) setState(() {});
+
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_countdown > 0) {
+        if (mounted) setState(() { _countdown--; });
+      } else {
+        _timer?.cancel();
+        if (mounted) {
+          setState(() {
+            _isCountingDown = false;
+          });
+        }
+      }
+    });
+  }
+
+  Future<void> _handleRegister() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() { _isRegistering = true; });
+
+    try {
+      await Provider.of<AuthProvider>(context, listen: false).register(
+        _usernameController.text.trim(),
+        _emailController.text.trim(),
+        _passwordController.text.trim(),
+        _codeController.text.trim(),
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('註冊成功！請登入。'), backgroundColor: Colors.green),
+        );
+        // 註冊成功後，返回登入頁
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('註冊失敗: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() { _isRegistering = false; });
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: Container(
-          width: 540, // page宽度
-          height: 960, // [age高度
-          decoration: BoxDecoration(
-            color: Colors.white // 背景颜色为白色
-          ),
-          child: SingleChildScrollView( // 添加滚动视图
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(60.0, 20.0, 60.0, 20.0),
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 30.0, vertical: 20.0),
+            child: Form(
+              key: _formKey,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(height: 20), // 垂直间距
-
-                // 返回按钮
-                Align(
-                  alignment: Alignment.centerLeft, // 左对齐
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context);
-                    },
-                    icon: const Icon(Icons.arrow_back, color: Colors.white), // 返回图标
-                    label: const Text('返回', style: TextStyle(color: Colors.white)), // 按钮文本
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF3333AA), // 背景
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
+                  // 返回按鈕
+                  Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF004E98),
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
                     ),
                   ),
-                ),
-                const SizedBox(height: 45), // 垂直间距
+                  const SizedBox(height: 20),
 
-                // 注册表单
-                Form(
-                  key: _formKey, // 关联表单key，用于表单验证
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start, // 子组件左对齐
+                  // 標題
+                  const Text('帳號註冊', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF004E98))),
+                  const SizedBox(height: 40),
+
+                  // 表單欄位
+                  _buildSectionTitle('使用者帳號'),
+                  TextFormField(
+                    controller: _usernameController,
+                    decoration: _buildInputDecoration(),
+                    validator: (v) => (v == null || v.isEmpty) ? '欄位不能為空' : null,
+                  ),
+                  const SizedBox(height: 24),
+
+                  _buildSectionTitle('使用者密碼'),
+                  TextFormField(
+                    controller: _passwordController,
+                    obscureText: true,
+                    decoration: _buildInputDecoration(),
+                    validator: (v) => (v == null || v.length < 8) ? '密碼長度至少需8個字元' : null,
+                  ),
+                  const SizedBox(height: 24),
+
+                  _buildSectionTitle('再次確認密碼'),
+                  TextFormField(
+                    controller: _confirmPasswordController,
+                    obscureText: true,
+                    decoration: _buildInputDecoration(),
+                    validator: (v) => (v != _passwordController.text) ? '兩次輸入的密碼不一致' : null,
+                  ),
+                  const SizedBox(height: 24),
+
+                  _buildSectionTitle('電子信箱'),
+                  TextFormField(
+                    controller: _emailController,
+                    decoration: _buildInputDecoration(),
+                    keyboardType: TextInputType.emailAddress,
+                    validator: (v) => (v == null || !v.endsWith('@mail.ntust.edu.tw')) ? '請輸入有效的台科大信箱' : null,
+                  ),
+                  const SizedBox(height: 24),
+
+                  _buildSectionTitle('驗證碼'),
+                  Row(
                     children: [
-                      // 用户名输入区域
-                      const Text('使用者帳號', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)), // 标签
-                      const SizedBox(height: 5), // 间距
-                      TextFormField( // 输入框
-                        controller: _usernameController, // 关联控制器
-                        decoration: InputDecoration(
-                          filled: true, // 填充背景
-                          fillColor: Colors.grey[200], // 背景颜色为浅灰色
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(4.0),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 15), // 内容内边距
-                        ),
-                        // 可以添加验证器
-                        // validator: (value) {
-                        //   if (value == null || value.isEmpty) {
-                        //     return '请输入用户名';
-                        //   }
-                        //   return null;
-                        // },
-                      ),
-                      const SizedBox(height: 20), // 垂直间距
-
-                      // 密码输入区域
-                      const Text('使用者密碼', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)), // 标签
-                      const SizedBox(height: 5), // 间距
-                      TextFormField(
-                        controller: _passwordController, // 关联控制器
-                        obscureText: true, // 密码模式，文本显示为圆点
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Colors.grey[200],
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(4.0),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
+                      Expanded(
+                        child: TextFormField(
+                          controller: _codeController,
+                          decoration: _buildInputDecoration(),
+                          keyboardType: TextInputType.number,
+                          validator: (v) => (v == null || v.length != 6) ? '請輸入6位數驗證碼' : null,
                         ),
                       ),
-                      const SizedBox(height: 20),
-
-                      // 确认密码输入区域
-                      const Text('再次確認密碼', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 5),
-                      TextFormField(
-                        controller: _confirmPasswordController, // 关联控制器
-                        obscureText: true, // 密码模式
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Colors.grey[200],
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(4.0),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
+                      const SizedBox(width: 12),
+                      ElevatedButton(
+                        onPressed: (_isSendingCode || _isCountingDown) ? null : _sendVerificationCode,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFFF8C00),
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                         ),
-                        // 可以添加验证器确保与密码一致
-                        // validator: (value) {
-                        //   if (value != _passwordController.text) {
-                        //     return '两次输入的密码不一致';
-                        //   }
-                        //   return null;
-                        // },
-                      ),
-                      const SizedBox(height: 20),
-
-                      // 电子邮箱输入区域
-                      const Text('電子信箱', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 5),
-                      TextFormField(
-                        controller: _emailController, // 关联控制器
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Colors.grey[200],
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(4.0),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
-                        ),
-                        // 可以添加电子邮箱格式验证
-                        // validator: (value) {
-                        //   if (value == null || !value.contains('@')) {
-                        //     return '请输入有效的电子邮箱';
-                        //   }
-                        //   return null;
-                        // },
-                      ),
-                      const SizedBox(height: 20),
-
-                      // 验证码输入区域和获取验证码按钮
-                      const Text('驗證碼', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 5),
-                      Row(
-                        children: [
-                          Expanded( // 验证码输入框占据大部分空间
-                            child: TextFormField(
-                              controller: _verificationCodeController, // 关联控制器
-                              decoration: InputDecoration(
-                                filled: true,
-                                fillColor: Colors.grey[200],
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(4.0),
-                                  borderSide: BorderSide.none,
-                                ),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 10), // 水平间距
-                          // 获取验证码按钮
-                          ElevatedButton(
-                            onPressed: () {
-                              // 获取验证码的逻辑
-                              // 例如: _sendVerificationCode();
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFFF9C44), // 橙色背景
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 15), // 内边距
-                            ),
-                            child: const Text('重新獲送', style: TextStyle(color: Colors.black)), // 按钮文本
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-
-                      // 错误提示区域，当_hasErrors为true时显示
-                      if (_hasErrors)
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start, // 左对齐
-                          children: const [
-                            // 各种错误信息，使用红色文字显示
-                            Text('• 使用者帳號規範不正確', style: TextStyle(color: Colors.red, fontSize: 14)),
-                            Text('• 使用者帳號已存在', style: TextStyle(color: Colors.red, fontSize: 14)),
-                            Text('• 密碼規範不正確', style: TextStyle(color: Colors.red, fontSize: 14)),
-                            Text('• 密碼與上面不同', style: TextStyle(color: Colors.red, fontSize: 14)),
-                            Text('• 驗證碼錯誤', style: TextStyle(color: Colors.red, fontSize: 14)),
-                          ],
-                        ),
-                      const SizedBox(height: 30),
-
-                      // 注册按钮
-                      Center( // 居中对齐
-                        child: ElevatedButton(
-                          onPressed: () {
-                            // 表单验证通过后执行注册逻辑
-                            if (_formKey.currentState!.validate()) {
-                              // 执行注册逻辑
-                              // 例如: _register();
-                            }
-                            //跳過驗證
-                            handleRegister();
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFFF9C44), // 橙色背景
-                            padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15), // 按钮内边距
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(25), // 圆角形状
-                            ),
-                          ),
-                          child: const Text('註冊', style: TextStyle(fontSize: 18, color: Colors.black)), // 按钮文本
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-
-                      // 问题链接
-                      Center(
-                        child: TextButton(
-                          onPressed: () {
-                            // 处理问题的逻辑
-                            // 例如: _handleProblem();
-                          },
-                          child: const Text(
-                            '發生問題請點選此處', // 链接文本
-                            style: TextStyle(color: Colors.black), // 文本样式
-                          ),
-                        ),
+                        child: _isSendingCode
+                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+                            : Text(_isCountingDown ? '$_countdown 秒' : '發送信件', style: const TextStyle(fontWeight: FontWeight.w500)),
                       ),
                     ],
                   ),
-                ),
-              ],
+                  const SizedBox(height: 30),
+
+                  // 註冊按鈕
+                  Center(
+                    child: SizedBox(
+                      width: 120,
+                      height: 50,
+                      child: ElevatedButton(
+                        onPressed: _isRegistering ? null : _handleRegister,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF004E98),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+                        ),
+                        child: _isRegistering
+                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                            : const Text('註冊', style: TextStyle(color: Color(0xFFFF8C00), fontSize: 18, fontWeight: FontWeight.w600)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
       ),
-    ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF004E98)),
+        ),
+        const SizedBox(height: 8),
+      ],
+    );
+  }
+
+  InputDecoration _buildInputDecoration() {
+    return InputDecoration(
+      filled: true,
+      fillColor: const Color(0xFFD1D6E2),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide.none,
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
     );
   }
 }

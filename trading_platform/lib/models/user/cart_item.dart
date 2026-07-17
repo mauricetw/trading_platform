@@ -1,86 +1,235 @@
-// 可能需要導入 Product Model，取決於你在 CartItem 中儲存多少 Product 資訊
+// lib/models/user/cart_item.dart
+import 'package:json_annotation/json_annotation.dart';
+import 'package:flutter/foundation.dart';
 import '../product/product.dart';
 
+part 'cart_item.g.dart';
+
+@JsonSerializable(fieldRename: FieldRename.snake, explicitToJson: true, createFactory: false)
 class CartItem {
-  // 購物車項目的唯一 ID (可選，如果後端為購物車項目生成 ID)
-  final String? id;
+  final int? id;
+  final int userId;
+  final int productId;
+  final int quantity;
+  final DateTime addedAt;
+  final Product product;
 
-  // 與此購物車項目關聯的使用者 ID
-  final String userId;
-
-  // 購物車中的商品 ID
-  final String productId;
-
-  // 購買數量
-  int quantity;
-
-  // 可選：商品的基本資訊快照，方便顯示
-  // 這樣做的好處是，即使商品價格或名稱在您將其添加到購物車後發生變化，
-  // 購物車中顯示的仍然是您添加時的資訊。
-  // 但需要確保在結帳時檢查最新的商品價格。
-  final String productName;
-  final double productPrice;
-  final String? productImage; // 商品圖片 URL
-
-  // TODO: 如果商品有規格（例如顏色、尺寸），可能需要添加規格相關的 ID 或信息
-  // final String? selectedVariantId;
-  // final String? selectedOptions; // 例如：'顏色: 紅色, 尺寸: M'
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  bool isSelected;
 
   CartItem({
     this.id,
     required this.userId,
     required this.productId,
     required this.quantity,
-    required this.productName,
-    required this.productPrice,
-    this.productImage,
-    // this.selectedVariantId,
-    // this.selectedOptions,
+    required this.addedAt,
+    required this.product,
+    this.isSelected = false,
   });
 
-  // 創建一個拷貝並增加數量的輔助方法
-  CartItem copyWith({int? quantity}) {
-    return CartItem(
-      id: id,
-      userId: userId,
-      productId: productId,
-      quantity: quantity ?? this.quantity,
-      // 如果 quantity 為 null，保持原來的數量
-      productName: productName,
-      productPrice: productPrice,
-      productImage: productImage,
-      // selectedVariantId: selectedVariantId,
-      // selectedOptions: selectedOptions,
-    );
-  }
-
-  // 從 JSON 創建 CartItem 物件
   factory CartItem.fromJson(Map<String, dynamic> json) {
-    return CartItem(
-      id: json['id'] as String?,
-      userId: json['userId'] as String,
-      productId: json['productId'] as String,
-      quantity: json['quantity'] as int,
-      productName: json['productName'] as String,
-      productPrice: (json['productPrice'] as num).toDouble(),
-      productImage: json['productImage'] as String?,
-      // selectedVariantId: json['selectedVariantId'] as String?,
-      // selectedOptions: json['selectedOptions'] as String?,
+    try {
+      debugPrint('CartItem: 開始解析 - ${json['product']?['name'] ?? 'Unknown'}');
+
+      // 安全的數值轉換
+      int safeInt(dynamic value, int defaultValue) {
+        if (value == null) return defaultValue;
+        if (value is int) return value;
+        if (value is num) return value.toInt();
+        if (value is String) return int.tryParse(value) ?? defaultValue;
+        return defaultValue;
+      }
+
+      // 解析基本欄位
+      final id = json['id'] != null ? safeInt(json['id'], 0) : null;
+      final userId = safeInt(json['user_id'], 0);
+      final quantity = safeInt(json['quantity'], 1);
+
+      // 智能獲取 product_id
+      int productId;
+      if (json['product_id'] != null) {
+        productId = safeInt(json['product_id'], 0);
+      } else {
+        // 從 product.id 獲取
+        final productData = json['product'];
+        if (productData is Map<String, dynamic> && productData['id'] != null) {
+          productId = safeInt(productData['id'], 0);
+        } else {
+          productId = 0;
+        }
+      }
+
+      // 解析日期
+      DateTime addedAt;
+      try {
+        addedAt = json['added_at'] != null
+            ? DateTime.parse(json['added_at'] as String)
+            : DateTime.now();
+      } catch (e) {
+        addedAt = DateTime.now();
+      }
+
+      // 解析 Product
+      Product product;
+      final productData = json['product'];
+
+      if (productData is Map<String, dynamic>) {
+        try {
+          product = Product.fromJson(productData);
+        } catch (e) {
+          debugPrint('Product 標準解析失敗，使用備用解析: $e');
+          product = _createProductFromBackendData(productData, productId);
+        }
+      } else {
+        product = _createFallbackProduct(productId);
+      }
+
+      final cartItem = CartItem(
+        id: id,
+        userId: userId,
+        productId: productId,
+        quantity: quantity,
+        addedAt: addedAt,
+        product: product,
+        isSelected: false,
+      );
+
+      debugPrint('CartItem: 解析成功 - ${cartItem.product.name}');
+      return cartItem;
+
+    } catch (e, stackTrace) {
+      debugPrint('CartItem: 解析失敗 - $e');
+      debugPrint('原始 JSON: $json');
+
+      return CartItem(
+        id: null,
+        userId: 0,
+        productId: 0,
+        quantity: 1,
+        addedAt: DateTime.now(),
+        product: _createFallbackProduct(0),
+        isSelected: false,
+      );
+    }
+  }
+
+  // 從後端資料建立 Product
+  static Product _createProductFromBackendData(Map<String, dynamic> data, int fallbackId) {
+    try {
+      // 處理圖片
+      List<String> imageUrls = [];
+      final images = data['images'] as List?;
+      if (images != null) {
+        for (var img in images) {
+          if (img is Map<String, dynamic>) {
+            final imageUrl = img['image_url'] as String?;
+            if (imageUrl != null) {
+              if (imageUrl.startsWith('http')) {
+                imageUrls.add(imageUrl);
+              } else {
+                imageUrls.add('http://10.0.2.2:8000$imageUrl');
+              }
+            }
+          }
+        }
+      }
+
+      // 處理分類
+      String categoryName = '未分類';
+      int categoryId = 0;
+      final category = data['category'];
+      if (category is Map<String, dynamic>) {
+        categoryName = category['name'] as String? ?? '未分類';
+        categoryId = category['id'] as int? ?? 0;
+      }
+
+      // 處理賣家資訊
+      SellerInfo? seller;
+      final sellerData = data['seller'];
+      if (sellerData is Map<String, dynamic>) {
+        seller = SellerInfo(
+          id: sellerData['id'] as int? ?? 0,
+          username: sellerData['username'] as String? ?? '未知賣家',
+          avatarUrl: sellerData['avatar_url'] as String?,
+        );
+      }
+
+      return Product(
+        id: (data['id'] as int?) ?? fallbackId,
+        name: (data['name'] as String?) ?? '未知商品',
+        description: (data['description'] as String?) ?? '',
+        price: (data['price'] as num?)?.toDouble() ?? 0.0,
+        originalPrice: (data['original_price'] as num?)?.toDouble(),
+        categoryId: categoryId,
+        category: categoryName,
+        imageUrls: imageUrls,
+        stockQuantity: (data['stock_quantity'] as int?) ?? 0,
+        status: (data['status'] as String?) ?? 'unknown',
+        createdAt: DateTime.tryParse(data['created_at'] as String? ?? '') ?? DateTime.now(),
+        updatedAt: DateTime.tryParse(data['updated_at'] as String? ?? '') ?? DateTime.now(),
+        salesCount: (data['sales_count'] as int?) ?? 0,
+        averageRating: (data['average_rating'] as num?)?.toDouble(),
+        reviewCount: (data['review_count'] as int?) ?? 0,
+        tags: (data['tags'] as List?)?.map((e) => e.toString()).toList(),
+        sellerId: (data['seller_id'] as int?) ?? 0,
+        seller: seller,
+        //isFavorite: false,
+      );
+    } catch (e) {
+      debugPrint('備用 Product 解析失敗: $e');
+      return _createFallbackProduct(fallbackId);
+    }
+  }
+
+  // 建立預設 Product
+  static Product _createFallbackProduct(int id) {
+    return Product(
+      id: id,
+      name: '商品解析失敗',
+      description: '無法解析商品資訊',
+      price: 0.0,
+      categoryId: 0,
+      category: '錯誤',
+      imageUrls: const [],
+      stockQuantity: 0,
+      status: 'error',
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      salesCount: 0,
+      reviewCount: 0,
+      sellerId: 0,
+      //isFavorite: false,
     );
   }
 
-  // 將 CartItem 物件轉換為 JSON
   Map<String, dynamic> toJson() {
     return {
-      'id': id,
-      'userId': userId,
-      'productId': productId,
+      if (id != null) 'id': id,
+      'user_id': userId,
+      'product_id': productId,
       'quantity': quantity,
-      'productName': productName,
-      'productPrice': productPrice,
-      'productImage': productImage,
-      // 'selectedVariantId': selectedVariantId,
-      // 'selectedOptions': selectedOptions,
+      'added_at': addedAt.toIso8601String(),
+      'product': product.toJson(),
     };
+  }
+
+  CartItem copyWith({
+    int? id,
+    int? userId,
+    int? productId,
+    int? quantity,
+    DateTime? addedAt,
+    Product? product,
+    bool? isSelected,
+  }) {
+    return CartItem(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      productId: productId ?? this.productId,
+      quantity: quantity ?? this.quantity,
+      addedAt: addedAt ?? this.addedAt,
+      product: product ?? this.product,
+      isSelected: isSelected ?? this.isSelected,
+    );
   }
 }

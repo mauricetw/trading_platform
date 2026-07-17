@@ -1,63 +1,185 @@
+// --- FILE: lib/models/user/user.dart ---
+import 'package:json_annotation/json_annotation.dart';
+import '../../config/api_config.dart';
+
+part 'user.g.dart';
+
+@JsonSerializable(
+    fieldRename: FieldRename.snake,
+    explicitToJson: true,
+    createFactory: false
+)
 class User {
-  final String id;
+  final int id;
+  @JsonKey(name: 'nickname')
   final String username;
   final String email;
   final String? phoneNumber;
-  final String? avatarUrl; // 大頭貼 URL (nullable)
-  final DateTime registeredAt;
-  final DateTime? lastLoginAt; // 最後登入時間 (nullable)
-  final String? bio; // 簡介 (nullable)
-  final String? schoolName; // 校名 (nullable)
-  final bool? isVerified; // 是否已驗證 (nullable)
-  final List<String>? roles; // 權限/角色 (nullable)
 
-  // 新增賣家相關屬性
-  final bool? isSeller; // 是否是賣家 (nullable)
-  final String? sellerName; // 賣家名稱 (nullable)
-  final String? sellerDescription; // 賣家簡介 (nullable)
-  final double? sellerRating; // 賣家評分 (nullable)
-  final int? productCount; // 賣家上架的商品數量 (nullable)
-  // 可以添加其他賣家相關屬性，例如：賣家店鋪圖片、營業時間等
+  @JsonKey(fromJson: _prefixUrl)
+  final String? avatarUrl;
+
+  final DateTime registeredAt;
+  final DateTime? lastLoginAt;
+  final String? bio;
+  final String? schoolName;
+  final String? address;
+  final bool isVerified;
+  final List<String> roles;
+
+  final bool isSeller;
+  final String? sellerName;
+  final String? sellerDescription;
+  final double? sellerRating;
+  final double? buyerRating;
+  final int productCount;
+
+  @JsonKey(defaultValue: [])
+  final List<String> favoriteProductIds;
+
+  final String? publicDisplayName;
+  final String? publicBio;
+  final String? publicCoverPhotoUrl;
+  @JsonKey(defaultValue: false)
+  final bool isSchoolPublic;
 
   User({
     required this.id,
     required this.username,
     required this.email,
+    required this.registeredAt,
     this.phoneNumber,
     this.avatarUrl,
-    required this.registeredAt,
     this.lastLoginAt,
     this.bio,
     this.schoolName,
-    this.isVerified,
-    this.roles,
-    // 初始化賣家相關屬性
-    this.isSeller = false, // 預設不是賣家
+    this.address,
+    required this.isVerified,
+    required this.roles,
+    required this.isSeller,
     this.sellerName,
     this.sellerDescription,
     this.sellerRating,
-    this.productCount,
+    this.buyerRating,
+    required this.productCount,
+    this.favoriteProductIds = const [],
+    this.publicDisplayName,
+    this.publicBio,
+    this.publicCoverPhotoUrl,
+    this.isSchoolPublic = false,
   });
 
-  // 為了方便測試，添加一個 fromJson 方法
+  String get effectivePublicDisplayName => publicDisplayName?.isNotEmpty == true ? publicDisplayName! : username;
+
   factory User.fromJson(Map<String, dynamic> json) {
+    // --- 安全解析輔助函式 ---
+    double? safeDouble(dynamic value) {
+      if (value == null) return null;
+      if (value is num) return value.toDouble();
+      if (value is String) return double.tryParse(value);
+      return null;
+    }
+
+    int safeInt(dynamic value, int defaultValue) {
+      if (value == null) return defaultValue;
+      if (value is num) return value.toInt();
+      if (value is String) return int.tryParse(value) ?? defaultValue;
+      return defaultValue;
+    }
+
     return User(
-      id: json['id'] as String,
-      username: json['username'] as String,
-      email: json['email'] as String,
-      avatarUrl: json['avatarUrl'] as String?,
-      registeredAt: DateTime.parse(json['registeredAt'] as String),
-      lastLoginAt: json['lastLoginAt'] != null ? DateTime.parse(json['lastLoginAt'] as String) : null,
+      id: safeInt(json['id'], 0),
+      username: json['nickname'] as String?
+          ?? json['username'] as String?
+          ?? '未知使用者',
+      email: json['email'] as String? ?? '',
+      registeredAt: json['registered_at'] != null ? DateTime.parse(json['registered_at'] as String) : DateTime.now(),
+      phoneNumber: json['phone_number'] as String?,
+      avatarUrl: _prefixUrl(json['avatar_url'] as String?),
+      lastLoginAt: json['last_login_at'] != null ? DateTime.parse(json['last_login_at'] as String) : null,
       bio: json['bio'] as String?,
-      schoolName: json['schoolName'] as String?,
-      isVerified: json['isVerified'] as bool?,
-      roles: (json['roles'] as List<dynamic>?)?.map((e) => e as String).toList(),
-      // 解析賣家相關屬性
-      isSeller: json['isSeller'] as bool? ?? false, // 如果 isSeller 為 null，預設為 false
-      sellerName: json['sellerName'] as String?,
-      sellerDescription: json['sellerDescription'] as String?,
-      sellerRating: json['sellerRating'] as double?,
-      productCount: json['productCount'] as int?,
+      schoolName: json['school_name'] as String?,
+      address: json['address'] as String?,
+      isVerified: json['is_verified'] as bool? ?? false,
+      roles: (json['roles'] as List<dynamic>?)?.map((e) => e as String).toList() ?? ['user'],
+      isSeller: json['is_seller'] as bool? ?? false,
+      sellerName: json['seller_name'] as String?,
+      sellerDescription: json['seller_description'] as String?,
+
+      // --- [修正重點] 使用 safeDouble ---
+      sellerRating: safeDouble(json['seller_rating']),
+      buyerRating: safeDouble(json['buyer_rating']),
+      productCount: safeInt(json['product_count'], 0),
+
+      favoriteProductIds: (json['favorite_product_ids'] as List<dynamic>?)?.map((e) => e as String).toList() ?? [],
+      publicDisplayName: json['public_display_name'] as String?,
+      publicBio: json['public_bio'] as String?,
+      publicCoverPhotoUrl: json['public_cover_photo_url'] as String?,
+      isSchoolPublic: json['is_school_public'] as bool? ?? false,
     );
   }
+
+  Map<String, dynamic> toJson() => _$UserToJson(this);
+
+  User copyWith({
+    int? id,
+    String? username,
+    String? email,
+    String? phoneNumber,
+    String? avatarUrl,
+    DateTime? registeredAt,
+    DateTime? lastLoginAt,
+    String? bio,
+    String? schoolName,
+    String? address,
+    bool? isVerified,
+    List<String>? roles,
+    bool? isSeller,
+    String? sellerName,
+    String? sellerDescription,
+    double? sellerRating,
+    double? buyerRating,
+    int? productCount,
+    List<String>? favoriteProductIds,
+    String? publicDisplayName,
+    String? publicBio,
+    String? publicCoverPhotoUrl,
+    bool? isSchoolPublic,
+  }) {
+    return User(
+      id: id ?? this.id,
+      username: username ?? this.username,
+      email: email ?? this.email,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      registeredAt: registeredAt ?? this.registeredAt,
+      lastLoginAt: lastLoginAt ?? this.lastLoginAt,
+      bio: bio ?? this.bio,
+      schoolName: schoolName ?? this.schoolName,
+      address: address ?? this.address,
+      isVerified: isVerified ?? this.isVerified,
+      roles: roles ?? this.roles,
+      isSeller: isSeller ?? this.isSeller,
+      sellerName: sellerName ?? this.sellerName,
+      sellerDescription: sellerDescription ?? this.sellerDescription,
+      sellerRating: sellerRating ?? this.sellerRating,
+      buyerRating: buyerRating ?? this.buyerRating,
+      productCount: productCount ?? this.productCount,
+      favoriteProductIds: favoriteProductIds ?? this.favoriteProductIds,
+      publicDisplayName: publicDisplayName ?? this.publicDisplayName,
+      publicBio: publicBio ?? this.publicBio,
+      publicCoverPhotoUrl: publicCoverPhotoUrl ?? this.publicCoverPhotoUrl,
+      isSchoolPublic: isSchoolPublic ?? this.isSchoolPublic,
+    );
+  }
+}
+
+String? _prefixUrl(String? relativeUrl) {
+  if (relativeUrl == null || relativeUrl.isEmpty) {
+    return null;
+  }
+  if (relativeUrl.startsWith('http')) {
+    return relativeUrl;
+  }
+  return '${APIConfig.baseUrl}$relativeUrl';
 }

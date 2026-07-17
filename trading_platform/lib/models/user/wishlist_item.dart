@@ -1,45 +1,58 @@
-import '../product/product.dart'; // 假設你需要引用 Product Model
+// --- FILE: lib/models/user/wishlist_item.dart ---
+import 'package:json_annotation/json_annotation.dart';
+import '../product/product.dart';
 
+part 'wishlist_item.g.dart';
+
+@JsonSerializable(fieldRename: FieldRename.snake, explicitToJson: true)
 class WishlistItem {
-  final String id; // 收藏項目的唯一 ID
-  final String userId; // 收藏該商品的用戶 ID
-  final String productId; // 被收藏的商品 ID
+  final int id;
+  final int userId;
+  final int productId;
+  final DateTime addedAt;
 
-  // 可選：直接包含商品的部分或全部信息，以避免額外查找
-  // 這樣做的好處是在顯示收藏列表時可以直接使用，不用額外查 Product
-  // 但如果商品信息變動頻繁，這裡的信息可能會過期，需要權衡
-  // final Product product; // 包含 Product 對象引用
-
-  // 可選：記錄收藏時間
-  final DateTime createdAt;
+  final Product product;
 
   WishlistItem({
     required this.id,
     required this.userId,
     required this.productId,
-    // this.product,
-    required this.createdAt,
+    required this.addedAt,
+    required this.product,
   });
 
-  factory WishlistItem.fromJson(Map<String, dynamic> json) {
+  factory WishlistItem.fromJson(Map<String, dynamic> json) => _$WishlistItemFromJson(json);
+  Map<String, dynamic> toJson() => _$WishlistItemToJson(this);
+
+  // --- 保留組員設計的輔助方法 ---
+  WishlistItem copyWith({
+    int? id,
+    int? userId,
+    int? productId,
+    DateTime? addedAt,
+    Product? product,
+  }) {
     return WishlistItem(
-      id: json['id'] as String,
-      userId: json['userId'] as String,
-      productId: json['productId'] as String,
-      // 如果 JSON 包含商品資訊，解析 Product
-      // product: json['product'] != null ? Product.fromJson(json['product'] as Map<String, dynamic>) : null,
-      createdAt: DateTime.parse(json['createdAt'] as String),
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      productId: productId ?? this.productId,
+      addedAt: addedAt ?? this.addedAt,
+      product: product ?? this.product,
     );
   }
 
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'userId': userId,
-      'productId': productId,
-      // 如果包含 Product，也需要轉換為 JSON
-      // 'product': product?.toJson(),
-      'createdAt': createdAt.toIso8601String(),
-    };
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is WishlistItem && other.id == id;
+  }
+
+  @override
+  int get hashCode => id.hashCode;
+
+  @override
+  String toString() {
+    return 'WishlistItem(id: $id, userId: $userId, productId: $productId, product: ${product.name})';
   }
 }
+

@@ -1,173 +1,201 @@
+// --- FILE: lib/main.dart ---
 import 'package:flutter/material.dart';
-import '../screens/main_market.dart';
 import 'package:provider/provider.dart';
-import 'providers/auth_provider.dart';
-import 'providers/wishlist_item.dart';
-import 'providers/category_provider.dart';
-import 'screens/auth/login_main.dart';
 
+import 'providers/auth_provider.dart';
+import 'providers/product_provider.dart';
+import 'providers/category_provider.dart';
+import 'providers/wishlist_provider.dart';
+import 'providers/cart_provider.dart';
+import 'providers/checkout_provider.dart';
+import 'providers/announcement_provider.dart';
+import 'providers/order_provider.dart';
+import 'providers/seller_provider.dart';
+import 'providers/chat_provider.dart';
+import 'providers/wishpool_provider.dart';
+import 'providers/wishpool_invite_provider.dart';
+import 'providers/address_provider.dart';
+
+import 'services/api_client.dart';
+import 'services/auth_service.dart';
+import 'services/user_service.dart';
+import 'services/product_service.dart';
+import 'services/cart_service.dart';
+import 'services/wishlist_service.dart';
+import 'services/order_service.dart';
+import 'services/address_service.dart';
+import 'services/announcement_service.dart';
+import 'services/upload_service.dart';
+import 'services/chat_service.dart';
+import 'services/websocket_service.dart';
+import 'services/wishpool_service.dart';
+import 'services/wishpool_invite_service.dart';
+
+import 'screens/auth/login_main.dart';
+import 'screens/main_market.dart';
+import 'screens/splash_screen.dart';
+import 'screens/wishpool/wishpool_main.dart';
+
+import 'theme/app_theme.dart';
+
+import 'dart:io'; // 記得匯入這個
+
+import 'package:flutter/foundation.dart'; // 引入 foundation
+import 'http_overrides.dart'; // 記得匯入剛剛建立的檔案 (路徑要對)
 
 void main() {
+  // 👇【關鍵】加入這一行，強制忽略 SSL 憑證錯誤
+  // kReleaseMode 是一個常數，如果現在是正式打包(flutter build)，它就是 true
+  if (!kReleaseMode) {
+    // 只有在 Debug 測試模式下，才忽略 SSL 錯誤
+    HttpOverrides.global = MyHttpOverrides();
+  }
+
+  // 1. 建立共用的 ApiClient 實例 (它會持有 Token)
+  final ApiClient apiClient = ApiClient();
+
+  // 2. 將 apiClient 注入到各個 Service
+  final AuthService authService = AuthService(apiClient);
+  final UserService userService = UserService(apiClient);
+  final ProductService productService = ProductService(apiClient);
+  final CartService cartService = CartService(apiClient);
+  final WishlistService wishlistService = WishlistService(apiClient);
+  final AnnouncementService announcementService = AnnouncementService(apiClient);
+  final UploadService uploadService = UploadService(apiClient);
+  final OrderService orderService = OrderService(apiClient);
+  final AddressService addressService = AddressService(apiClient);
+  final ChatService chatService = ChatService(apiClient);
+  final WebSocketService webSocketService = WebSocketService();
+
+  final WishPoolService wishPoolService = WishPoolService(apiClient);
+  final WishPoolInviteService wishPoolInviteService = WishPoolInviteService(apiClient);
+
+
   runApp(
-    // 使用 MultiProvider 替換單個 ChangeNotifierProvider
     MultiProvider(
-      // providers 列表包含所有你想要在應用程式中提供的 Providers
       providers: [
-        // AuthProvider
-        ChangeNotifierProvider(create: (context) => AuthProvider()),
-        // CategoryProvider
-        ChangeNotifierProvider(create: (context) => CategoryProvider()),
-        // WishlistProvider (如果需要依賴 AuthProvider，可以使用 ChangeNotifierProxyProvider)
-        ChangeNotifierProxyProvider<AuthProvider, WishlistProvider>(
-          create: (context) => WishlistProvider(), // 初始創建一個 WishlistProvider 實例
-          update: (context, authProvider, wishlistProvider) {
-            // 這個方法會在 AuthProvider 改變時被呼叫
-            // 更新 WishlistProvider 的狀態，例如傳入當前使用者 ID
-            wishlistProvider ??= WishlistProvider(); // 如果 wishlistProvider 還沒有被創建，就創建一個
-            wishlistProvider.updateCurrentUser(authProvider.currentUser?.id); // 假設 AuthProvider 有 currentUser
-            return wishlistProvider;
+        Provider<UserService>(
+          create: (_) => userService,
+        ),
+
+        Provider<OrderService>(
+          create: (_) => orderService,
+        ),
+
+        Provider<AddressService>(
+          create: (_) => addressService,
+        ),
+
+        ChangeNotifierProvider(
+          create: (_) => AuthProvider(authService, userService, apiClient, uploadService),
+        ),
+
+        ChangeNotifierProvider(
+          create: (_) => ProductProvider(productService, uploadService),
+        ),
+
+        // --- [修改] 注入 ProductService 到 CategoryProvider ---
+        ChangeNotifierProvider(
+          create: (_) => CategoryProvider(productService),
+        ),
+
+        ChangeNotifierProvider(
+          create: (_) => AnnouncementProvider(announcementService),
+        ),
+
+        ChangeNotifierProxyProvider<AuthProvider, CartProvider>(
+          create: (_) => CartProvider(cartService, null),
+          update: (_, auth, previousCart) {
+            previousCart?.update(auth);
+            return previousCart ?? CartProvider(cartService, auth);
           },
         ),
-        // 添加其他你需要註冊的 Providers
-        // 例如：ChangeNotifierProvider(create: (context) => CartProvider()),
-        // 例如：ChangeNotifierProvider(create: (context) => OrderProvider()),
+
+        ChangeNotifierProxyProvider<AuthProvider, WishlistProvider>(
+          create: (_) => WishlistProvider(wishlistService, null),
+          update: (_, auth, previousWishlist) {
+            previousWishlist?.update(auth);
+            return previousWishlist ?? WishlistProvider(wishlistService, auth);
+          },
+        ),
+
+        ChangeNotifierProxyProvider<AuthProvider, ChatProvider>(
+          create: (_) => ChatProvider(chatService, webSocketService, null),
+          update: (_, auth, previousChat) {
+            previousChat?.update(auth);
+            return previousChat ?? ChatProvider(chatService, webSocketService, auth);
+          },
+        ),
+
+        ChangeNotifierProxyProvider2<AuthProvider, CartProvider, CheckoutProvider>(
+          create: (_) => CheckoutProvider(orderService, addressService, null, null),
+          update: (_, auth, cart, previousCheckout) {
+            previousCheckout?.update(auth, cart);
+            return previousCheckout ?? CheckoutProvider(orderService, addressService, auth, cart);
+          },
+        ),
+
+        ChangeNotifierProxyProvider<AuthProvider, OrderProvider>(
+          create: (_) => OrderProvider(orderService, null),
+          update: (_, auth, previousOrders) {
+            previousOrders?.update(auth);
+            return previousOrders ?? OrderProvider(orderService, auth);
+          },
+        ),
+
+        ChangeNotifierProxyProvider<AuthProvider, SellerProvider>(
+          create: (_) => SellerProvider(orderService, null),
+          update: (_, auth, previous) {
+            previous?.update(auth);
+            return previous ?? SellerProvider(orderService, auth);
+          },
+        ),
+
+        ChangeNotifierProxyProvider<AuthProvider, AddressProvider>(
+          create: (ctx) => AddressProvider(
+              Provider.of<AddressService>(ctx, listen: false),
+              null
+          ),
+          update: (ctx, auth, previous) {
+            previous?.update(auth);
+            return previous ?? AddressProvider(
+                Provider.of<AddressService>(ctx, listen: false),
+                auth
+            );
+          },
+        ),
+
+        ChangeNotifierProvider(
+          create: (_) => WishPoolProvider(wishPoolService),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => WishPoolInviteProvider(wishPoolInviteService),
+        ),
+
       ],
-      // child 屬性仍然是你的應用程式的根 Widget
       child: const MyApp(),
     ),
   );
 }
 
-// class MyApp extends StatelessWidget {
-//   const MyApp({super.key});
-//
-//   // This widget is the root of your application.
-//   @override
-//   Widget build(BuildContext context) {
-//     return MaterialApp(
-//       title: 'Flutter Demo',
-//       theme: ThemeData(
-//         // This is the theme of your application.
-//         //
-//         // TRY THIS: Try running your application with "flutter run". You'll see
-//         // the application has a purple toolbar. Then, without quitting the app,
-//         // try changing the seedColor in the colorScheme below to Colors.green
-//         // and then invoke "hot reload" (save your changes or press the "hot
-//         // reload" button in a Flutter-supported IDE, or press "r" if you used
-//         // the command line to start the app).
-//         //
-//         // Notice that the counter didn't reset back to zero; the application
-//         // state is not lost during the reload. To reset the state, use hot
-//         // restart instead.
-//         //
-//         // This works for code too, not just values: Most code changes can be
-//         // tested with just a hot reload.
-//         colorScheme: ColorScheme.fromSeed(seedColor: Colors.amber),
-//       ),
-//       //home: const MyHomePage(title: 'Flutter Demo Home Page'),
-//       home: const MainMarket(),
-//     );
-//   }
-// }
-//
-// class MyHomePage extends StatefulWidget {
-//   const MyHomePage({super.key, required this.title});
-//
-//   // This widget is the home page of your application. It is stateful, meaning
-//   // that it has a State object (defined below) that contains fields that affect
-//   // how it looks.
-//
-//   // This class is the configuration for the state. It holds the values (in this
-//   // case the title) provided by the parent (in this case the App widget) and
-//   // used by the build method of the State. Fields in a Widget subclass are
-//   // always marked "final".
-//
-//   final String title;
-//
-//   @override
-//   State<MyHomePage> createState() => _MyHomePageState();
-// }
-//
-// class _MyHomePageState extends State<MyHomePage> {
-//   int _counter = 0;
-//
-//   void _incrementCounter() {
-//     setState(() {
-//       // This call to setState tells the Flutter framework that something has
-//       // changed in this State, which causes it to rerun the build method below
-//       // so that the display can reflect the updated values. If we changed
-//       // _counter without calling setState(), then the build method would not be
-//       // called again, and so nothing would appear to happen.
-//       _counter++;
-//     });
-//   }
-//
-//   @override
-//   Widget build(BuildContext context) {
-//     // This method is rerun every time setState is called, for instance as done
-//     // by the _incrementCounter method above.
-//     //
-//     // The Flutter framework has been optimized to make rerunning build methods
-//     // fast, so that you can just rebuild anything that needs updating rather
-//     // than having to individually change instances of widgets.
-//     return Scaffold(
-//       appBar: AppBar(
-//         // TRY THIS: Try changing the color here to a specific color (to
-//         // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-//         // change color while the other colors stay the same.
-//         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-//         // Here we take the value from the MyHomePage object that was created by
-//         // the App.build method, and use it to set our appbar title.
-//         title: Text(widget.title),
-//       ),
-//       body: Center(
-//         // Center is a layout widget. It takes a single child and positions it
-//         // in the middle of the parent.
-//         child: Column(
-//           // Column is also a layout widget. It takes a list of children and
-//           // arranges them vertically. By default, it sizes itself to fit its
-//           // children horizontally, and tries to be as tall as its parent.
-//           //
-//           // Column has various properties to control how it sizes itself and
-//           // how it positions its children. Here we use mainAxisAlignment to
-//           // center the children vertically; the main axis here is the vertical
-//           // axis because Columns are vertical (the cross axis would be
-//           // horizontal).
-//           //
-//           // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-//           // action in the IDE, or press "p" in the console), to see the
-//           // wireframe for each widget.
-//           mainAxisAlignment: MainAxisAlignment.center,
-//           children: <Widget>[
-//             const Text('You have pushed the button this many times:'),
-//             Text(
-//               '$_counter',
-//               style: Theme.of(context).textTheme.headlineMedium,
-//             ),
-//           ],
-//         ),
-//       ),
-//       floatingActionButton: FloatingActionButton(
-//         onPressed: _incrementCounter,
-//         tooltip: 'Increment',
-//         child: const Icon(Icons.add),
-//       ), // This trailing comma makes auto-formatting nicer for build methods.
-//     );
-//   }
-// }
-
 class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Trading Platform',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      home: const LoginScreen(), // 使用您的登入畫面作為首頁
+      title: '交易平台',
+      theme: appLightTheme,
+      darkTheme: appDarkTheme,
+      themeMode: ThemeMode.system,
+      home: const SplashScreen(),
+      routes: {
+        '/login': (context) => const LoginMainPage(),
+        '/home': (context) {
+          return const MainMarket();
+        },
+      },
     );
   }
 }
